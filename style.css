@@ -1,0 +1,38 @@
+:root {
+  --brand: #005bab; --brand-deep: #003e78; --brand-tint: #e8f1fb;
+  --text: #0f172a; --sub: #475569; --mute: #94a3b8;
+  --bg: #f4f5f7; --surface: #fff; --border: #e5e7eb;
+  --ok: #0f7b4f; --bad: #c2352b;
+  color-scheme: light only;
+  font-family: "Pretendard Variable", Pretendard, -apple-system, "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 520px; margin: 0 auto; padding: 40px 20px 60px; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .14em; color: var(--brand); }
+h1 { font-size: 28px; font-weight: 800; letter-spacing: -.02em; margin: 4px 0 8px; }
+h2 { font-size: 17px; margin-bottom: 14px; }
+h3 { font-size: 13px; color: var(--sub); margin: 18px 0 8px; letter-spacing: .04em; }
+.sub { color: var(--sub); font-size: 14px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-top: 20px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 6px 18px rgba(15, 23, 42, .05); }
+label { display: block; font-size: 13px; font-weight: 600; color: var(--sub); margin-bottom: 12px; }
+input { display: block; width: 100%; margin-top: 6px; height: 46px; padding: 0 12px; font: inherit; font-size: 16px;
+        border: 1.5px solid #cbd5e1; border-radius: 10px; background: #fff; color: var(--text); }
+input:focus { outline: none; border-color: var(--brand); }
+button { width: 100%; height: 48px; border: 0; border-radius: 12px; background: var(--brand); color: #fff;
+         font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
+button:disabled { opacity: .5; cursor: default; }
+button.ghost { background: #fff; color: var(--sub); border: 1px solid #cbd5e1; margin-top: 18px; }
+.err { color: var(--bad); font-size: 13px; min-height: 20px; margin-top: 10px; }
+.hint { color: var(--mute); font-size: 12px; margin-top: 8px; }
+dl { display: grid; grid-template-columns: 90px 1fr; gap: 8px 12px; font-size: 14px; }
+dt { color: var(--sub); }
+dd { font-weight: 600; word-break: break-all; }
+ul { padding-left: 18px; font-size: 14px; }
+li { margin: 4px 0; }
+li.no { color: var(--mute); }
+.status { text-align: center; font-size: 12px; color: var(--mute); margin-top: 20px; }
+.status.ok { color: var(--ok); }
+.status.bad { color: var(--bad); }
+[hidden] { display: none !important; }
