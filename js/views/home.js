@@ -39,13 +39,14 @@ export function renderHome(el, { me, go }) {
     .then(({ entries }) => {
       const cur = entries.find((e) => e.currency)?.currency || "USD";
       const count = (s) => entries.filter((e) => s.includes(e.status)).length;
-      const todo = count(["draft", "flagged"]);
+      const todo = count(["draft", "flagged", "returned"]);
+      const inReview = count(["submitted", "imc_head_review", "chief_review", "finance_review"]);
       const inel = entries.reduce((a, e) => a + (Number(e.ineligibleAmount) || 0), 0);
       const total = entries.reduce((a, e) => a + (Number(e.amount) || 0), 0);
       clear(kpis).append(
         kpi("이번 분기 전표", `${entries.length}건`, money(total, cur), "neutral"),
-        kpi("미제출", `${todo}건`, count(["flagged"]) ? `검토 필요 ${count(["flagged"])}건` : "확인 후 제출하세요", todo ? "warn" : "ok", () => go("entries")),
-        kpi("제출·승인", `${count(["submitted", "approved"])}건`, `승인 ${count(["approved"])}건`, "info"),
+        kpi("미제출", `${todo}건`, count(["returned"]) ? `반려 ${count(["returned"])}건 — 고쳐서 다시 제출` : count(["flagged"]) ? `검토 필요 ${count(["flagged"])}건` : "확인 후 제출하세요", count(["returned"]) ? "bad" : todo ? "warn" : "ok", () => go("entries")),
+        kpi("결재 진행·완료", `${inReview + count(["approved"])}건`, `진행 ${inReview}건 · 완료 ${count(["approved"])}건${count(["rejected"]) ? ` · 불승인 ${count(["rejected"])}건` : ""}`, "info"),
         kpi("한도 초과 비적격", money(inel, cur), inel > 0 ? "초과분은 비적격 처리" : "초과 없음", inel > 0 ? "bad" : "ok"),
       );
       const rows = [...entries].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))).slice(0, 8);

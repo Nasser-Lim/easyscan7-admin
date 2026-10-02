@@ -63,10 +63,22 @@ export const ACCOUNTS = ["경상비", "취재비", "차량유지비"];
 export const STATUS = {
   draft: { label: "작성중", cls: "chip-neutral" },
   flagged: { label: "검토 필요", cls: "chip-warn" },
-  submitted: { label: "제출됨", cls: "chip-info" },
-  approved: { label: "승인됨", cls: "chip-ok" },
+  returned: { label: "반려됨", cls: "chip-bad" },
+  submitted: { label: "IMC 분류 대기", cls: "chip-info" },
+  imc_head_review: { label: "IMC팀장 전결 대기", cls: "chip-info" },
+  chief_review: { label: "보도국장 전결 대기", cls: "chip-purple" },
+  finance_review: { label: "재무팀 검토 대기", cls: "chip-info" },
+  approved: { label: "결재 완료", cls: "chip-ok" },
+  rejected: { label: "불승인", cls: "chip-bad" },
   deleted: { label: "삭제됨", cls: "chip-muted" },
 };
+// 상태 묶음 — 백엔드 services/workflow.py 와 같은 규칙
+export const STAFF_EDITABLE = new Set(["draft", "flagged", "returned"]);
+export const IN_REVIEW = new Set(["submitted", "imc_head_review", "chief_review", "finance_review"]);
+export const FINAL = new Set(["approved", "rejected", "deleted"]);
+export const ELIGIBILITY = { eligible: ["적격", "ok"], ineligible: ["비적격", "bad"] };
+export const REVIEWER_ROLES = new Set(["imc", "imc_head", "bureau_chief", "division_head", "finance", "admin"]);
+export const ACTION_LABEL = { submit: "제출", approve: "승인", return: "반려", reject: "불승인" };
 export const ROLE = {
   staff: "지국 담당자", imc: "보도IMC팀", imc_head: "보도IMC팀장", bureau_chief: "보도국장",
   division_head: "보도본부장", finance: "재무팀", admin: "관리자",

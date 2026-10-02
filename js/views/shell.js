@@ -52,6 +52,13 @@ export function renderShell(root, me, nav) {
   return content;
 }
 
+export function setNavBadge(route, n) {
+  const a = navLinks.find((x) => x.dataset.route === route);
+  if (!a) return;
+  a.querySelector(".nav-badge")?.remove();
+  if (n > 0) a.append(h("span", { class: "nav-badge" }, n > 99 ? "99+" : String(n)));
+}
+
 export function setActiveNav(route) {
   navLinks.forEach((a) => a.classList.toggle("active", a.dataset.route === route));
 }

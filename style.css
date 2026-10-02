@@ -526,3 +526,34 @@ select.input { padding-right: 28px; }
   .card, .kpi { box-shadow: none; border-color: #bbb; break-inside: avoid; }
   .content { padding: 12px 0; max-width: none; }
 }
+
+/* ── 결재 ── */
+.chip-purple { background: #f1ecfb; color: #5b3aa8; border-color: #e0d5f6; }
+.nav-badge {
+  margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+  background: var(--sbs-orange); color: #1c1300; font-size: 11px; font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.review-panel {
+  margin-bottom: 18px; padding: 14px 16px; border: 1px solid #cfe7f5; border-left: 4px solid var(--sbs-sky);
+  border-radius: var(--radius); background: var(--sbs-sky-50); display: flex; flex-direction: column; gap: 10px;
+}
+.review-panel-head { display: flex; align-items: center; gap: 8px; color: var(--sbs-blue); }
+.review-panel-head .ic { width: 18px; height: 18px; }
+.review-panel .input { background: #fff; }
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); overflow: hidden; background: #fff; align-self: flex-start; }
+.seg-btn { border: 0; background: transparent; padding: 7px 18px; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--text-2); cursor: pointer; }
+.seg-btn + .seg-btn { border-left: 1px solid var(--line-strong); }
+.seg-btn:disabled { opacity: .4; cursor: not-allowed; }
+.seg-eligible.on { background: var(--ok-50); color: var(--ok); }
+.seg-ineligible.on { background: var(--bad-50); color: var(--bad); }
+.timeline { list-style: none; display: flex; flex-direction: column; gap: 0; margin: 0 0 4px; }
+.timeline li { position: relative; display: flex; gap: 12px; padding: 0 0 14px 0; }
+.timeline li:not(:last-child)::before { content: ""; position: absolute; left: 5px; top: 14px; bottom: 0; width: 2px; background: var(--line); }
+.tl-dot { flex: none; width: 12px; height: 12px; margin-top: 4px; border-radius: 50%; background: var(--sbs-sky); box-shadow: 0 0 0 3px #fff; position: relative; z-index: 1; }
+.tl-approve .tl-dot { background: var(--ok); }
+.tl-return .tl-dot, .tl-reject .tl-dot { background: var(--bad); }
+.tl-submit .tl-dot { background: var(--sbs-blue); }
+.tl-head { font-size: 13.5px; }
+.tl-meta { font-size: 12px; color: var(--text-3); }
+.tl-comment { margin-top: 4px; padding: 6px 10px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: 13px; }

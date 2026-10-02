@@ -13,7 +13,7 @@ const PERMS = {
 };
 
 export function renderAccount(el, { me }) {
-  const ready = me.role === "staff";
+  const ready = Boolean(PERMS[me.role]);
   el.append(
     pageHeader({ crumbs: ["설정"], title: "내 계정", desc: "로그인한 계정의 역할과 권한입니다." }),
     h(
@@ -40,7 +40,7 @@ export function renderAccount(el, { me }) {
         { class: "card" },
         h("div", { class: "card-head" }, h("div", { class: "card-title" }, "이 계정의 권한")),
         h("ul", { class: "perm-list" }, (PERMS[me.role] || []).map((p) => h("li", {}, p))),
-        ready ? null : h("p", { class: "card-note" }, "이 역할의 업무 화면은 준비 중입니다. 지금은 지국 담당자 화면만 제공됩니다."),
+        ready ? null : h("p", { class: "card-note" }, "이 역할은 아직 정의되지 않았습니다. 관리자에게 문의하세요."),
       ),
     ),
   );

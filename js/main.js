@@ -7,24 +7,36 @@ import { renderHome } from "./views/home.js";
 import { renderUpload } from "./views/upload.js";
 import { renderEntries } from "./views/entries.js";
 import { renderAccount } from "./views/account.js";
+import { renderInbox, refreshInboxBadge } from "./views/inbox.js";
 
 const app = document.getElementById("app");
 let me = null;
 let content = null;
 
-// 역할별 메뉴. 지국 담당자(staff)만 업무 메뉴가 있다 — 다른 역할 화면은 준비 중.
+// 역할별 메뉴 — 실제 권한 검사는 서버(deps.py·workflow.py)가 한다. 메뉴는 편의.
+const REVIEWER_NAV = [
+  { route: "inbox", label: "결재함", icon: "check" },
+  { route: "entries", label: "전체 전표", icon: "list" },
+];
 export const NAV = {
   staff: [
     { route: "home", label: "홈", icon: "home" },
     { route: "upload", label: "증빙 업로드", icon: "upload" },
     { route: "entries", label: "전표 조회", icon: "list" },
   ],
+  imc: REVIEWER_NAV,
+  imc_head: REVIEWER_NAV,
+  bureau_chief: REVIEWER_NAV,
+  division_head: REVIEWER_NAV,
+  finance: REVIEWER_NAV,
+  admin: REVIEWER_NAV,
 };
 
 const ROUTES = {
   home: (el, ctx) => renderHome(el, ctx),
   upload: (el, ctx) => renderUpload(el, ctx),
   entries: (el, ctx) => renderEntries(el, ctx),
+  inbox: (el, ctx) => renderInbox(el, ctx),
   account: (el, ctx) => renderAccount(el, ctx),
 };
 
@@ -69,6 +81,7 @@ async function boot() {
   clear(app);
   content = renderShell(app, me, NAV[me.role] || []);
   navigate();
+  refreshInboxBadge(me);
 }
 
 onSignedOut(() => {

@@ -1,23 +1,29 @@
-// 전표 조회 — 필터·정렬 목록, 일괄 제출, 상세 서랍(원본 증빙 대조 + 수정·제출·삭제).
+// 전표 조회 — 필터·정렬 목록, 일괄 제출, 상세 서랍(원본 증빙 대조 + 수정·제출·삭제 / 결재).
+// 지국 담당자: 자기 지국 · 본사 결재자: 전 지국(지국 필터), 결재는 결재함 또는 이 화면의 상세 서랍에서.
 import { api } from "../api.js";
 import {
-  ACCOUNTS, BRANCH, DOC_TYPE, STATUS, chip, clear, confirmDialog, currentQuarter, dateText, dateTime, empty, errorText,
-  field, h, icon, money, noticeParts, QUARTER_SOURCE, quarterLabel, quarterOf, quarterOptions, select, spinner, statusChip, toast,
+  ACCOUNTS, ACTION_LABEL, BRANCH, DOC_TYPE, ELIGIBILITY, FINAL, IN_REVIEW, ROLE, STAFF_EDITABLE, STATUS, chip, clear,
+  confirmDialog, currentQuarter, dateText, dateTime, empty, errorText, field, h, icon, money, noticeParts,
+  QUARTER_SOURCE, quarterLabel, quarterOf, quarterOptions, select, spinner, statusChip, toast,
 } from "../ui.js";
+import { refreshInboxBadge } from "./inbox.js";
 import { pageHeader } from "./shell.js";
 
-const EDITABLE_STATUS = new Set(["draft", "flagged"]);
+const EDITABLE_STATUS = STAFF_EDITABLE; // 지국 담당자가 고치고 제출할 수 있는 상태
 // 화면을 옮겨 다녀도 필터는 유지(세션 동안)
-const state = { quarter: currentQuarter(), account: "", status: "", q: "", sort: "txnDate", dir: -1 };
+const state = { quarter: currentQuarter(), account: "", status: "", q: "", sort: "txnDate", dir: -1, branch: "all" };
 
 export function renderEntries(el, { me, params }) {
-  const branch = `${BRANCH[me.branchId] || me.branchId}지국`;
+  const isStaff = me.role === "staff";
+  const branch = isStaff ? `${BRANCH[me.branchId] || me.branchId}지국` : "본사";
   let rows = [];
   const selected = new Set();
 
   const quarter = select(quarterOptions(6).map((q) => [q, quarterLabel(q)]), state.quarter, { class: "input input-sm" });
   const account = select([["", "전체 계정"], ...ACCOUNTS.map((a) => [a, a])], state.account, { class: "input input-sm" });
-  const status = select([["", "전체 상태"], ...["draft", "flagged", "submitted", "approved"].map((s) => [s, STATUS[s].label])], state.status, { class: "input input-sm" });
+  const status = select([["", "전체 상태"], ...Object.keys(STATUS).filter((s) => s !== "deleted").map((s) => [s, STATUS[s].label])], state.status, { class: "input input-sm" });
+  const branchSel = isStaff ? null : select([["all", "전체 지국"], ...Object.entries(BRANCH).map(([id, n]) => [id, `${n}지국`])], state.branch, { class: "input input-sm" });
+  branchSel?.addEventListener("change", () => ((state.branch = branchSel.value), load()));
   const search = h("input", { class: "input input-sm", type: "search", placeholder: "가맹점·주문번호·적요 검색", value: state.q });
   const kpiBar = h("div", { class: "kpis kpis-sm" });
   const bulk = h("div", { class: "bulkbar" });
@@ -32,15 +38,15 @@ export function renderEntries(el, { me, params }) {
   el.append(
     pageHeader({
       crumbs: [branch, "업무"],
-      title: "전표 조회",
-      desc: "AI 가 만든 전표를 원본 증빙과 대조해 수정하고 제출합니다.",
-      actions: [refreshBtn, h("a", { class: "btn btn-primary", href: "#/upload" }, icon("upload"), h("span", {}, "증빙 업로드"))],
+      title: isStaff ? "전표 조회" : "전체 전표",
+      desc: isStaff ? "AI 가 만든 전표를 원본 증빙과 대조해 수정하고 제출합니다." : "전 지국 전표와 결재 진행 상황입니다. 결재할 전표는 결재함에 모입니다.",
+      actions: isStaff ? [refreshBtn, h("a", { class: "btn btn-primary", href: "#/upload" }, icon("upload"), h("span", {}, "증빙 업로드"))] : [refreshBtn],
     }),
     kpiBar,
     h(
       "section",
       { class: "card card-flush" },
-      h("div", { class: "toolbar" }, h("div", { class: "toolbar-filters" }, quarter, account, status), h("div", { class: "toolbar-search" }, icon("search"), search)),
+      h("div", { class: "toolbar" }, h("div", { class: "toolbar-filters" }, branchSel, quarter, account, status), h("div", { class: "toolbar-search" }, icon("search"), search)),
       bulk,
       tableWrap,
     ),
@@ -50,7 +56,8 @@ export function renderEntries(el, { me, params }) {
     clear(tableWrap).append(h("div", { class: "card-loading" }, spinner()));
     selected.clear();
     try {
-      rows = (await api.get(`/entries?quarter=${encodeURIComponent(state.quarter)}`)).entries;
+      const br = isStaff ? "" : `&branch=${encodeURIComponent(state.branch)}`;
+      rows = (await api.get(`/entries?quarter=${encodeURIComponent(state.quarter)}${br}`)).entries;
       paint();
     } catch (e) {
       clear(tableWrap).append(h("p", { class: "card-error" }, errorText(e)));
@@ -75,14 +82,16 @@ export function renderEntries(el, { me, params }) {
 
   function paint() {
     const cur = rows.find((e) => e.currency)?.currency || "USD";
-    const by = (s) => rows.filter((e) => e.status === s);
+    const by = (set) => rows.filter((e) => set.has(e.status));
     const sum = (arr, f = "amount") => arr.reduce((a, e) => a + (Number(e[f]) || 0), 0);
+    const writing = by(new Set(["draft", "flagged"]));
+    const returned = by(new Set(["returned"]));
     clear(kpiBar).append(
       mini("전체", rows.length, money(sum(rows), cur)),
-      mini("작성중", by("draft").length, money(sum(by("draft")), cur)),
-      mini("검토 필요", by("flagged").length, money(sum(by("flagged")), cur), "warn"),
-      mini("제출됨", by("submitted").length, money(sum(by("submitted")), cur), "info"),
-      mini("승인됨", by("approved").length, money(sum(by("approved")), cur), "ok"),
+      mini("작성중", writing.length, money(sum(writing), cur), writing.length ? "warn" : null),
+      mini("반려됨", returned.length, money(sum(returned), cur), returned.length ? "bad" : null),
+      mini("결재 진행", by(IN_REVIEW).length, money(sum(by(IN_REVIEW)), cur), "info"),
+      mini("결재 완료", by(new Set(["approved"])).length, money(sum(by(new Set(["approved"]))), cur), "ok"),
       mini("비적격", money(sum(rows, "ineligibleAmount"), cur), "한도 초과분", sum(rows, "ineligibleAmount") > 0 ? "bad" : null),
     );
 
@@ -93,7 +102,7 @@ export function renderEntries(el, { me, params }) {
       clear(tableWrap).append(rows.length ? empty("조건에 맞는 전표가 없습니다", "필터를 바꿔 보세요.") : empty(`${quarterLabel(state.quarter)} 전표가 없습니다`, "증빙을 업로드하면 전표가 만들어집니다."));
       return;
     }
-    const selectable = list.filter((e) => EDITABLE_STATUS.has(e.status));
+    const selectable = isStaff ? list.filter((e) => EDITABLE_STATUS.has(e.status)) : [];
     const all = h("input", { type: "checkbox", class: "check", "aria-label": "전체 선택", disabled: !selectable.length });
     all.checked = selectable.length > 0 && selectable.every((e) => selected.has(e.id));
     all.addEventListener("change", () => {
@@ -117,7 +126,7 @@ export function renderEntries(el, { me, params }) {
           h(
             "tr",
             {},
-            h("th", { class: "cell-check" }, all),
+            isStaff ? h("th", { class: "cell-check" }, all) : th("지국", "branchId"),
             th("사용일", "txnDate"),
             th("가맹점", "merchant"),
             th("계정", "account"),
@@ -132,7 +141,7 @@ export function renderEntries(el, { me, params }) {
           "tbody",
           {},
           list.map((e) => {
-            const cb = h("input", { type: "checkbox", class: "check", "aria-label": "선택", disabled: !EDITABLE_STATUS.has(e.status) });
+            const cb = h("input", { type: "checkbox", class: "check", "aria-label": "선택", disabled: !isStaff || !EDITABLE_STATUS.has(e.status) });
             cb.checked = selected.has(e.id);
             cb.addEventListener("click", (ev) => ev.stopPropagation());
             cb.addEventListener("change", () => ((cb.checked ? selected.add(e.id) : selected.delete(e.id)), paint()));
@@ -140,7 +149,7 @@ export function renderEntries(el, { me, params }) {
             return h(
               "tr",
               { class: `row-link${selected.has(e.id) ? " selected" : ""}`, onclick: () => openDrawer(e.id, me, onChanged) },
-              h("td", { class: "cell-check" }, cb),
+              isStaff ? h("td", { class: "cell-check" }, cb) : h("td", {}, BRANCH[e.branchId] || e.branchId),
               h("td", { class: "mono" }, dateText(e.txnDate)),
               h(
                 "td",
@@ -152,7 +161,7 @@ export function renderEntries(el, { me, params }) {
               h("td", { class: "cell-sub" }, DOC_TYPE[e.docType] || e.docType || "—"),
               h("td", { class: "num strong" }, money(e.amount, e.currency)),
               h("td", { class: `num ${e.ineligibleAmount > 0 ? "text-bad" : "muted"}` }, e.ineligibleAmount > 0 ? money(e.ineligibleAmount, e.currency) : "—"),
-              h("td", {}, statusChip(e.status)),
+              h("td", {}, statusChip(e.status), e.eligibility ? h("div", { class: "cell-sub" }, ELIGIBILITY[e.eligibility][0]) : null),
               h("td", { class: "cell-sub mono" }, dateTime(e.createdAt)),
             );
           }),
@@ -182,7 +191,7 @@ export function renderEntries(el, { me, params }) {
     const flagged = picked.filter((e) => e.status === "flagged").length;
     const ok = await confirmDialog({
       title: `전표 ${picked.length}건 제출`,
-      message: h("div", {}, h("p", {}, "제출한 전표는 결재선으로 넘어가며, 이후 수정은 재무팀에 요청해야 합니다."), flagged ? h("p", { class: "text-warn" }, `검토 필요 전표 ${flagged}건이 포함되어 있습니다. 원본과 대조했는지 확인하세요.`) : null),
+      message: h("div", {}, h("p", {}, "제출한 전표는 보도IMC팀 분류부터 결재선으로 넘어가며, 반려되기 전에는 수정할 수 없습니다."), flagged ? h("p", { class: "text-warn" }, `검토 필요 전표 ${flagged}건이 포함되어 있습니다. 원본과 대조했는지 확인하세요.`) : null),
       confirm: "제출",
     });
     if (!ok) return;
@@ -218,7 +227,7 @@ function mini(label, value, sub, tone) {
 // ── 상세 서랍 ─────────────────────────────────────────────
 let openBack = null;
 
-function openDrawer(id, me, onChanged) {
+export function openDrawer(id, me, onChanged) {
   if (openBack) openBack.close();
   const urls = [];
   const body = h("div", { class: "drawer-body" }, h("div", { class: "card-loading" }, spinner()));
@@ -259,9 +268,12 @@ function openDrawer(id, me, onChanged) {
       clear(titleEl).append(e.merchantKo || e.merchant || "전표 상세", " ", statusChip(e.status));
       subEl.textContent = [e.account, quarterLabel(e.quarter), e.orderNumber ? `주문 #${e.orderNumber}` : null, `ID ${e.id}`].filter(Boolean).join(" · ");
       const form = detailForm(e, me);
+      const review = e.stage?.canAct ? reviewPanel(e, me) : null;
+      if (review) form.node.prepend(review.node);
       dirty = form.dirty;
       clear(body).append(h("div", { class: "detail" }, evidenceViewer(e, urls), h("div", { class: "detail-side" }, form.node)));
-      clear(foot).append(...footer(e, form, { close, onChanged, reopen: () => openDrawer(id, me, onChanged) }));
+      const ctx = { close, onChanged: () => (onChanged(), refreshInboxBadge(me)), reopen: () => openDrawer(id, me, onChanged) };
+      clear(foot).append(...(review ? reviewFooter(e, me, form, review, ctx) : footer(e, form, ctx)));
     })
     .catch((ex) => clear(body).append(h("p", { class: "card-error" }, errorText(ex))));
 }
@@ -319,8 +331,14 @@ function evidenceViewer(e, urls) {
   return h("section", { class: "viewer" }, h("div", { class: "viewer-head" }, h("span", { class: "section-label" }, "원본 증빙"), ids.length > 1 ? h("span", { class: "muted small" }, `${ids.length}개 파일`) : null), tabs, stage);
 }
 
+function canEdit(e, me) {
+  if (me.role === "staff") return EDITABLE_STATUS.has(e.status);
+  if (me.role === "finance" || me.role === "admin") return e.status === "finance_review"; // 최종 검토 중 정정
+  return false; // 보도IMC팀·보도국장은 고치지 않고 반려한다
+}
+
 function detailForm(e, me) {
-  const editable = EDITABLE_STATUS.has(e.status);
+  const editable = canEdit(e, me);
   const cur = e.currency || "USD";
   const conf = e.fieldConfidence || {};
   // 서버 규칙(lowconf-amount·lowconf-date)과 같은 기준
@@ -379,8 +397,12 @@ function detailForm(e, me) {
     const p = noticeParts(n);
     banners.push(banner(p.tone === "bad" ? "bad" : p.tone === "warn" ? "warn" : "info", "info", p.label, p.text));
   }
-  if (e.status === "submitted") banners.push(banner("info", "info", "제출됨", "결재 진행 중인 전표입니다. 수정이 필요하면 재무팀에 요청하세요."));
-  if (e.status === "approved") banners.push(banner("ok", "check", "승인됨", "승인이 끝난 전표라 수정할 수 없습니다."));
+  if (e.status === "returned")
+    banners.unshift(banner("bad", "alert", "반려됨 — 고쳐서 다시 제출하세요", e.returnedReason || "사유 없음"));
+  if (IN_REVIEW.has(e.status) && !e.stage?.canAct)
+    banners.push(banner("info", "info", STATUS[e.status].label, me.role === "staff" ? "결재 진행 중입니다. 반려되면 다시 고칠 수 있습니다." : "다른 단계의 결재를 기다리는 전표입니다."));
+  if (e.status === "approved") banners.push(banner("ok", "check", "결재 완료", "재무팀 결재까지 끝난 전표라 수정할 수 없습니다."));
+  if (e.status === "rejected") banners.push(banner("bad", "x", "불승인", "비적격 증빙으로 지급하지 않기로 결재되었습니다(한도에서도 빠짐)."));
 
   const items = e.lineItems || [];
   const node = h(
@@ -412,6 +434,7 @@ function detailForm(e, me) {
       h("dt", {}, "등록"), h("dd", {}, `${dateTime(e.createdAt)} · ${e.via === "intake" ? "관리웹 업로드" : "촬영앱"}`),
       e.updatedAt ? [h("dt", {}, "최종 수정"), h("dd", {}, dateTime(e.updatedAt))] : null,
     ),
+    approvalTimeline(e),
     items.length
       ? [
           h("div", { class: "section-label" }, `품목 ${items.length}개`),
@@ -444,6 +467,125 @@ function detailForm(e, me) {
     return out;
   }
   return { node, editable, diff, inputs, dirty: () => editable && Object.keys(diff()).length > 0 };
+}
+
+// ── 결재 ─────────────────────────────────────────────────
+function approvalTimeline(e) {
+  const list = e.approvals || [];
+  if (!list.length) return null;
+  return [
+    h("div", { class: "section-label" }, "결재 이력"),
+    h(
+      "ol",
+      { class: "timeline" },
+      list.map((a) =>
+        h(
+          "li",
+          { class: `tl-${a.action}` },
+          h("span", { class: "tl-dot", "aria-hidden": "true" }),
+          h(
+            "div",
+            {},
+            h("div", { class: "tl-head" }, h("b", {}, a.step || ""), " · ", ACTION_LABEL[a.action] || a.action,
+              a.eligibility && a.action === "approve" ? [" · ", ELIGIBILITY[a.eligibility]?.[0] || a.eligibility] : null),
+            h("div", { class: "tl-meta" }, `${a.roleLabel || ROLE[a.role] || a.role} ${a.email || ""} · ${dateTime(a.at)}`),
+            a.comment ? h("div", { class: "tl-comment" }, a.comment) : null,
+          ),
+        ),
+      ),
+    ),
+  ];
+}
+
+function reviewPanel(e, me) {
+  const atImc = e.status === "submitted" || e.status === "imc_head_review";
+  const overLimit = e.ineligibleAmount > 0;
+  const comment = h("textarea", { class: "input", rows: "2", placeholder: "의견 (반려·불승인·비적격일 때 필수)" });
+  let eligibility = e.eligibility || (overLimit ? "ineligible" : null);
+  const radios = atImc
+    ? h(
+        "div",
+        { class: "seg", role: "radiogroup", "aria-label": "적격 분류" },
+        ["eligible", "ineligible"].map((v) => {
+          const b = h("button", { type: "button", class: `seg-btn seg-${v}`, role: "radio", disabled: v === "eligible" && overLimit,
+            title: v === "eligible" && overLimit ? "한도 초과 금액이 있어 적격으로 분류할 수 없습니다" : "" }, ELIGIBILITY[v][0]);
+          b.addEventListener("click", () => {
+            eligibility = v;
+            radios.querySelectorAll(".seg-btn").forEach((x) => x.classList.toggle("on", x === b));
+            panel.dispatchEvent(new Event("eligibility"));
+          });
+          if (eligibility === v) b.classList.add("on");
+          return b;
+        }),
+      )
+    : null;
+  const guide = {
+    submitted: me.role === "imc_head" ? "적격이면 전결해 재무팀으로, 비적격이면 보도국장 전결로 올립니다." : "적격이면 보도IMC팀장 전결로, 비적격이면 보도국장 전결로 올립니다.",
+    imc_head_review: "보도IMC팀 실무자가 분류한 전표입니다. 적격이면 전결합니다.",
+    chief_review: "보도IMC팀이 비적격으로 분류한 전표입니다. 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않습니다.",
+    finance_review: "결재선을 거친 전표입니다. 증빙을 최종 검토하고 전표를 결재합니다.",
+  }[e.status];
+  const panel = h(
+    "section",
+    { class: "review-panel" },
+    h("div", { class: "review-panel-head" }, icon("check"), h("b", {}, e.stage.label), h("span", { class: "muted small" }, "내 결재 차례")),
+    h("p", { class: "small" }, guide),
+    overLimit ? h("p", { class: "small text-bad" }, `분기 한도 초과로 ${money(e.ineligibleAmount, e.currency)} 가 비적격 — 보도국장 전결이 필요합니다.`) : null,
+    radios ? h("div", { class: "field" }, h("span", { class: "field-label" }, "적격 분류"), radios) : e.eligibility ? h("p", { class: "small" }, "보도IMC팀 분류: ", chip(ELIGIBILITY[e.eligibility][0], ELIGIBILITY[e.eligibility][1])) : null,
+    field("의견", comment),
+  );
+  return { node: panel, comment, eligibility: () => eligibility, atImc };
+}
+
+function reviewFooter(e, me, form, review, { close, onChanged }) {
+  const buttons = [];
+  const send = async (action, confirmText, danger = false) => {
+    const c = review.comment.value.trim();
+    const elig = review.eligibility();
+    if (review.atImc && action === "approve" && !elig) return toast("적격 / 비적격을 선택하세요", "warn");
+    // 의견 필수: 반려·불승인, 그리고 보도IMC팀이 비적격으로 분류할 때(사유). 보도국장·재무팀 승인은 선택
+    if ((action !== "approve" || (review.atImc && elig === "ineligible")) && !c) {
+      review.comment.focus();
+      return toast(action === "return" ? "반려 사유를 입력하세요" : action === "reject" ? "불승인 사유를 입력하세요" : "비적격 사유를 입력하세요", "warn");
+    }
+    if (!(await confirmDialog({ title: confirmText, message: c ? `의견: ${c}` : "결재하면 다음 단계로 넘어갑니다.", confirm: confirmText, danger }))) return;
+    buttons.forEach((b) => (b.disabled = true));
+    try {
+      if (form.editable && Object.keys(form.diff()).length) await api.patch(`/entries/${e.id}`, form.diff()); // 재무팀 정정분 먼저 저장
+      const r = await api.post(`/entries/${e.id}/review`, { action, eligibility: review.atImc ? elig : undefined, comment: c || undefined, expectedStatus: e.status });
+      toast(`${ACTION_LABEL[action]} — ${STATUS[r.status]?.label || r.status}`, action === "approve" ? "ok" : "warn");
+      onChanged();
+      close(true);
+    } catch (ex) {
+      toast(errorText(ex), "bad", 6000);
+      buttons.forEach((b) => (b.disabled = false));
+    }
+  };
+  const btn = (cls, ic, label, fn) => {
+    const b = h("button", { class: `btn ${cls}`, type: "button", onclick: fn }, icon(ic), h("span", {}, label));
+    buttons.push(b);
+    return b;
+  };
+  const returnBtn = btn("btn-danger-ghost", "x", "반려", () => send("return", "지국으로 반려", true));
+  const right = [];
+  if (review.atImc) {
+    const approve = btn("btn-primary", "check", "", () => send("approve", approve.textContent));
+    const sync = () => {
+      const elig = review.eligibility();
+      approve.querySelector("span:last-child").textContent =
+        elig === "ineligible" ? "비적격 — 보도국장 전결 요청" : elig === "eligible" ? (me.role === "imc_head" ? "적격 전결" : "적격 — 팀장 전결 요청") : "분류를 선택하세요";
+      approve.disabled = !elig;
+    };
+    review.node.addEventListener("eligibility", sync);
+    sync();
+    right.push(approve);
+  } else if (e.status === "chief_review") {
+    right.push(btn("btn-ghost", "x", "불승인", () => send("reject", "불승인(지급하지 않음)", true)));
+    right.push(btn("btn-primary", "check", "승인", () => send("approve", "비적격 증빙 승인")));
+  } else {
+    right.push(btn("btn-primary", "check", "최종 결재", () => send("approve", "전표 최종 결재")));
+  }
+  return [returnBtn, h("div", { class: "foot-right" }, right)];
 }
 
 function banner(tone, ic, title, text) {
@@ -492,7 +634,7 @@ function footer(e, form, { close, onChanged, reopen }) {
     }
     const ok = await confirmDialog({
       title: "전표 제출",
-      message: h("div", {}, h("p", {}, "원본 증빙과 대조를 마쳤나요? 제출하면 결재선으로 넘어가고 이후 수정은 재무팀에 요청해야 합니다."), e.status === "flagged" ? h("p", { class: "text-warn" }, "검토 필요 항목이 남아 있습니다.") : null),
+      message: h("div", {}, h("p", {}, "원본 증빙과 대조를 마쳤나요? 제출하면 보도IMC팀 분류부터 결재선으로 넘어가고, 반려되기 전에는 수정할 수 없습니다."), e.status === "flagged" ? h("p", { class: "text-warn" }, "검토 필요 항목이 남아 있습니다.") : null),
       confirm: "제출",
     });
     if (!ok) return;
