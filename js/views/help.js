@@ -86,10 +86,13 @@ function diagram(role) {
     path(`M${X + 40} ${nodeY(2) + NODE.h} V${nodeY(3)}`, "ok"),                // 국장 승인 → 재무
     path(`M${X + 180} ${cy(1)} H985 V400 H${X + 140} V${nodeY(3)}`, "ok"),     // 적격 → 재무팀(IMC 가 분류하면 바로 재무팀 최종 검토)
     path(`M${X + 180} ${cy(3)} H760`, "ok"),                                   // 최종 결재 → 완료
-    // 반려 — 결재 단계에서 왼쪽 통로를 타고 지국으로
-    s("path", { d: `M${X} ${cy(1)} H172 V${cy(0)} H200`, class: "dg-line back", "marker-end": "url(#arr-back)" }),
+    // 반려 — 세 결재 단계(보도IMC팀·보도국장·재무팀)에서 왼쪽 통로(x=172)를 타고 지국 담당자로.
+    // 통로는 재무팀 줄에서 지국 줄까지 하나로 이어지고, 보도국장·재무팀 줄의 선은 통로와 만나는 지점에 점을 찍는다.
+    s("path", { d: `M${X} ${cy(3)} H172 V${cy(0)} H200`, class: "dg-line back", "marker-end": "url(#arr-back)" }),
     s("path", { d: `M${X} ${cy(2)} H172`, class: "dg-line back" }),
-    s("path", { d: `M${X} ${cy(3)} H172`, class: "dg-line back" }),
+    s("path", { d: `M${X} ${cy(1)} H172`, class: "dg-line back" }),
+    s("circle", { cx: 172, cy: cy(1), r: 4, class: "dg-dot back" }),
+    s("circle", { cx: 172, cy: cy(2), r: 4, class: "dg-dot back" }),
   ];
   const labels = [
     label(700, cy(1) - 8, "적격 → 재무팀", "ok"), label(X + 98, nodeY(1) + NODE.h + 36, "비적격", "bad"),

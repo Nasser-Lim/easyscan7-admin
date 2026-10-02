@@ -584,6 +584,7 @@ select.input { padding-right: 28px; }
 .dg-line.ok { stroke: var(--ok); }
 .dg-line.bad { stroke: var(--bad); }
 .dg-line.back { stroke: var(--sbs-orange); stroke-dasharray: 6 5; }
+.dg-dot { fill: var(--sbs-orange); }
 .dg-head { fill: #6b7a90; }
 .dg-head.ok { fill: var(--ok); }
 .dg-head.bad { fill: var(--bad); }

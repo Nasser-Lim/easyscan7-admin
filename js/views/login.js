@@ -58,9 +58,9 @@ export function renderLogin(root, onSuccess) {
       h(
         "ul",
         { class: "login-points" },
-        h("li", {}, icon("upload"), h("span", {}, "PDF·스크린샷 증빙을 올리면 정산서가 자동 완성됩니다")),
+        h("li", {}, icon("upload"), h("span", {}, "PDF·스크린샷 증빙을 올리면 AI가 대신 처리합니다")),
         h("li", {}, icon("check"), h("span", {}, "한글 번역·검산·분기 한도를 자동으로 확인합니다")),
-        h("li", {}, icon("send"), h("span", {}, "확인한 증빙을 제출하면 결재선으로 넘어갑니다")),
+        h("li", {}, icon("send"), h("span", {}, "증빙 결재가 완료되면 정산서가 알아서 완성됩니다")),
       ),
     ),
     h("div", { class: "login-brand-foot" }, "© SBS · EASYSCAN"),
