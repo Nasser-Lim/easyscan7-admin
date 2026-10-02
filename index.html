@@ -4,42 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <!-- GitHub Pages 는 응답 헤더를 못 바꾸므로 CSP 를 meta 로 건다: 자기 스크립트와 Firebase 로그인·API 호출만 허용 -->
+  <!-- GitHub Pages 는 응답 헤더를 못 바꾸므로 CSP 를 meta 로 건다.
+       스크립트·스타일은 자기 파일만, 통신은 Firebase 로그인·토큰 갱신·백엔드(Cloud Run, 로컬 개발 서버)만,
+       원본 증빙 미리보기는 blob: URL 로만 -->
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://identitytoolkit.googleapis.com https://*.run.app; base-uri 'none'; form-action 'none'">
-  <title>EASY SCAN · 관리웹</title>
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; frame-src blob:; connect-src https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.run.app http://localhost:8799; base-uri 'none'; form-action 'none'">
+  <title>EASYSCAN · 해외지국 정산관리</title>
+  <link rel="icon" href="assets/sbs-logo.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="wrap">
-    <header>
-      <div class="eyebrow">SBS · 해외지국 정산</div>
-      <h1>EASY SCAN 관리웹</h1>
-      <p class="sub">증빙 업로드 · 검수 · 한도 · 정산서 (준비 중). 현재는 <b>계정 접속 확인</b>만 제공합니다.</p>
-    </header>
-
-    <section id="login" class="card">
-      <h2>로그인</h2>
-      <form id="loginForm" autocomplete="on">
-        <label>아이디(이메일)<input id="email" type="email" autocomplete="username" required></label>
-        <label>비밀번호<input id="pw" type="password" autocomplete="current-password" required></label>
-        <button id="loginBtn" type="submit">로그인</button>
-        <p id="loginErr" class="err" role="alert"></p>
-      </form>
-      <p class="hint">계정은 재무팀·AI파트너십팀이 발급합니다.</p>
-    </section>
-
-    <section id="me" class="card" hidden>
-      <h2>내 계정</h2>
-      <dl id="meList"></dl>
-      <h3>이 계정으로 할 수 있는 일</h3>
-      <ul id="perms"></ul>
-      <button id="logoutBtn" type="button" class="ghost">로그아웃</button>
-    </section>
-
-    <p id="apiStatus" class="status">서버 상태 확인 중…</p>
-  </main>
+  <div id="app" aria-live="polite"></div>
+  <div id="toasts" class="toasts" aria-live="assertive"></div>
+  <noscript>이 페이지는 JavaScript 가 필요합니다.</noscript>
   <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
