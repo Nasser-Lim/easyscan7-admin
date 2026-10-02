@@ -2,7 +2,7 @@
 import { api } from "../api.js";
 import {
   ACCOUNTS, BRANCH, DOC_TYPE, STATUS, chip, clear, confirmDialog, currentQuarter, dateText, dateTime, empty, errorText,
-  field, h, icon, money, noticeParts, quarterLabel, quarterOptions, select, spinner, statusChip, toast,
+  field, h, icon, money, noticeParts, QUARTER_SOURCE, quarterLabel, quarterOf, quarterOptions, select, spinner, statusChip, toast,
 } from "../ui.js";
 import { pageHeader } from "./shell.js";
 
@@ -335,7 +335,27 @@ function detailForm(e, me) {
     merchant: h("input", { class: "input", type: "text", value: e.merchant || "", disabled: !editable }),
     merchantKo: h("input", { class: "input", type: "text", value: e.merchantKo || "", disabled: !editable }),
     memo: h("textarea", { class: "input", rows: "2", disabled: !editable, placeholder: "취재 건명·동석자 등" }, e.memo || ""),
+    quarter: select(
+      [...new Set([...quarterOptions(6), e.quarter].filter(Boolean))].sort().reverse().map((q) => [q, quarterLabel(q)]),
+      e.quarter,
+      { disabled: !editable },
+    ),
   };
+  // 분기를 직접 고르지 않았으면 사용일을 따라간다(서버도 같은 규칙). 고르면 고정
+  let quarterTouched = false;
+  const quarterHint = h("span", { class: "field-hint" }, QUARTER_SOURCE[e.quarterSource] || "");
+  const syncQuarterHint = () => {
+    const off = inputs.txnDate.value && quarterOf(inputs.txnDate.value) !== inputs.quarter.value;
+    quarterHint.textContent = quarterTouched ? "직접 지정" : QUARTER_SOURCE[e.quarterSource === "manual" ? "manual" : "date"];
+    if (off) quarterHint.textContent += " · 사용일과 다른 분기";
+    quarterHint.classList.toggle("text-warn", !!off);
+  };
+  inputs.txnDate.addEventListener("input", () => {
+    if (!quarterTouched && e.quarterSource !== "manual") inputs.quarter.value = quarterOf(inputs.txnDate.value) || inputs.quarter.value;
+    syncQuarterHint();
+  });
+  inputs.quarter.addEventListener("change", () => ((quarterTouched = true), syncQuarterHint()));
+  syncQuarterHint();
   const original = Object.fromEntries(Object.entries(inputs).map(([k, el]) => [k, el.value]));
   const memoHint = h("span", { class: "field-hint" });
   const syncMemoHint = () => {
@@ -350,6 +370,8 @@ function detailForm(e, me) {
   const mark = (k, el) => (lowConf(k) ? h("div", { class: "lowconf" }, el, h("span", { class: "lowconf-tag", title: `AI 신뢰도 ${Math.round(confOf(k) * 100)}%` }, "확인")) : el);
 
   const banners = [];
+  if (e.limitBasis?.status === "excluded_currency")
+    banners.push(banner("info", "info", "한도 계산 제외", `${cur} 영수증은 지국 한도(${e.limitBasis.currency || "USD"}) 계산에서 빠집니다. 환산은 재무팀이 확인합니다.`));
   if (e.ineligibleAmount > 0)
     banners.push(banner("bad", "alert", "한도 초과 — 비적격", `분기 한도를 넘어 ${money(e.ineligibleAmount, cur)} 가 비적격 처리되었습니다(적격 ${money(e.eligibleAmount, cur)}). 제출은 가능합니다.`));
   for (const f of e.flags || []) banners.push(banner(f.severity === "error" ? "bad" : "warn", "alert", f.severity === "error" ? "검증 오류" : "검토 필요", f.message));
@@ -372,8 +394,9 @@ function detailForm(e, me) {
       field("계정", inputs.account),
       field("사용일", mark("txnDate", inputs.txnDate)),
       field(`금액 (${cur})`, mark("amount", inputs.amount)),
+      h("label", { class: "field" }, h("span", { class: "field-label" }, "정산 분기"), inputs.quarter, quarterHint),
       field("가맹점 (원문)", mark("merchant", inputs.merchant)),
-      h("div", { class: "span-2" }, field("가맹점 (한글)", inputs.merchantKo)),
+      field("가맹점 (한글)", inputs.merchantKo),
       h("label", { class: "field span-2" }, h("span", { class: "field-label" }, "적요"), inputs.memo, memoHint),
     ),
     h("div", { class: "section-label" }, "AI 인식 정보"),
@@ -412,6 +435,7 @@ function detailForm(e, me) {
     const out = {};
     for (const [k, el] of Object.entries(inputs)) {
       if (el.value === original[k]) continue;
+      if (k === "quarter" && !quarterTouched) continue; // 사용일 따라 바뀐 분기는 서버가 다시 정한다
       if (k === "amount") {
         if (el.value === "") continue;
         out.amount = Math.round(Number(el.value) * 100) / 100;

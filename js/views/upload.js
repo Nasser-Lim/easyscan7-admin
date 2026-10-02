@@ -18,7 +18,8 @@ export function renderUpload(el, { me, go }) {
   const branch = `${BRANCH[me.branchId] || me.branchId}지국`;
 
   const account = select(ACCOUNTS.map((a) => [a, a]), ACCOUNTS[0]);
-  const quarter = select(quarterOptions(4).map((q) => [q, quarterLabel(q)]), currentQuarter());
+  const quarter = select([["auto", "자동 — 영수증 날짜 기준"], ...quarterOptions(4).map((q) => [q, `${quarterLabel(q)}로 고정`])], "auto");
+  const limitsQuarter = () => (quarter.value === "auto" ? currentQuarter() : quarter.value);
   const input = h("input", { type: "file", multiple: true, accept: ".pdf,.jpg,.jpeg,.png,.webp,.heic,application/pdf,image/*", class: "sr-only" });
   const list = h("div", { class: "file-list" });
   const submit = h("button", { class: "btn btn-primary btn-lg", type: "button", disabled: true }, icon("upload"), h("span", {}, "업로드하고 전표 만들기"));
@@ -114,7 +115,7 @@ export function renderUpload(el, { me, go }) {
       const n = r.entries.length;
       toast(n ? `전표 ${n}건을 만들었습니다` : "새로 만든 전표가 없습니다", n ? "ok" : "info");
       files = [];
-      clear(limitsSlot).append(limitsCard(quarter.value));
+      clear(limitsSlot).append(limitsCard(limitsQuarter()));
     } catch (e) {
       clear(result).append(h("div", { class: "banner banner-bad" }, icon("alert"), h("div", {}, h("b", {}, "업로드 실패"), h("div", {}, errorText(e)))));
     } finally {
@@ -124,8 +125,8 @@ export function renderUpload(el, { me, go }) {
     }
   });
 
-  quarter.addEventListener("change", () => clear(limitsSlot).append(limitsCard(quarter.value)));
-  limitsSlot.append(limitsCard(quarter.value));
+  quarter.addEventListener("change", () => clear(limitsSlot).append(limitsCard(limitsQuarter())));
+  limitsSlot.append(limitsCard(limitsQuarter()));
 
   el.append(
     pageHeader({
@@ -143,7 +144,7 @@ export function renderUpload(el, { me, go }) {
           "section",
           { class: "card" },
           h("div", { class: "card-head" }, h("div", { class: "card-title" }, "1. 정산 구분")),
-          h("div", { class: "form-row" }, field("계정", account, "이번에 올리는 증빙 전체에 적용됩니다"), field("분기", quarter, "증빙 날짜가 이 분기 밖이면 알려 드립니다")),
+          h("div", { class: "form-row" }, field("계정", account, "이번에 올리는 증빙 전체에 적용됩니다"), field("정산 분기", quarter, "자동이면 전표마다 영수증 사용일의 분기로 들어갑니다. 전표에서 바꿀 수 있습니다")),
         ),
         h(
           "section",
@@ -197,7 +198,7 @@ function resultView(r, go) {
       h(
         "table",
         { class: "table" },
-        h("thead", {}, h("tr", {}, h("th", {}, "사용일"), h("th", {}, "가맹점"), h("th", {}, "증빙"), h("th", { class: "num" }, "금액"), h("th", {}, "상태"), h("th", {}))),
+        h("thead", {}, h("tr", {}, h("th", {}, "사용일"), h("th", {}, "분기"), h("th", {}, "가맹점"), h("th", {}, "증빙"), h("th", { class: "num" }, "금액"), h("th", {}, "상태"), h("th", {}))),
         h(
           "tbody",
           {},
@@ -206,6 +207,7 @@ function resultView(r, go) {
               "tr",
               { class: "row-link", onclick: () => go(`entries/${e.entryId}`) },
               h("td", { class: "mono" }, e.txnDate || "—"),
+              h("td", { class: "cell-sub" }, quarterLabel(e.quarter)),
               h("td", {}, h("div", { class: "cell-main" }, e.merchantKo || e.merchant || "—"), h("div", { class: "cell-sub" }, DOC_TYPE[e.docType] || e.docType || "")),
               h("td", { class: "cell-sub" }, [...new Set((e.sources || []).map((s) => s.fileName))].join(", ")),
               h(
@@ -224,6 +226,9 @@ function resultView(r, go) {
   }
 
   const notes = [];
+  const qs = [...new Set(r.entries.map((e) => e.quarter))].sort();
+  if (qs.length > 1 || (qs.length === 1 && qs[0] !== currentQuarter()))
+    notes.push(note("info", "정산 분기", `영수증 날짜에 따라 ${qs.map((q) => `${quarterLabel(q)} ${r.entries.filter((e) => e.quarter === q).length}건`).join(", ")}으로 나뉘었습니다. 전표 조회에서 해당 분기를 골라 확인하세요.`));
   for (const m of r.merged)
     notes.push(note("info", "중복 병합", `${m.merchant || "기존 전표"} ${money(m.amount, cur)} (주문 ${m.orderNumber}) — ${m.fileNames.join(", ")}`, () => go(`entries/${m.entryId}`)));
   for (const s of r.skippedFiles) notes.push(note("warn", SKIP_REASON[s.reason] || "건너뜀", `${s.fileName} — ${s.message}`));

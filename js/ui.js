@@ -133,6 +133,13 @@ export function quarterOptions(n = 4) {
   }
   return out;
 }
+export function quarterOf(date) {
+  const m = /^(\d{4})-(\d{2})/.exec(date || "");
+  if (!m) return null;
+  const mo = Number(m[2]);
+  return mo >= 1 && mo <= 12 ? `${m[1]}Q${Math.floor((mo - 1) / 3) + 1}` : null;
+}
+export const QUARTER_SOURCE = { date: "영수증 날짜 기준", manual: "직접 지정", upload: "날짜 미인식 · 업로드 분기" };
 export function quarterLabel(q) {
   const m = /^(\d{4})Q([1-4])$/.exec(q || "");
   return m ? `${m[1]}년 ${m[2]}분기` : q || "—";
