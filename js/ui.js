@@ -95,6 +95,7 @@ export const NOTICE = {
   ORPHAN_CONTINUATION: ["앞 문서 없음", "warn"],
   ORDER_EXISTS: ["주문번호 중복", "warn"],
   DATE_OUT_OF_PERIOD: ["기간 밖 날짜", "warn"],
+  QUARTER_OUTLIER: ["분기 확인", "warn"],
   PAGE_IGNORED: ["제외된 페이지", "neutral"],
   PAGE_FAILED: ["인식 실패", "bad"],
   PAGES_TRUNCATED: ["페이지 초과", "bad"],
