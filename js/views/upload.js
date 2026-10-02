@@ -1,4 +1,4 @@
-// 증빙 업로드 — PDF·스크린샷 여러 개를 한 번에 올리면 AI 가 전표로 나눈다(POST /intake).
+// 증빙 업로드 — PDF·스크린샷 여러 개를 한 번에 올리면 AI 가 증빙으로 나눈다(POST /intake).
 import { api } from "../api.js";
 import {
   ACCOUNTS, BRANCH, DOC_TYPE, bytes, chip, clear, currentQuarter, errorText, field, h, icon, money, noticeParts,
@@ -22,7 +22,7 @@ export function renderUpload(el, { me, go }) {
   const limitsQuarter = () => (quarter.value === "auto" ? currentQuarter() : quarter.value);
   const input = h("input", { type: "file", multiple: true, accept: ".pdf,.jpg,.jpeg,.png,.webp,.heic,application/pdf,image/*", class: "sr-only" });
   const list = h("div", { class: "file-list" });
-  const submit = h("button", { class: "btn btn-primary btn-lg", type: "button", disabled: true }, icon("upload"), h("span", {}, "업로드하고 전표 만들기"));
+  const submit = h("button", { class: "btn btn-primary btn-lg", type: "button", disabled: true }, icon("upload"), h("span", {}, "업로드하고 자동 인식"));
   const summary = h("div", { class: "upload-summary muted" });
   const result = h("div", { class: "result" });
   const limitsSlot = h("div", {});
@@ -113,7 +113,7 @@ export function renderUpload(el, { me, go }) {
       const r = await api.postForm("/intake", fd);
       clear(result).append(resultView(r, go));
       const n = r.entries.length;
-      toast(n ? `전표 ${n}건을 만들었습니다` : "새로 만든 전표가 없습니다", n ? "ok" : "info");
+      toast(n ? `증빙 ${n}건을 등록했습니다` : "새로 등록된 증빙이 없습니다", n ? "ok" : "info");
       files = [];
       clear(limitsSlot).append(limitsCard(limitsQuarter()));
     } catch (e) {
@@ -132,7 +132,7 @@ export function renderUpload(el, { me, go }) {
     pageHeader({
       crumbs: [branch, "업무"],
       title: "증빙 업로드",
-      desc: "PDF·스크린샷 증빙을 올리면 AI 가 영수증 단위로 나눠 전표를 만듭니다. 촬영 영수증은 촬영앱을 이용하세요.",
+      desc: "PDF·스크린샷 증빙을 올리면 AI 가 영수증 단위로 나눠 증빙으로 등록합니다. 촬영 영수증은 촬영앱을 이용하세요.",
     }),
     h(
       "div",
@@ -144,7 +144,7 @@ export function renderUpload(el, { me, go }) {
           "section",
           { class: "card" },
           h("div", { class: "card-head" }, h("div", { class: "card-title" }, "1. 정산 구분")),
-          h("div", { class: "form-row" }, field("계정", account, "이번에 올리는 증빙 전체에 적용됩니다"), field("정산 분기", quarter, "자동이면 전표마다 영수증 사용일의 분기로 들어갑니다. 전표에서 바꿀 수 있습니다")),
+          h("div", { class: "form-row" }, field("계정", account, "이번에 올리는 증빙 전체에 적용됩니다"), field("정산 분기", quarter, "자동이면 증빙마다 영수증 사용일의 분기로 들어갑니다. 증빙에서 바꿀 수 있습니다")),
         ),
         h(
           "section",
@@ -172,7 +172,7 @@ function tipsCard() {
       "ul",
       { class: "tips" },
       h("li", {}, "주문 내역·결제 확인·배송 안내처럼 같은 주문의 여러 장은 한 번에 올리면 1건으로 합쳐집니다."),
-      h("li", {}, "이미 등록된 주문(주문번호·금액 동일)을 다시 올리면 새 전표 없이 기존 전표에 합쳐지고 알려 드립니다."),
+      h("li", {}, "이미 등록된 주문(주문번호·금액 동일)을 다시 올리면 새 증빙 없이 기존 증빙에 합쳐지고 알려 드립니다."),
       h("li", {}, "광고·약관 같은 증빙이 아닌 쪽은 자동으로 제외됩니다."),
       h("li", {}, "분기 한도를 넘는 금액은 비적격으로 처리되며, 제출은 막지 않습니다."),
     ),
@@ -186,8 +186,8 @@ function resultView(r, go) {
     h(
       "div",
       { class: "result-stats" },
-      stat("만든 전표", r.entries.length, "ok"),
-      stat("기존 전표에 병합", r.merged.length, r.merged.length ? "info" : "neutral"),
+      stat("등록된 증빙", r.entries.length, "ok"),
+      stat("기존 증빙에 병합", r.merged.length, r.merged.length ? "info" : "neutral"),
       stat("건너뛴 파일", r.skippedFiles.length, r.skippedFiles.length ? "warn" : "neutral"),
       stat("제외된 쪽", r.ignored.length, "neutral"),
     ),
@@ -228,16 +228,16 @@ function resultView(r, go) {
   const notes = [];
   const qs = [...new Set(r.entries.map((e) => e.quarter))].sort();
   if (qs.length > 1 || (qs.length === 1 && qs[0] !== currentQuarter()))
-    notes.push(note("info", "정산 분기", `영수증 날짜에 따라 ${qs.map((q) => `${quarterLabel(q)} ${r.entries.filter((e) => e.quarter === q).length}건`).join(", ")}으로 나뉘었습니다. 전표 조회에서 해당 분기를 골라 확인하세요.`));
+    notes.push(note("info", "정산 분기", `영수증 날짜에 따라 ${qs.map((q) => `${quarterLabel(q)} ${r.entries.filter((e) => e.quarter === q).length}건`).join(", ")}으로 나뉘었습니다. 증빙 조회에서 해당 분기를 골라 확인하세요.`));
   for (const m of r.merged)
-    notes.push(note("info", "중복 병합", `${m.merchant || "기존 전표"} ${money(m.amount, cur)} (주문 ${m.orderNumber}) — ${m.fileNames.join(", ")}`, () => go(`entries/${m.entryId}`)));
+    notes.push(note("info", "중복 병합", `${m.merchant || "기존 증빙"} ${money(m.amount, cur)} (주문 ${m.orderNumber}) — ${m.fileNames.join(", ")}`, () => go(`entries/${m.entryId}`)));
   for (const s of r.skippedFiles) notes.push(note("warn", SKIP_REASON[s.reason] || "건너뜀", `${s.fileName} — ${s.message}`));
   for (const g of r.ignored) notes.push(note("neutral", "제외된 쪽", `${g.fileName} ${g.page}쪽 — 증빙이 아닌 쪽으로 판단`));
   for (const e of r.entries) for (const n of e.notices || []) {
     const p = noticeParts(n);
-    notes.push(note(p.tone, p.label, `${e.merchant || "전표"}: ${p.text}`));
+    notes.push(note(p.tone, p.label, `${e.merchant || "증빙"}: ${p.text}`));
   }
-  // 묶음 단위 알림 중 전표에 붙지 않는 것(인식 실패·쪽수 초과)만. 나머지는 위 전표별 알림과 같다.
+  // 묶음 단위 알림 중 증빙에 붙지 않는 것(인식 실패·쪽수 초과)만. 나머지는 위 증빙별 알림과 같다.
   for (const n of r.notices || []) {
     if (typeof n !== "object" || !["PAGE_FAILED", "PAGES_TRUNCATED"].includes(n.code)) continue;
     const p = noticeParts(`${n.code}: ${n.message}`);
@@ -250,8 +250,8 @@ function resultView(r, go) {
     h(
       "div",
       { class: "card-head" },
-      h("div", {}, h("div", { class: "card-title" }, "처리 결과"), h("div", { class: "card-sub" }, "전표를 눌러 원본과 대조하고 수정·제출하세요.")),
-      h("a", { class: "btn btn-ghost btn-sm", href: "#/entries" }, "전표 조회로", icon("chevron")),
+      h("div", {}, h("div", { class: "card-title" }, "처리 결과"), h("div", { class: "card-sub" }, "증빙을 눌러 원본과 대조하고 수정·제출하세요.")),
+      h("a", { class: "btn btn-ghost btn-sm", href: "#/entries" }, "증빙 조회로", icon("chevron")),
     ),
     parts,
     notes.length ? h("div", { class: "notes" }, notes) : null,

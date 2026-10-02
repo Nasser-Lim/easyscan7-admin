@@ -47,6 +47,7 @@ const ICONS = {
   trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
   chevron: '<path d="m9 6 6 6-6 6"/>',
+  sliders: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
   print: '<path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v7H7z"/>',
 };
 export function icon(name, cls = "ic") {
@@ -61,31 +62,31 @@ export function icon(name, cls = "ic") {
 export const BRANCH = { newyork: "뉴욕", washington: "워싱턴", paris: "파리", beijing: "베이징", tokyo: "도쿄" };
 export const ACCOUNTS = ["경상비", "취재비", "차량유지비"];
 export const STATUS = {
-  draft: { label: "작성중", cls: "chip-neutral" },
-  flagged: { label: "검토 필요", cls: "chip-warn" },
-  returned: { label: "반려됨", cls: "chip-bad" },
-  submitted: { label: "IMC 분류 대기", cls: "chip-info" },
-  imc_head_review: { label: "IMC팀장 전결 대기", cls: "chip-info" },
-  chief_review: { label: "보도국장 전결 대기", cls: "chip-purple" },
-  finance_review: { label: "재무팀 검토 대기", cls: "chip-info" },
+  // 이름 규칙: 「지금 처리해야 하는 주체 + 행위」 — 누구 차례인지 바로 보이게
+  draft: { label: "지국 작성중", cls: "chip-neutral" },
+  flagged: { label: "지국 검토 필요", cls: "chip-warn" },
+  returned: { label: "지국 수정 필요(반려)", cls: "chip-bad" },
+  submitted: { label: "보도IMC 결재중", cls: "chip-info" },
+  chief_review: { label: "보도국장 결재중", cls: "chip-purple" },
+  finance_review: { label: "재무팀 결재중", cls: "chip-info" },
   approved: { label: "결재 완료", cls: "chip-ok" },
-  rejected: { label: "불승인", cls: "chip-bad" },
+  rejected: { label: "보도국장 불승인", cls: "chip-bad" },
   deleted: { label: "삭제됨", cls: "chip-muted" },
 };
 // 상태 묶음 — 백엔드 services/workflow.py 와 같은 규칙
 export const STAFF_EDITABLE = new Set(["draft", "flagged", "returned"]);
-export const IN_REVIEW = new Set(["submitted", "imc_head_review", "chief_review", "finance_review"]);
+export const IN_REVIEW = new Set(["submitted", "chief_review", "finance_review"]);
 export const FINAL = new Set(["approved", "rejected", "deleted"]);
 export const ELIGIBILITY = { eligible: ["적격", "ok"], ineligible: ["비적격", "bad"] };
-export const REVIEWER_ROLES = new Set(["imc", "imc_head", "bureau_chief", "division_head", "finance", "admin"]);
+export const REVIEWER_ROLES = new Set(["imc", "bureau_chief", "division_head", "finance", "admin"]);
 export const ACTION_LABEL = { submit: "제출", approve: "승인", return: "반려", reject: "불승인" };
 export const ROLE = {
-  staff: "지국 담당자", imc: "보도IMC팀", imc_head: "보도IMC팀장", bureau_chief: "보도국장",
+  staff: "지국 담당자", imc: "보도IMC팀", bureau_chief: "보도국장",
   division_head: "보도본부장", finance: "재무팀", admin: "관리자",
 };
 export const ACCT = { shared: "지국 공용 계정", personal: "개인 계정", anon: "익명" };
 export const DOC_TYPE = {
-  CARD_SLIP: "카드전표", ITEMIZED_GUEST_CHECK: "식당 계산서", ONLINE_ORDER_INVOICE: "온라인 주문",
+  CARD_SLIP: "카드 결제 영수증", ITEMIZED_GUEST_CHECK: "식당 계산서", ONLINE_ORDER_INVOICE: "온라인 주문",
   FUEL_RECEIPT: "주유 영수증", COMMERCIAL_BILL: "청구서", OTHER: "기타",
 };
 export const NOTICE = {

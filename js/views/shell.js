@@ -1,6 +1,7 @@
 // 앱 셸 — 상단 헤더(SBS 컬러 로고·인쇄 시 검정 로고), 왼쪽 메뉴, 본문.
 import { logout } from "../api.js";
 import { ACCT, BRANCH, ROLE, h, icon } from "../ui.js";
+import { BUILD, VERSION } from "../version.js";
 
 let navLinks = [];
 
@@ -32,19 +33,21 @@ export function renderShell(root, me, nav) {
     ),
   );
 
-  navLinks = nav.map((n) => h("a", { class: "nav-link", href: `#/${n.route}`, dataset: { route: n.route } }, icon(n.icon), h("span", {}, n.label)));
+  const workLinks = nav.map((n) => h("a", { class: "nav-link", href: `#/${n.route}`, dataset: { route: n.route } }, icon(n.icon), h("span", {}, n.label)));
   const accountLink = h("a", { class: "nav-link", href: "#/account", dataset: { route: "account" } }, icon("user"), h("span", {}, "내 계정"));
-  navLinks.push(accountLink);
+  const helpLink = h("a", { class: "nav-link", href: "#/help", dataset: { route: "help" } }, icon("info"), h("span", {}, "도움말"));
+  navLinks = [...workLinks, accountLink, helpLink];
 
   const side = h(
     "nav",
     { class: "sidebar", "aria-label": "메뉴" },
     nav.length ? h("div", { class: "nav-group" }, "업무") : null,
-    navLinks.slice(0, -1),
+    workLinks,
     !nav.length ? h("div", { class: "nav-note" }, "이 계정의 업무 메뉴는 준비 중입니다.") : null,
     h("div", { class: "nav-group" }, "설정"),
     accountLink,
-    h("div", { class: "sidebar-foot" }, h("div", {}, "EASYSCAN 관리웹"), h("div", { class: "muted" }, "SBS 보도본부 · 재무팀")),
+    helpLink,
+    h("div", { class: "sidebar-foot" }, h("div", {}, "EASYSCAN 관리웹"), h("div", { class: "muted", title: BUILD === "dev" ? "로컬 개발 빌드" : `빌드 ${BUILD}` }, `버전 v${VERSION}`, BUILD === "dev" ? " · dev" : ` · ${BUILD}`)),
   );
 
   const content = h("main", { class: "content", id: "content" });

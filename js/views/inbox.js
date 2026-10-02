@@ -1,4 +1,4 @@
-// 결재함 — 내 역할이 결재할 단계의 전표(전 지국). 행을 열어 원본 대조 후 결재, 단순 승인 단계는 일괄 처리.
+// 결재함 — 내 역할이 결재할 단계의 증빙(전 지국). 행을 열어 원본 대조 후 결재, 단순 승인 단계는 일괄 처리.
 import { api } from "../api.js";
 import {
   BRANCH, ELIGIBILITY, ROLE, chip, clear, confirmDialog, dateText, dateTime, empty, errorText, h, icon, money,
@@ -8,18 +8,16 @@ import { openDrawer } from "./entries.js";
 import { pageHeader, setNavBadge } from "./shell.js";
 
 const ROLE_GUIDE = {
-  imc: "제출된 전표를 원본과 대조해 적격 / 비적격으로 분류합니다. 적격은 보도IMC팀장 전결로, 비적격은 보도국장 전결로 올라갑니다.",
-  imc_head: "제출된 전표를 적격 / 비적격으로 분류합니다. 적격은 바로 전결해 재무팀으로, 비적격은 보도국장 전결로 올립니다.",
-  bureau_chief: "보도IMC팀이 비적격으로 분류한 전표입니다. 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않고 종결됩니다.",
-  division_head: "보도IMC팀이 비적격으로 분류한 전표입니다. 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않고 종결됩니다.",
-  finance: "결재선을 거친 전표의 증빙을 최종 검토하고 전표를 결재합니다. 문제가 있으면 사유를 적어 지국으로 반려합니다.",
-  admin: "재무팀 최종 검토 단계 전표입니다.",
+  imc: "제출된 증빙을 원본과 대조해 적격 / 비적격으로 분류합니다. 적격은 재무팀으로, 비적격(사유 필수)은 보도국장 전결로 올라갑니다.",
+  bureau_chief: "보도IMC팀이 비적격으로 분류한 증빙입니다. 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않고 종결됩니다.",
+  division_head: "보도IMC팀이 비적격으로 분류한 증빙입니다. 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않고 종결됩니다.",
+  finance: "결재선을 거친 증빙을 최종 검토하고 결재합니다. 문제가 있으면 사유를 적어 지국으로 반려합니다.",
+  admin: "재무팀 최종 검토 단계 증빙입니다.",
 };
-// 열어 보지 않고 일괄 처리해도 되는 단계: 재무팀 최종 결재, IMC팀장의 적격 전결(한도 초과가 없는 전표만)
+// 열어 보지 않고 일괄 처리해도 되는 단계: 재무팀 최종 결재, 보도IMC팀의 적격 분류(한도 초과가 없는 증빙만)
 const BULK = {
   finance_review: { roles: ["finance", "admin"], label: "선택 최종 결재", body: () => ({ action: "approve" }) },
-  submitted: { roles: ["imc_head"], label: "선택 적격 전결", body: () => ({ action: "approve", eligibility: "eligible" }), ok: (e) => !(e.ineligibleAmount > 0) },
-  imc_head_review: { roles: ["imc_head"], label: "선택 적격 전결", body: () => ({ action: "approve", eligibility: "eligible" }), ok: (e) => !(e.ineligibleAmount > 0) },
+  submitted: { roles: ["imc"], label: "선택 적격 분류", body: () => ({ action: "approve", eligibility: "eligible" }), ok: (e) => !(e.ineligibleAmount > 0) },
 };
 
 export async function refreshInboxBadge(me) {
@@ -88,12 +86,12 @@ export function renderInbox(el, { me }) {
         const n = list.filter((e) => e.status === s.status);
         return mini(s.label, `${n.length}건`, money(n.reduce((a, e) => a + (Number(e.amount) || 0), 0), cur), n.length ? "warn" : "ok");
       }),
-      mini("한도 초과 포함", `${list.filter((e) => e.ineligibleAmount > 0).length}건`, "비적격 금액이 있는 전표", list.some((e) => e.ineligibleAmount > 0) ? "bad" : null),
+      mini("한도 초과 포함", `${list.filter((e) => e.ineligibleAmount > 0).length}건`, "비적격 금액이 있는 증빙", list.some((e) => e.ineligibleAmount > 0) ? "bad" : null),
     );
     for (const id of [...selected]) if (!list.some((e) => e.id === id && bulkable(e))) selected.delete(id);
     paintBulk();
     if (!list.length) {
-      clear(tableWrap).append(empty("결재할 전표가 없습니다", "새로 올라오는 전표는 여기에 쌓입니다."));
+      clear(tableWrap).append(empty("결재할 증빙이 없습니다", "새로 올라오는 증빙은 여기에 쌓입니다."));
       return;
     }
     const canBulk = list.filter(bulkable);
@@ -163,9 +161,9 @@ export function renderInbox(el, { me }) {
 
   async function bulkApprove(picked) {
     const ok = await confirmDialog({
-      title: `전표 ${picked.length}건 결재`,
-      message: h("div", {}, h("p", {}, "선택한 전표를 원본과 대조했나요? 결재하면 다음 단계로 넘어갑니다."),
-        h("p", { class: "muted small" }, "한도 초과(비적격 금액)가 있는 전표는 일괄 처리에서 제외됩니다 — 하나씩 열어 결재하세요.")),
+      title: `증빙 ${picked.length}건 결재`,
+      message: h("div", {}, h("p", {}, "선택한 증빙을 원본과 대조했나요? 결재하면 다음 단계로 넘어갑니다."),
+        h("p", { class: "muted small" }, "한도 초과(비적격 금액)가 있는 증빙은 일괄 처리에서 제외됩니다 — 하나씩 열어 결재하세요.")),
       confirm: "결재",
     });
     if (!ok) return;

@@ -41,7 +41,7 @@ export function renderLogin(root, onSuccess) {
     h("label", { class: "field" }, h("span", { class: "field-label" }, "비밀번호"), pw),
     err,
     btn,
-    h("p", { class: "login-help" }, "계정 발급·비밀번호 초기화는 재무팀 또는 AI파트너십팀에 문의하세요."),
+    h("p", { class: "login-help" }, "계정 발급·비밀번호 초기화는 보도IMC팀에 문의하세요."),
     status,
   );
 
@@ -53,14 +53,14 @@ export function renderLogin(root, onSuccess) {
     h(
       "div",
       { class: "login-brand-body" },
-      h("div", { class: "login-brand-kicker" }, "보도본부 · 재무팀"),
+      h("div", { class: "login-brand-kicker" }, "보도본부 · 보도IMC팀 · 재무팀"),
       h("div", { class: "login-brand-title" }, "해외지국 영수증", h("br"), "정산 시스템"),
       h(
         "ul",
         { class: "login-points" },
-        h("li", {}, icon("upload"), h("span", {}, "PDF·스크린샷 증빙을 올리면 AI 가 전표를 만듭니다")),
+        h("li", {}, icon("upload"), h("span", {}, "PDF·스크린샷 증빙을 올리면 정산서가 자동 완성됩니다")),
         h("li", {}, icon("check"), h("span", {}, "한글 번역·검산·분기 한도를 자동으로 확인합니다")),
-        h("li", {}, icon("send"), h("span", {}, "확인한 전표를 제출하면 결재선으로 넘어갑니다")),
+        h("li", {}, icon("send"), h("span", {}, "확인한 증빙을 제출하면 결재선으로 넘어갑니다")),
       ),
     ),
     h("div", { class: "login-brand-foot" }, "© SBS · EASYSCAN"),
@@ -70,6 +70,6 @@ export function renderLogin(root, onSuccess) {
   email.focus();
 
   health()
-    .then((j) => status.replaceChildren(h("span", { class: "dot dot-ok" }), h("span", {}, `서버 연결 정상 · ${j.provider}`)))
+    .then(() => status.replaceChildren(h("span", { class: "dot dot-ok" }), h("span", {}, "서버 연결 정상")))
     .catch(() => status.replaceChildren(h("span", { class: "dot dot-bad" }), h("span", {}, "서버에 연결할 수 없습니다")));
 }

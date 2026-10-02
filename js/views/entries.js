@@ -1,4 +1,4 @@
-// 전표 조회 — 필터·정렬 목록, 일괄 제출, 상세 서랍(원본 증빙 대조 + 수정·제출·삭제 / 결재).
+// 증빙 조회 — 필터·정렬 목록, 일괄 제출, 상세 서랍(원본 증빙 대조 + 수정·제출·삭제 / 결재).
 // 지국 담당자: 자기 지국 · 본사 결재자: 전 지국(지국 필터), 결재는 결재함 또는 이 화면의 상세 서랍에서.
 import { api } from "../api.js";
 import {
@@ -38,8 +38,8 @@ export function renderEntries(el, { me, params }) {
   el.append(
     pageHeader({
       crumbs: [branch, "업무"],
-      title: isStaff ? "전표 조회" : "전체 전표",
-      desc: isStaff ? "AI 가 만든 전표를 원본 증빙과 대조해 수정하고 제출합니다." : "전 지국 전표와 결재 진행 상황입니다. 결재할 전표는 결재함에 모입니다.",
+      title: isStaff ? "증빙 조회" : "전체 증빙",
+      desc: isStaff ? "AI 가 읽은 증빙 정보를 원본과 대조해 수정하고 제출합니다." : "전 지국 증빙과 결재 진행 상황입니다. 결재할 증빙은 결재함에 모입니다.",
       actions: isStaff ? [refreshBtn, h("a", { class: "btn btn-primary", href: "#/upload" }, icon("upload"), h("span", {}, "증빙 업로드"))] : [refreshBtn],
     }),
     kpiBar,
@@ -99,7 +99,7 @@ export function renderEntries(el, { me, params }) {
     for (const id of [...selected]) if (!list.some((e) => e.id === id && EDITABLE_STATUS.has(e.status))) selected.delete(id);
     paintBulk();
     if (!list.length) {
-      clear(tableWrap).append(rows.length ? empty("조건에 맞는 전표가 없습니다", "필터를 바꿔 보세요.") : empty(`${quarterLabel(state.quarter)} 전표가 없습니다`, "증빙을 업로드하면 전표가 만들어집니다."));
+      clear(tableWrap).append(rows.length ? empty("조건에 맞는 증빙이 없습니다", "필터를 바꿔 보세요.") : empty(`${quarterLabel(state.quarter)} 증빙이 없습니다`, "증빙을 업로드하면 AI 가 읽어 여기에 등록합니다."));
       return;
     }
     const selectable = isStaff ? list.filter((e) => EDITABLE_STATUS.has(e.status)) : [];
@@ -185,13 +185,13 @@ export function renderEntries(el, { me, params }) {
   async function bulkSubmit(picked) {
     const missing = picked.filter((e) => e.account === "취재비" && !(e.memo || "").trim());
     if (missing.length) {
-      toast(`취재비 전표 ${missing.length}건에 적요가 없습니다. 적요를 입력한 뒤 제출하세요.`, "warn", 5000);
+      toast(`취재비 증빙 ${missing.length}건에 적요가 없습니다. 적요를 입력한 뒤 제출하세요.`, "warn", 5000);
       return;
     }
     const flagged = picked.filter((e) => e.status === "flagged").length;
     const ok = await confirmDialog({
-      title: `전표 ${picked.length}건 제출`,
-      message: h("div", {}, h("p", {}, "제출한 전표는 보도IMC팀 분류부터 결재선으로 넘어가며, 반려되기 전에는 수정할 수 없습니다."), flagged ? h("p", { class: "text-warn" }, `검토 필요 전표 ${flagged}건이 포함되어 있습니다. 원본과 대조했는지 확인하세요.`) : null),
+      title: `증빙 ${picked.length}건 제출`,
+      message: h("div", {}, h("p", {}, "제출한 증빙은 보도IMC팀 분류부터 결재선으로 넘어가며, 반려되기 전에는 수정할 수 없습니다."), flagged ? h("p", { class: "text-warn" }, `검토 필요 증빙 ${flagged}건이 포함되어 있습니다. 원본과 대조했는지 확인하세요.`) : null),
       confirm: "제출",
     });
     if (!ok) return;
@@ -231,7 +231,7 @@ export function openDrawer(id, me, onChanged) {
   if (openBack) openBack.close();
   const urls = [];
   const body = h("div", { class: "drawer-body" }, h("div", { class: "card-loading" }, spinner()));
-  const titleEl = h("div", { class: "drawer-title" }, "전표 상세");
+  const titleEl = h("div", { class: "drawer-title" }, "증빙 상세");
   const subEl = h("div", { class: "drawer-sub" });
   const foot = h("div", { class: "drawer-foot" });
   let dirty = () => false;
@@ -250,7 +250,7 @@ export function openDrawer(id, me, onChanged) {
     { class: "drawer-back", onclick: (e) => e.target === back && close() },
     h(
       "aside",
-      { class: "drawer", role: "dialog", "aria-modal": "true", "aria-label": "전표 상세" },
+      { class: "drawer", role: "dialog", "aria-modal": "true", "aria-label": "증빙 상세" },
       h("div", { class: "drawer-head" }, h("div", {}, titleEl, subEl), h("button", { class: "icon-btn", type: "button", title: "닫기", onclick: () => close() }, icon("x"))),
       body,
       foot,
@@ -265,7 +265,7 @@ export function openDrawer(id, me, onChanged) {
   api
     .get(`/entries/${id}`)
     .then((e) => {
-      clear(titleEl).append(e.merchantKo || e.merchant || "전표 상세", " ", statusChip(e.status));
+      clear(titleEl).append(e.merchantKo || e.merchant || "증빙 상세", " ", statusChip(e.status));
       subEl.textContent = [e.account, quarterLabel(e.quarter), e.orderNumber ? `주문 #${e.orderNumber}` : null, `ID ${e.id}`].filter(Boolean).join(" · ");
       const form = detailForm(e, me);
       const review = e.stage?.canAct ? reviewPanel(e, me) : null;
@@ -400,8 +400,8 @@ function detailForm(e, me) {
   if (e.status === "returned")
     banners.unshift(banner("bad", "alert", "반려됨 — 고쳐서 다시 제출하세요", e.returnedReason || "사유 없음"));
   if (IN_REVIEW.has(e.status) && !e.stage?.canAct)
-    banners.push(banner("info", "info", STATUS[e.status].label, me.role === "staff" ? "결재 진행 중입니다. 반려되면 다시 고칠 수 있습니다." : "다른 단계의 결재를 기다리는 전표입니다."));
-  if (e.status === "approved") banners.push(banner("ok", "check", "결재 완료", "재무팀 결재까지 끝난 전표라 수정할 수 없습니다."));
+    banners.push(banner("info", "info", STATUS[e.status].label, me.role === "staff" ? "결재 진행 중입니다. 반려되면 다시 고칠 수 있습니다." : "다른 단계의 결재를 기다리는 증빙입니다."));
+  if (e.status === "approved") banners.push(banner("ok", "check", "결재 완료", "재무팀 결재까지 끝난 증빙이라 수정할 수 없습니다."));
   if (e.status === "rejected") banners.push(banner("bad", "x", "불승인", "비적격 증빙으로 지급하지 않기로 결재되었습니다(한도에서도 빠짐)."));
 
   const items = e.lineItems || [];
@@ -409,7 +409,7 @@ function detailForm(e, me) {
     "div",
     { class: "detail-form" },
     banners.length ? h("div", { class: "banners" }, banners) : null,
-    h("div", { class: "section-label" }, "전표 정보"),
+    h("div", { class: "section-label" }, "증빙 정보"),
     h(
       "div",
       { class: "form-grid" },
@@ -498,7 +498,7 @@ function approvalTimeline(e) {
 }
 
 function reviewPanel(e, me) {
-  const atImc = e.status === "submitted" || e.status === "imc_head_review";
+  const atImc = e.status === "submitted";
   const overLimit = e.ineligibleAmount > 0;
   const comment = h("textarea", { class: "input", rows: "2", placeholder: "의견 (반려·불승인·비적격일 때 필수)" });
   let eligibility = e.eligibility || (overLimit ? "ineligible" : null);
@@ -520,10 +520,9 @@ function reviewPanel(e, me) {
       )
     : null;
   const guide = {
-    submitted: me.role === "imc_head" ? "적격이면 전결해 재무팀으로, 비적격이면 보도국장 전결로 올립니다." : "적격이면 보도IMC팀장 전결로, 비적격이면 보도국장 전결로 올립니다.",
-    imc_head_review: "보도IMC팀 실무자가 분류한 전표입니다. 적격이면 전결합니다.",
-    chief_review: "보도IMC팀이 비적격으로 분류한 전표입니다. 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않습니다.",
-    finance_review: "결재선을 거친 전표입니다. 증빙을 최종 검토하고 전표를 결재합니다.",
+    submitted: "적격이면 재무팀 최종 검토로, 비적격이면 보도국장 전결로 올립니다.",
+    chief_review: "보도IMC팀이 비적격으로 분류한 증빙입니다. 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않습니다.",
+    finance_review: "결재선을 거친 증빙입니다. 원본과 대조해 최종 검토하고 결재합니다.",
   }[e.status];
   const panel = h(
     "section",
@@ -573,7 +572,7 @@ function reviewFooter(e, me, form, review, { close, onChanged }) {
     const sync = () => {
       const elig = review.eligibility();
       approve.querySelector("span:last-child").textContent =
-        elig === "ineligible" ? "비적격 — 보도국장 전결 요청" : elig === "eligible" ? (me.role === "imc_head" ? "적격 전결" : "적격 — 팀장 전결 요청") : "분류를 선택하세요";
+        elig === "ineligible" ? "비적격 — 보도국장 전결 요청" : elig === "eligible" ? "적격 — 재무팀으로" : "분류를 선택하세요";
       approve.disabled = !elig;
     };
     review.node.addEventListener("eligibility", sync);
@@ -583,7 +582,7 @@ function reviewFooter(e, me, form, review, { close, onChanged }) {
     right.push(btn("btn-ghost", "x", "불승인", () => send("reject", "불승인(지급하지 않음)", true)));
     right.push(btn("btn-primary", "check", "승인", () => send("approve", "비적격 증빙 승인")));
   } else {
-    right.push(btn("btn-primary", "check", "최종 결재", () => send("approve", "전표 최종 결재")));
+    right.push(btn("btn-primary", "check", "최종 결재", () => send("approve", "증빙 최종 결재")));
   }
   return [returnBtn, h("div", { class: "foot-right" }, right)];
 }
@@ -633,7 +632,7 @@ function footer(e, form, { close, onChanged, reopen }) {
       return;
     }
     const ok = await confirmDialog({
-      title: "전표 제출",
+      title: "증빙 제출",
       message: h("div", {}, h("p", {}, "원본 증빙과 대조를 마쳤나요? 제출하면 보도IMC팀 분류부터 결재선으로 넘어가고, 반려되기 전에는 수정할 수 없습니다."), e.status === "flagged" ? h("p", { class: "text-warn" }, "검토 필요 항목이 남아 있습니다.") : null),
       confirm: "제출",
     });
@@ -652,7 +651,7 @@ function footer(e, form, { close, onChanged, reopen }) {
   });
 
   delBtn.addEventListener("click", async () => {
-    const ok = await confirmDialog({ title: "전표 삭제", message: "이 전표를 삭제할까요? 한도 계산에서도 빠집니다.", confirm: "삭제", danger: true });
+    const ok = await confirmDialog({ title: "증빙 삭제", message: "이 증빙을 삭제할까요? 한도 계산에서도 빠집니다.", confirm: "삭제", danger: true });
     if (!ok) return;
     lock(true);
     try {

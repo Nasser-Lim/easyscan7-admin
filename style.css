@@ -557,3 +557,70 @@ select.input { padding-right: 28px; }
 .tl-head { font-size: 13.5px; }
 .tl-meta { font-size: 12px; color: var(--text-3); }
 .tl-comment { margin-top: 4px; padding: 6px 10px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: 13px; }
+
+/* ── 도움말: 결재선 다이어그램 ── */
+.dg-wrap { overflow-x: auto; padding-bottom: 4px; }
+.dg { display: block; width: 100%; min-width: 760px; height: auto; }
+.dg-lane-bg { fill: #fff; stroke: var(--line); }
+.dg-lane:nth-child(even) .dg-lane-bg { fill: #fafbfd; }
+.dg-lane.me .dg-lane-bg { fill: #f2f8fd; stroke: #bfdcf0; }
+.dg-lane-head { fill: #eef2f7; stroke: var(--line); }
+.dg-lane.me .dg-lane-head { fill: var(--sbs-blue); }
+.dg-lane-title { font-size: 14.5px; font-weight: 750; fill: var(--text); }
+.dg-lane-sub { font-size: 11.5px; fill: var(--text-3); }
+.dg-lane.me .dg-lane-title { fill: #fff; }
+.dg-lane.me .dg-lane-sub { fill: rgba(255, 255, 255, .8); }
+.dg-lane-me { font-size: 12px; font-weight: 700; fill: var(--sbs-orange); }
+.dg-node rect { fill: #fff; stroke-width: 1.8; }
+.dg-title { font-size: 14px; font-weight: 750; fill: var(--text); }
+.dg-sub { font-size: 12px; fill: var(--text-2); }
+.dg-node.n-staff rect { stroke: #7c8aa0; }
+.dg-node.n-imc rect { stroke: var(--sbs-sky); fill: var(--sbs-sky-50); }
+.dg-node.n-chief rect { stroke: #7b5cc4; fill: #f4f0fc; }
+.dg-node.n-fin rect { stroke: var(--sbs-blue); fill: #eaf1f9; }
+.dg-node.n-ok rect { stroke: var(--ok); fill: var(--ok-50); }
+.dg-node.n-bad rect { stroke: var(--bad); fill: var(--bad-50); }
+.dg-line { fill: none; stroke: #6b7a90; stroke-width: 2; }
+.dg-line.ok { stroke: var(--ok); }
+.dg-line.bad { stroke: var(--bad); }
+.dg-line.back { stroke: var(--sbs-orange); stroke-dasharray: 6 5; }
+.dg-head { fill: #6b7a90; }
+.dg-head.ok { fill: var(--ok); }
+.dg-head.bad { fill: var(--bad); }
+.dg-head.back { fill: var(--sbs-orange); }
+.dg-label { font-size: 12px; font-weight: 700; fill: var(--text-2); }
+.dg-label.ok { fill: var(--ok); }
+.dg-label.bad { fill: var(--bad); }
+.dg-label.back { fill: #b87500; }
+.dg-legend { display: flex; gap: 14px; font-size: 12px; font-weight: 600; }
+.dg-legend .lg::before { content: ""; display: inline-block; width: 18px; height: 0; border-top: 2px solid #6b7a90; margin-right: 6px; vertical-align: middle; }
+.dg-legend .lg.ok { color: var(--ok); } .dg-legend .lg.ok::before { border-color: var(--ok); }
+.dg-legend .lg.bad { color: var(--bad); } .dg-legend .lg.bad::before { border-color: var(--bad); }
+.dg-legend .lg.back { color: #b87500; } .dg-legend .lg.back::before { border-top-style: dashed; border-color: var(--sbs-orange); }
+.dg-notes { list-style: none; display: grid; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); font-size: 13px; color: var(--text-2); }
+.dg-notes li { position: relative; padding-left: 16px; }
+.dg-notes li::before { content: ""; position: absolute; left: 2px; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--sbs-orange); }
+.help-task { font-size: 13.5px; line-height: 1.7; margin-bottom: 8px; }
+.help-foot { margin-top: 4px; text-align: center; }
+.card-head.pad { padding: 16px 20px 0; }
+.faq { display: flex; flex-direction: column; }
+.faq-item { border-top: 1px solid var(--line); padding: 4px 0; }
+.faq-item:first-child { border-top: 0; }
+.faq-item summary { display: flex; align-items: center; gap: 8px; padding: 10px 0; cursor: pointer; font-weight: 650; font-size: 14px; list-style: none; }
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-ic { width: 16px; height: 16px; transition: transform .15s; color: var(--text-3); }
+.faq-item[open] .faq-ic { transform: rotate(90deg); }
+.faq-item p { padding: 0 0 12px 24px; font-size: 13.5px; line-height: 1.7; color: var(--text-2); }
+
+/* ── 분기 한도 설정 ── */
+.limit-note { margin-bottom: 16px; }
+.limit-note ul { margin: 6px 0 0 18px; display: grid; gap: 3px; font-weight: 400; }
+.limit-table td { vertical-align: middle; }
+.limit-input { width: 132px; margin-left: auto; }
+.limit-table select.input { width: 88px; }
+.limit-row-tr.dirty { background: var(--sbs-orange-50); }
+.diff-list { margin: 0 0 10px 18px; display: grid; gap: 4px; font-size: 13.5px; }
+.hist-box .table { margin: 0; }
+.sidebar-foot .muted { font-variant-numeric: tabular-nums; }
+.card-head .card-title { white-space: nowrap; }
+.card-head select.input { width: auto; min-width: 150px; }

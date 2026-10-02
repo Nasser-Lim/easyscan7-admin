@@ -128,6 +128,7 @@ async function parse(r) {
 export const api = {
   get: (p) => request(p).then(parse),
   post: (p, json) => request(p, { method: "POST", json }).then(parse),
+  put: (p, json) => request(p, { method: "PUT", json }).then(parse),
   patch: (p, json) => request(p, { method: "PATCH", json }).then(parse),
   del: (p) => request(p, { method: "DELETE" }).then(parse),
   postForm: (p, form) => request(p, { method: "POST", form }).then(parse),
