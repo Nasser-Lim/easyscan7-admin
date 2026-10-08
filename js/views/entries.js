@@ -6,6 +6,7 @@ import {
   confirmDialog, dateText, dateTime, empty, errorText, field, h, icon, money, noticeParts,
   QUARTER_SOURCE, quarterBadge, quarterLabel, quarterOf, quarterOptions, select, spinner, statusChip, toast,
 } from "../ui.js";
+import { fxStrip, loadFx, sumIn } from "../fx.js";
 import { refreshInboxBadge } from "./inbox.js";
 import { pageHeader } from "./shell.js";
 
@@ -29,6 +30,8 @@ export function renderEntries(el, { me, params }) {
   branchSel?.addEventListener("change", () => ((state.branch = branchSel.value), load()));
   const search = h("input", { class: "input input-sm", type: "search", placeholder: "가맹점·주문번호·적요 검색", value: state.q });
   const kpiBar = h("div", { class: "kpis kpis-sm" });
+  const fxBar = fxStrip();
+  let fx = null;
   const bulk = h("div", { class: "bulkbar" });
   const tableWrap = h("div", { class: "table-wrap" }, h("div", { class: "card-loading" }, spinner()));
   const refreshBtn = h("button", { class: "btn btn-ghost", type: "button", onclick: () => load() }, icon("refresh"), h("span", {}, "새로고침"));
@@ -45,6 +48,7 @@ export function renderEntries(el, { me, params }) {
       desc: isStaff ? "AI 가 읽은 증빙 정보를 원본과 대조해 수정하고 제출합니다." : "전 지국 증빙과 결재 진행 상황입니다. 결재할 증빙은 결재함에 모입니다.",
       actions: isStaff ? [refreshBtn, h("a", { class: "btn btn-primary", href: "#/upload" }, icon("upload"), h("span", {}, "증빙 업로드"))] : [refreshBtn],
     }),
+    fxBar.node,
     kpiBar,
     h(
       "section",
@@ -62,7 +66,7 @@ export function renderEntries(el, { me, params }) {
       const params = new URLSearchParams();
       if (state.quarter) params.set("quarter", state.quarter);
       if (!isStaff) params.set("branch", state.branch);
-      rows = (await api.get(`/entries${params.size ? `?${params}` : ""}`)).entries;
+      [rows, fx] = await Promise.all([api.get(`/entries${params.size ? `?${params}` : ""}`).then((r) => r.entries), loadFx()]);
       paint();
     } catch (e) {
       clear(tableWrap).append(h("p", { class: "card-error" }, errorText(e)));
@@ -86,9 +90,21 @@ export function renderEntries(el, { me, params }) {
   }
 
   function paint() {
-    const cur = rows.find((e) => e.currency)?.currency || "USD";
+    // 합계는 지국 통화로 환산(현재 환율). 지국 담당자=자기 지국 통화, 본사: 한 지국을 고르면 그 지국 통화, 전체 지국이면 원화
+    const cur = displayCurrency();
     const by = (set) => rows.filter((e) => set.has(e.status));
-    const sum = (arr, f = "amount") => arr.reduce((a, e) => a + (Number(e[f]) || 0), 0);
+    const conv = (arr, f = "amount") => sumIn(arr, f, fx, cur);
+    const sum = (arr, f = "amount") => conv(arr, f).total;
+    const skipped = conv(rows).skipped;
+    const converted = conv(rows).converted;
+    const scope = isStaff ? [me.branchId] : state.branch === "all" ? Object.keys(fx?.branchCurrency || {}) : [state.branch];
+    // 환율 띠: 보고 있는 지국의 통화(뉴욕=원/달러, 베이징=원/위안…) + 증빙에 실제로 나온 다른 통화
+    const shown = [...scope.map((b) => fx?.branchCurrency?.[b]), cur, ...rows.map((e) => e.currency)];
+    fxBar.paint(
+      fx,
+      shown,
+      [cur === "KRW" ? "합계 기준: 원화(KRW)" : `합계 기준: ${cur}`, converted ? `다른 통화 ${converted}건 환산 포함` : null, skipped ? `환율 미확인 ${skipped}건 제외` : null].filter(Boolean).join(" · "),
+    );
     const writing = by(new Set(["draft", "flagged"]));
     const returned = by(new Set(["returned"]));
     clear(kpiBar).append(
@@ -175,14 +191,20 @@ export function renderEntries(el, { me, params }) {
     );
   }
 
+  function displayCurrency() {
+    const bc = fx?.branchCurrency || {};
+    if (isStaff) return bc[me.branchId] || rows.find((e) => e.currency)?.currency || "USD";
+    return state.branch === "all" ? "KRW" : bc[state.branch] || "USD";
+  }
+
   function paintBulk() {
     clear(bulk);
     bulk.classList.toggle("show", selected.size > 0);
     if (!selected.size) return;
     const picked = rows.filter((e) => selected.has(e.id));
-    const cur = picked.find((e) => e.currency)?.currency || "USD";
+    const cur = displayCurrency();
     bulk.append(
-      h("span", {}, h("b", {}, `${selected.size}건`), ` 선택 · ${money(picked.reduce((a, e) => a + (Number(e.amount) || 0), 0), cur)}`),
+      h("span", {}, h("b", {}, `${selected.size}건`), ` 선택 · ${money(sumIn(picked, "amount", fx, cur).total, cur)}`),
       h("div", { class: "bulk-actions" }, h("button", { class: "btn btn-ghost btn-sm", type: "button", onclick: () => (selected.clear(), paint()) }, "선택 해제"), h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => bulkSubmit(picked) }, icon("send"), h("span", {}, "선택 제출"))),
     );
   }

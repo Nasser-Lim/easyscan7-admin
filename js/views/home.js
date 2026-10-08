@@ -1,6 +1,7 @@
 // 홈 — 이번 분기 요약 지표, 한도 현황, 최근 증빙, 바로가기.
 import { api } from "../api.js";
 import { BRANCH, clear, currentQuarter, dateText, empty, errorText, h, icon, money, quarterLabel, spinner, statusChip } from "../ui.js";
+import { loadFx, sumIn } from "../fx.js";
 import { limitsCard } from "./limits.js";
 import { pageHeader } from "./shell.js";
 
@@ -36,13 +37,15 @@ export function renderHome(el, { me, go }) {
 
   api
     .get(`/entries?quarter=${quarter}`)
-    .then(({ entries }) => {
-      const cur = entries.find((e) => e.currency)?.currency || "USD";
+    .then(async ({ entries }) => {
+      // 합계는 지국 통화로 환산(현재 환율) — 원화·외화 증빙이 섞여 있어도 한 통화로
+      const fx = await loadFx();
+      const cur = fx.branchCurrency?.[me.branchId] || entries.find((e) => e.currency)?.currency || "USD";
       const count = (s) => entries.filter((e) => s.includes(e.status)).length;
       const todo = count(["draft", "flagged", "returned"]);
       const inReview = count(["submitted", "chief_review", "finance_review"]);
-      const inel = entries.reduce((a, e) => a + (Number(e.ineligibleAmount) || 0), 0);
-      const total = entries.reduce((a, e) => a + (Number(e.amount) || 0), 0);
+      const inel = sumIn(entries, "ineligibleAmount", fx, cur).total;
+      const total = sumIn(entries, "amount", fx, cur).total;
       clear(kpis).append(
         kpi("이번 분기 증빙", `${entries.length}건`, money(total, cur), "neutral"),
         kpi("미제출", `${todo}건`, count(["returned"]) ? `반려 ${count(["returned"])}건 — 고쳐서 다시 제출` : count(["flagged"]) ? `검토 필요 ${count(["flagged"])}건` : "확인 후 제출하세요", count(["returned"]) ? "bad" : todo ? "warn" : "ok", () => go("entries")),
