@@ -57,7 +57,7 @@ async function load(body, quarter, fxBar) {
             h(
               "tr",
               {},
-              h("td", {}, h("div", { class: "cell-main" }, acc), h("div", { class: "cell-sub" }, `${s.count}건`, s.fxCount ? ` · 환산 ${s.fxCount}건(참고용)` : "")),
+              h("td", {}, h("div", { class: "cell-main" }, acc), h("div", { class: "cell-sub" }, `${s.count}건`, s.fxCount ? ` · 환산 ${s.fxCount}건` : "")),
               h("td", { class: "num" }, money(s.used, cur), s.ineligible > 0 ? h("div", { class: "cell-sub text-bad" }, `비적격 ${money(s.ineligible, cur)}`) : null),
               h("td", { class: "num muted" }, money(s.limit, cur)),
               h("td", { class: "num col-usage" }, usage(pctOf(s.used, s.limit))),

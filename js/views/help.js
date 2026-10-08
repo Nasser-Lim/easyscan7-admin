@@ -88,7 +88,6 @@ function diagram(role) {
   const lines = [
     path(`M380 ${cy(ST)} H${X}`), // 작성 → 제출
     path(`M${X + 90} ${nodeY(ST) + NODE.h} V${nodeY(AI)}`), // 제출 → AI 검증
-    path(`M290 ${nodeY(ST) + NODE.h} V${nodeY(AI)}`, "ai"), // 업로드 → 사전 판정
     path(`M${X + 90} ${nodeY(AI) + NODE.h} V${nodeY(IMC)}`, "ok"), // 통과·소명 → 분류
     path(`M${X + 90} ${nodeY(IMC) + NODE.h} V${nodeY(CH)}`, "bad"), // 비적격 → 국장
     path(`M${X + 180} ${cy(CH)} H760`, "bad"), // 불승인
@@ -99,22 +98,20 @@ function diagram(role) {
     s("path", { d: `M${X} ${cy(FIN)} H172 V${cy(ST)} H200`, class: "dg-line back", "marker-end": "url(#arr-back)" }),
     s("path", { d: `M${X} ${cy(CH)} H172`, class: "dg-line back" }),
     s("path", { d: `M${X} ${cy(IMC)} H172`, class: "dg-line back" }),
-    // AI 자동 반려 — 사전 판정 상자를 가로지르지 않게 상자 위 여백으로 돌아 통로에 합류
-    s("path", { d: `M${X} ${nodeY(AI) + 16} H${X - 22} V${laneY(AI) + 18} H172`, class: "dg-line back" }),
-    ...[laneY(AI) + 18, cy(IMC), cy(CH)].map((y) => s("circle", { cx: 172, cy: y, r: 4, class: "dg-dot back" })),
+    s("path", { d: `M${X} ${cy(AI)} H172`, class: "dg-line back" }), // AI 자동 반려
+    ...[cy(AI), cy(IMC), cy(CH)].map((y) => s("circle", { cx: 172, cy: y, r: 4, class: "dg-dot back" })),
   ];
   const labels = [
     label(X + 98, nodeY(AI) + NODE.h + 36, "통과 · 소명", "ok"),
     label(700, cy(IMC) - 8, "적격 → 재무팀", "ok"), label(X + 98, nodeY(IMC) + NODE.h + 36, "비적격", "bad"),
     label(695, cy(CH) - 8, "불승인", "bad"), label(X + 48, nodeY(CH) + NODE.h + 36, "승인", "ok"),
     label(695, cy(FIN) - 8, "최종 결재", "ok"), label(765, laneY(FIN) + 2, "적격 분류 완료", "ok"),
-    label(302, laneY(AI) + 13, "정책 위반 → 자동 반려 (소명 시 통과)", "back"),
+    label(215, cy(AI) - 8, "정책 위반 → 자동 반려 (소명 시 통과)", "back"),
     label(250, cy(IMC) - 8, "반려 (사유 필수)", "back"), label(250, cy(CH) - 8, "반려 (사유 필수)", "back"), label(250, cy(FIN) - 8, "반려 (사유 필수)", "back"),
   ];
   const nodes = [
-    node(200, ST, "① 업로드 · 작성", "지국 작성중 · 검토 필요", "n-staff"),
-    node(X, ST, "② 제출", "취재비는 적요 필수", "n-staff"),
-    node(200, AI, "사전 판정", "위반이면 검토 필요 표시", "n-ai n-ai-pre"),
+    node(200, ST, "① 업로드 · 작성", "지국 작성중", "n-staff"),
+    node(X, ST, "② 제출", "적요 작성 필수", "n-staff"),
     node(X, AI, "③ AI 적격 검증", "계정별 정책 · 자동 반려", "n-ai"),
     node(X, IMC, "④ 적격 분류", "보도IMC 결재중", "n-imc"),
     node(X, CH, "⑤ 비적격 전결", "보도국장 결재중", "n-chief"),
@@ -134,7 +131,7 @@ export function renderHelp(el, { me }) {
       "section",
       { class: "card" },
       h("div", { class: "card-head" }, h("div", {}, h("div", { class: "card-title" }, "결재선"), h("div", { class: "card-sub" }, "지국에서 올린 증빙이 재무팀 결재까지 가는 길")),
-        h("div", { class: "dg-legend" }, h("span", { class: "lg ok" }, "승인·적격"), h("span", { class: "lg bad" }, "비적격·불승인"), h("span", { class: "lg ai" }, "AI 검증"), h("span", { class: "lg back" }, "반려"))),
+        h("div", { class: "dg-legend" }, h("span", { class: "lg ok" }, "승인·적격"), h("span", { class: "lg bad" }, "비적격·불승인"), h("span", { class: "lg back" }, "반려"))),
       h("div", { class: "dg-wrap" }, diagram(me.role)),
       h("ul", { class: "dg-notes" },
         h("li", { class: "dg-note-ai" }, h("b", {}, "AI 가 먼저 적격 여부를 검증합니다."), " 보도IMC팀·재무팀이 정한 계정별 정책으로 업로드 직후 사전 판정하고, 제출할 때 다시 판정해 정책 위반이면 결재선에 올리지 않고 자동 반려합니다. 업무상 필요한 지출은 지국이 소명을 적어 제출하면 사람이 판단합니다. AI 판정과 근거는 증빙과 결재 이력에 남아 결재자가 함께 봅니다."),
