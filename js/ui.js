@@ -79,7 +79,7 @@ export const IN_REVIEW = new Set(["submitted", "chief_review", "finance_review"]
 export const FINAL = new Set(["approved", "rejected", "deleted"]);
 export const ELIGIBILITY = { eligible: ["적격", "ok"], ineligible: ["비적격", "bad"] };
 export const REVIEWER_ROLES = new Set(["imc", "bureau_chief", "division_head", "finance", "admin"]);
-export const ACTION_LABEL = { submit: "제출", approve: "승인", return: "반려", reject: "불승인" };
+export const ACTION_LABEL = { submit: "제출", withdraw: "제출 취소", approve: "승인", return: "반려", reject: "불승인" };
 export const ROLE = {
   staff: "지국 담당자", imc: "보도IMC팀", bureau_chief: "보도국장",
   division_head: "보도본부장", finance: "재무팀", admin: "관리자",

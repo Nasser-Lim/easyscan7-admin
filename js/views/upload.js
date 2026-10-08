@@ -277,7 +277,6 @@ function batchView(b, go) {
       h(
         "div",
         { class: "card-actions" },
-        h("a", { class: "btn btn-ghost btn-sm", href: "#/entries" }, "증빙 조회로", icon("chevron")),
         h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => dismiss(b.id) }, icon("check"), h("span", {}, "확인 완료")),
       ),
     ),

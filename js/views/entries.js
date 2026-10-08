@@ -272,7 +272,7 @@ export function openDrawer(id, me, onChanged) {
       if (review) form.node.prepend(review.node);
       dirty = form.dirty;
       clear(body).append(h("div", { class: "detail" }, evidenceViewer(e, urls), h("div", { class: "detail-side" }, form.node)));
-      const ctx = { close, onChanged: () => (onChanged(), refreshInboxBadge(me)), reopen: () => openDrawer(id, me, onChanged) };
+      const ctx = { me, close, onChanged: () => (onChanged(), refreshInboxBadge(me)), reopen: () => openDrawer(id, me, onChanged) };
       clear(foot).append(...(review ? reviewFooter(e, me, form, review, ctx) : footer(e, form, ctx)));
     })
     .catch((ex) => clear(body).append(h("p", { class: "card-error" }, errorText(ex))));
@@ -406,7 +406,7 @@ function detailForm(e, me) {
   if (e.status === "returned")
     banners.unshift(banner("bad", "alert", "반려됨 — 고쳐서 다시 제출하세요", e.returnedReason || "사유 없음"));
   if (IN_REVIEW.has(e.status) && !e.stage?.canAct)
-    banners.push(banner("info", "info", STATUS[e.status].label, me.role === "staff" ? "결재 진행 중입니다. 반려되면 다시 고칠 수 있습니다." : "다른 단계의 결재를 기다리는 증빙입니다."));
+    banners.push(banner("info", "info", STATUS[e.status].label, me.role === "staff" ? (e.status === "submitted" ? "보도IMC팀이 아직 분류하기 전입니다. 아래 [제출 취소]로 되돌려 다시 고칠 수 있습니다." : "결재 진행 중입니다. 반려되면 다시 고칠 수 있습니다.") : "다른 단계의 결재를 기다리는 증빙입니다."));
   if (e.status === "approved") banners.push(banner("ok", "check", "결재 완료", "재무팀 결재까지 끝난 증빙이라 수정할 수 없습니다."));
   if (e.status === "rejected") banners.push(banner("bad", "x", "불승인", "비적격 증빙으로 지급하지 않기로 결재되었습니다(한도에서도 빠짐)."));
 
@@ -597,8 +597,35 @@ function banner(tone, ic, title, text) {
   return h("div", { class: `banner banner-${tone}` }, icon(ic), h("div", {}, h("b", {}, title), h("div", {}, text)));
 }
 
-function footer(e, form, { close, onChanged, reopen }) {
-  if (!form.editable) return [h("span", { class: "muted small" }, "읽기 전용"), h("button", { class: "btn btn-ghost", type: "button", onclick: () => close() }, "닫기")];
+function withdrawFooter(e, { close, onChanged }) {
+  const btn = h("button", { class: "btn btn-ghost", type: "button" }, icon("refresh"), h("span", {}, "제출 취소"));
+  btn.addEventListener("click", async () => {
+    const ok = await confirmDialog({
+      title: "제출 취소",
+      message: h("div", {}, h("p", {}, "제출을 취소하면 '지국 작성중'으로 돌아가 다시 수정할 수 있습니다. 고친 뒤 다시 제출하세요."), h("p", { class: "muted small" }, "보도IMC팀이 이미 분류했다면 취소되지 않습니다.")),
+      confirm: "제출 취소",
+    });
+    if (!ok) return;
+    btn.disabled = true;
+    try {
+      await api.post(`/entries/${e.id}/withdraw`);
+      toast("제출을 취소했습니다 — 지국 작성중으로 돌아갔습니다", "ok");
+      onChanged();
+      close(true);
+    } catch (ex) {
+      toast(errorText(ex), "bad");
+      btn.disabled = false;
+    }
+  });
+  return [h("span", { class: "muted small" }, "보도IMC팀 결재 대기 중 — 취소하면 다시 수정할 수 있습니다"), h("div", { class: "foot-right" }, h("button", { class: "btn btn-ghost", type: "button", onclick: () => close() }, "닫기"), btn)];
+}
+
+function footer(e, form, { me, close, onChanged, reopen }) {
+  if (!form.editable) {
+    // 보도IMC팀이 아직 분류하지 않은 증빙은 지국 담당자가 제출을 취소하고 다시 고칠 수 있다
+    if (e.status === "submitted" && me.role === "staff") return withdrawFooter(e, { close, onChanged });
+    return [h("span", { class: "muted small" }, "읽기 전용"), h("button", { class: "btn btn-ghost", type: "button", onclick: () => close() }, "닫기")];
+  }
 
   const saveBtn = h("button", { class: "btn btn-ghost", type: "button" }, icon("check"), h("span", {}, "저장"));
   const submitBtn = h("button", { class: "btn btn-primary", type: "button" }, icon("send"), h("span", {}, "저장 후 제출"));
