@@ -53,7 +53,7 @@ export function renderPolicy(el) {
     function syncDirty() {
       const dirty = snapshot() !== initial;
       saveBtn.disabled = !dirty;
-      dirtyNote.textContent = dirty ? "저장하지 않은 변경이 있습니다" : p.version ? `v${p.version} · ${p.updatedBy || "-"} · ${dateTime(p.updatedAt)} 저장` : "아직 저장한 정책이 없습니다";
+      dirtyNote.textContent = dirty ? "저장하지 않은 변경이 있습니다" : p.version ? `v${p.version} · 최종 수정 ${p.updatedTeam || "—"} · ${dateTime(p.updatedAt)}` : "아직 저장한 정책이 없습니다";
     }
     syncDirty();
 
@@ -69,10 +69,24 @@ export function renderPolicy(el) {
       if (!ok) return;
       saveBtn.disabled = true;
       try {
-        const saved = await api.put("/policies", { enabled: master.checked, accounts: Object.fromEntries(ACCOUNTS.map((a) => [a, { enabled: forms[a].on.checked, rules: forms[a].area.value.trim() }])) });
+        const saved = await api.put("/policies", { baseVersion: p.version, enabled: master.checked, accounts: Object.fromEntries(ACCOUNTS.map((a) => [a, { enabled: forms[a].on.checked, rules: forms[a].area.value.trim() }])) });
         toast(`AI 적격 정책을 저장했습니다 (v${saved.version})`, "ok");
         draw(saved);
       } catch (e) {
+        if (e.status === 409 && e.detail?.reason === "stale_policy") {
+          // 그사이 다른 팀이 먼저 저장했다 — 덮어쓰지 않는다. 최신 내용을 불러오거나, 내 입력을 남겨 두고 확인한다
+          const d = e.detail;
+          const reload = await confirmDialog({
+            title: "다른 사용자가 먼저 정책을 수정했습니다",
+            message: h("div", {},
+              h("p", {}, `${d.updatedTeam || "다른 사용자"}이(가) v${d.currentVersion} 로 저장했습니다${d.updatedAt ? ` · ${dateTime(d.updatedAt)}` : ""}.`),
+              h("p", { class: "small" }, "[최신 내용 불러오기] 를 누르면 화면이 최신 정책으로 바뀌고 지금 입력한 내용은 사라집니다. 내 입력을 남겨 두고 싶으면 [닫기] 를 누르고 먼저 복사해 두세요.")),
+            confirm: "최신 내용 불러오기",
+          });
+          if (reload) load();
+          else syncDirty();
+          return;
+        }
         toast(errorText(e), "bad");
         syncDirty();
       }
@@ -184,7 +198,7 @@ function historyCard() {
       clear(box).append(
         history.length
           ? h("table", { class: "table" },
-              h("thead", {}, h("tr", {}, h("th", {}, "버전"), h("th", {}, "저장"), h("th", {}, "변경자"), h("th", {}, "바뀐 내용"))),
+              h("thead", {}, h("tr", {}, h("th", {}, "버전"), h("th", {}, "저장"), h("th", {}, "작성 팀"), h("th", {}, "바뀐 내용"))),
               h("tbody", {}, history.map((x) => {
                 const b = x.before?.accounts || {};
                 const a = x.after?.accounts || {};
@@ -192,7 +206,7 @@ function historyCard() {
                 const parts = [];
                 if (x.before?.enabled !== x.after?.enabled) parts.push(x.after?.enabled ? "AI 검증 켬" : "AI 검증 끔");
                 if (changed.length) parts.push(`${changed.join(", ")} 정책`);
-                return h("tr", {}, h("td", { class: "mono" }, `v${x.version}`), h("td", { class: "mono cell-sub" }, dateTime(x.at)), h("td", {}, x.email || x.uid || "—"), h("td", { class: "cell-sub" }, parts.join(" · ") || "—"));
+                return h("tr", {}, h("td", { class: "mono" }, `v${x.version}`), h("td", { class: "mono cell-sub" }, dateTime(x.at)), h("td", {}, x.team ? h("b", {}, x.team) : "—"), h("td", { class: "cell-sub" }, parts.join(" · ") || "—"));
               })))
           : h("p", { class: "card-pad muted small" }, "아직 변경 이력이 없습니다."),
       );

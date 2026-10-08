@@ -137,7 +137,7 @@ export function renderLimitSettings(el, { me }) {
       h("td", {}, h("div", { class: "cell-main" }, `${b.name}지국`), src ? h("div", { class: "cell-sub" }, chip(src[0], src[1])) : null),
       h("td", {}, cur),
       ...accounts.map((a) => h("td", { class: "num" }, inputs[a])),
-      h("td", { class: "cell-sub" }, b.updatedBy ? [b.updatedBy, h("br", {}), dateTime(b.updatedAt)] : "—"),
+      h("td", { class: "cell-sub" }, b.updatedAt ? [b.updatedTeam || "", b.updatedTeam ? h("br", {}) : "", dateTime(b.updatedAt)] : "—"),
       h("td", { class: "cell-action" }, save),
     );
     return { tr };
@@ -160,7 +160,7 @@ export function renderLimitSettings(el, { me }) {
             const ca = r.after?.currency;
             const diffs = accounts.filter((a) => before[a] !== after[a]).map((a) => `${a} ${fmt(before[a], ca)} → ${fmt(after[a], ca)}`);
             if (r.before?.currency && cb !== ca) diffs.unshift(`통화 ${cb} → ${ca}`); // 처음 저장(이전 값 없음)이면 통화 변경으로 보지 않는다
-            return h("tr", {}, h("td", { class: "mono" }, dateTime(r.at)), h("td", {}, r.email || "—", h("div", { class: "cell-sub" }, ROLE[r.role] || r.role || "")), h("td", {}, diffs.length ? diffs.join(" · ") : "변경 없음"));
+            return h("tr", {}, h("td", { class: "mono" }, dateTime(r.at)), h("td", {}, ROLE[r.role] || r.role || "—"), h("td", {}, diffs.length ? diffs.join(" · ") : "변경 없음"));
           }))),
       );
     } catch (e) {

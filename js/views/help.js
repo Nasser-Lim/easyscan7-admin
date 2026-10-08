@@ -190,7 +190,7 @@ function policyCard() {
                 h("div", { class: "policy-read-head" }, h("b", {}, a), on ? chip(`${lines.length}개 기준`, "info") : chip("적용 안 함", "muted")),
                 on ? h("ul", { class: "tips" }, lines.map((l) => h("li", {}, l))) : h("p", { class: "muted small" }, "이 계정은 AI 정책 검증을 하지 않습니다."));
             })),
-        p.version ? h("p", { class: "muted small policy-read-foot" }, `정책 v${p.version} · ${dateTime(p.updatedAt)} 저장 · 보도IMC팀·재무팀 관리`) : null,
+        p.version ? h("p", { class: "muted small policy-read-foot" }, `정책 v${p.version} · ${p.updatedTeam ? `최종 수정 ${p.updatedTeam} · ` : ""}${dateTime(p.updatedAt)} · 보도IMC팀·재무팀 공용 관리`) : null,
       );
     })
     .catch(() => clear(box).append(h("p", { class: "muted small" }, "정책을 불러오지 못했습니다.")));
