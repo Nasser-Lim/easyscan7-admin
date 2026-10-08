@@ -195,12 +195,35 @@ export function empty(title, desc) {
   return h("div", { class: "empty" }, icon("list", "ic empty-ic"), h("div", { class: "empty-title" }, title), desc ? h("div", { class: "empty-desc" }, desc) : null);
 }
 
-export function toast(message, tone = "info", ms = 3800) {
+// 알림 메시지 — 화면 가운데에 뜨는 작은 카드(확인 창과 같은 문서형 스타일). 클릭을 막지 않고, 시간이 지나면 사라지며, 누르면 바로 닫힌다.
+const TOAST = {
+  ok: { title: "완료", ic: "check", ms: 2200 },
+  info: { title: "안내", ic: "info", ms: 3200 },
+  warn: { title: "확인해 주세요", ic: "alert", ms: 4800 },
+  bad: { title: "오류", ic: "alert", ms: 6500 },
+};
+export function toast(message, tone = "info", ms) {
   const box = document.getElementById("toasts");
-  const t = h("div", { class: `toast toast-${tone}` }, icon(tone === "ok" ? "check" : tone === "bad" ? "alert" : "info"), h("span", {}, message));
+  const k = TOAST[tone] || TOAST.info;
+  const life = ms ?? k.ms;
+  const t = h(
+    "div",
+    { class: `toast toast-${tone}`, role: tone === "bad" ? "alert" : "status", onclick: () => close() },
+    h("span", { class: "toast-ic" }, icon(k.ic)),
+    h("div", { class: "toast-body" }, h("div", { class: "toast-title" }, k.title), h("div", { class: "toast-msg" }, message)),
+  );
+  let timer;
+  const close = () => {
+    clearTimeout(timer);
+    t.classList.add("out");
+    setTimeout(() => {
+      t.remove();
+      if (!box.querySelector(".toast")) box.classList.remove("show");
+    }, 260);
+  };
   box.append(t);
-  setTimeout(() => t.classList.add("out"), ms);
-  setTimeout(() => t.remove(), ms + 400);
+  box.classList.add("show");
+  timer = setTimeout(close, life);
 }
 
 export function confirmDialog({ title, message, confirm = "확인", danger = false }) {

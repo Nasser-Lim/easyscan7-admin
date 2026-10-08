@@ -519,22 +519,31 @@ select.input { padding-right: 28px; }
 .modal-body { color: var(--text-2); font-size: 13.5px; }
 .modal-body p + p { margin-top: 8px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin: 18px -20px -16px; padding: 10px 20px; border-top: 1px solid var(--line); background: var(--surface-2); }
-.toasts { position: fixed; right: 20px; bottom: 20px; z-index: 90; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; pointer-events: none; }
-.toast {
-  display: flex; align-items: center; gap: 10px; max-width: 420px; padding: 10px 14px; border-radius: var(--radius-sm);
-  background: var(--sbs-blue-900); color: #fff; font-size: 13px; box-shadow: var(--shadow-2); border-left: 3px solid var(--sbs-sky);
-  animation: toast-in .2s ease-out; transition: opacity .35s, transform .35s;
+/* 알림 메시지 — 화면 가운데 카드. 가볍게 배경을 어둡게 하되 클릭은 막지 않는다 */
+.toasts {
+  position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; gap: 10px; align-items: center; justify-content: center;
+  padding: 24px; pointer-events: none; background: rgba(11, 31, 51, 0); transition: background .2s;
 }
-.toast .ic { width: 17px; height: 17px; }
-.toast-ok { border-left-color: #2fbf87; }
-.toast-ok .ic { color: #2fbf87; }
-.toast-warn { border-left-color: var(--sbs-orange); }
-.toast-warn .ic { color: var(--sbs-orange); }
-.toast-bad { border-left-color: #ff6b5e; }
-.toast-bad .ic { color: #ff6b5e; }
-.toast-info .ic { color: #5cc2f5; }
-.toast.out { opacity: 0; transform: translateY(6px); }
-@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
+.toasts.show { background: rgba(11, 31, 51, .16); }
+.toast {
+  --tone: var(--sbs-sky);
+  display: flex; align-items: flex-start; gap: 12px; width: 380px; max-width: calc(100vw - 48px); padding: 14px 20px 14px 14px;
+  background: var(--surface); color: var(--text); border: 1px solid var(--line); border-top: 3px solid var(--tone); border-radius: var(--radius);
+  box-shadow: var(--shadow-2); pointer-events: auto; cursor: pointer; animation: toast-in .22s cubic-bezier(.2, .9, .3, 1.15);
+  transition: opacity .26s, transform .26s;
+}
+.toast-ic { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 30px; height: 30px; border-radius: var(--radius-sm); background: var(--tone); color: #fff; }
+.toast-ic .ic { width: 17px; height: 17px; }
+.toast-body { min-width: 0; padding-top: 1px; }
+.toast-title { font-size: 11px; font-weight: 800; letter-spacing: .12em; color: var(--tone); }
+.toast-msg { margin-top: 2px; font-size: 14px; font-weight: 600; line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; }
+.toast-ok { --tone: var(--ok); }
+.toast-info { --tone: var(--sbs-sky); }
+.toast-warn { --tone: var(--sbs-orange); }
+.toast-warn .toast-title { color: var(--warn); }
+.toast-bad { --tone: var(--bad); }
+.toast.out { opacity: 0; transform: scale(.97) translateY(4px); }
+@keyframes toast-in { from { opacity: 0; transform: scale(.94) translateY(8px); } }
 
 /* ── 반응형 ── */
 @media (max-width: 1180px) {
