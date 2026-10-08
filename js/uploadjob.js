@@ -86,6 +86,7 @@ function slim(r) {
       ineligibleAmount: e.ineligibleAmount,
       status: e.status,
       flagCount: (e.flags || []).length,
+      aiGate: e.aiGate ? { verdict: e.aiGate.verdict, summary: e.aiGate.summary, violations: e.aiGate.violations || [] } : null,
       notices: e.notices || [],
       fileNames: [...new Set((e.sources || []).map((s) => s.fileName))],
     })),

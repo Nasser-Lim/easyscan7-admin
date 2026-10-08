@@ -758,3 +758,70 @@ select.input { padding-right: 28px; }
 .icon-btn-danger { color: var(--text-3); }
 .icon-btn-danger:hover:not(:disabled) { background: var(--bad-50); color: var(--bad); }
 .bulkbar .btn-bulk-danger:hover:not(:disabled) { background: var(--bad); border-color: var(--bad); }
+
+/* ════════ AI 1차 적격 검증 ════════ */
+/* 증빙 상세 맨 위 패널 — 판정 색을 왼쪽 굵은 선으로 */
+.ai-panel { --tone: var(--sbs-sky); margin-bottom: 16px; padding: 12px 14px; border: 1px solid var(--line); border-left: 3px solid var(--tone); border-radius: var(--radius-sm); background: var(--surface); }
+.ai-panel-ok { --tone: var(--ok); background: var(--ok-50); border-color: #c4e2d3; }
+.ai-panel-bad { --tone: var(--bad); background: var(--bad-50); border-color: #efc9c5; }
+.ai-panel-warn { --tone: var(--sbs-orange); background: var(--warn-50); border-color: #ecd9ae; }
+.ai-panel-muted { --tone: var(--line-strong); background: var(--surface-2); }
+.ai-panel-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ai-panel-head > .ic { width: 18px; height: 18px; color: var(--tone); }
+.ai-panel-head b { font-size: 13px; letter-spacing: .01em; }
+.ai-panel-lead { margin-top: 6px; font-size: 12.5px; color: var(--text-2); }
+.ai-panel-sum { margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--text); }
+.ai-viol { list-style: none; display: grid; gap: 6px; margin: 8px 0 2px; }
+.ai-viol li { display: grid; gap: 2px; padding: 7px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.ai-viol-rule { font-size: 11.5px; font-weight: 700; color: var(--bad); }
+.ai-viol-rule::before { content: "정책 · "; color: var(--text-3); font-weight: 600; }
+.ai-viol-why { font-size: 12.5px; color: var(--text); }
+.ai-override { display: grid; gap: 2px; margin-top: 8px; padding: 8px 10px; background: var(--surface); border: 1px dashed var(--sbs-orange); border-radius: var(--radius-sm); font-size: 12.5px; }
+.ai-override b { font-size: 11.5px; color: var(--warn); letter-spacing: .04em; }
+.ai-panel-foot { margin-top: 8px; font-variant-numeric: tabular-nums; }
+/* 목록 상태 칸 아래 한 줄 */
+.ai-mark { display: inline-flex; align-items: center; gap: 4px; margin-top: 3px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.ai-mark .ic { width: 12px; height: 12px; }
+.ai-mark.ai-ok { color: var(--ok); }
+.ai-mark.ai-bad { color: var(--bad); }
+.ai-mark.ai-warn { color: var(--warn); }
+.ai-mark.ai-muted { color: var(--text-3); }
+/* 소명 입력 창 */
+.modal-wide { max-width: 520px; }
+.modal-field { margin-top: 12px; }
+.modal-body .ai-viol { margin: 8px 0; }
+
+/* AI 적격 정책 화면 */
+.policy-how .steps-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 18px; margin-bottom: 10px; }
+.policy-how .steps-row li, .policy-how .steps-row li:first-child { border-top: 0; padding: 0; }
+.policy-master { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-left: 3px solid var(--sbs-blue); }
+.policy-switch { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.policy-switch > span { display: grid; }
+.policy-switch .check { width: 18px; height: 18px; }
+.policy-save { display: flex; align-items: center; gap: 12px; }
+.policy-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.policy-acc-on { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--text-2); cursor: pointer; }
+.policy-text { min-height: 168px; font-size: 13px; line-height: 1.6; }
+.policy-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.policy-test-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.policy-test-bar select.input:first-child { width: 120px; }
+.policy-test-bar select.input:nth-child(2) { flex: 1; min-width: 260px; }
+.policy-test-entry { margin-bottom: 12px; }
+.policy-read { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.policy-read-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.policy-read-foot { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+@media (max-width: 1024px) {
+  .policy-grid, .policy-read, .policy-how .steps-row { grid-template-columns: 1fr; }
+  .policy-how .steps-row { gap: 12px; }
+}
+
+/* 도움말 다이어그램 — AI 레인·노드 */
+.dg-lane.lane-ai .dg-lane-bg { fill: #fffbf2; }
+.dg-lane.lane-ai .dg-lane-head { fill: #fff3d6; }
+.dg-node.n-ai rect { stroke: var(--sbs-orange); fill: #fff6e0; }
+.dg-node.n-ai-pre rect { stroke-dasharray: 5 4; fill: #fff; }
+.dg-line.ai { stroke: var(--sbs-orange); stroke-dasharray: 4 4; }
+.dg-head.ai { fill: var(--sbs-orange); }
+.dg-legend .lg.ai { color: #b87500; } .dg-legend .lg.ai::before { border-color: var(--sbs-orange); border-top-style: dashed; }
+.dg-notes li.dg-note-ai { padding: 8px 10px 8px 26px; background: var(--warn-50); border: 1px solid #ecd9ae; border-radius: var(--radius-sm); color: var(--text); }
+.dg-notes li.dg-note-ai::before { left: 10px; top: 8px; }

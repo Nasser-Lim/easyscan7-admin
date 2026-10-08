@@ -4,6 +4,7 @@ import {
   ACCOUNTS, BRANCH, DOC_TYPE, bytes, chip, clear, currentQuarter, field, h, icon, money, noticeParts,
   quarterLabel, select, statusChip, toast,
 } from "../ui.js";
+import { aiGateMark } from "../aigate.js";
 import { getPeriod, periodSwitch } from "../period.js";
 import { dismiss, dismissAll, getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js";
 import { limitsCard } from "./limits.js";
@@ -185,6 +186,7 @@ function tipsCard() {
       h("li", {}, "이미 등록된 증빙(주문번호·금액 동일)을 다시 올리면 새 증빙 없이 기존 증빙에 합쳐지고 알려 드립니다."),
       h("li", {}, "광고·약관 같은 증빙이 아닌 입력은 자동으로 제외됩니다."),
       h("li", {}, "분기 한도를 넘는 금액은 비적격 처리되며, 제출은 막지 않습니다."),
+      h("li", {}, h("b", {}, "AI 가 재무팀·보도IMC팀이 정한 정책으로 적격 여부를 먼저 검증합니다."), " 위반이면 검토 필요로 표시되고, 그대로 제출하면 자동 반려됩니다. 정당한 사유가 있으면 제출할 때 소명을 적어 주세요."),
     ),
   );
 }
@@ -237,7 +239,7 @@ function batchView(b, go) {
                   money(e.amount, e.currency),
                   e.ineligibleAmount > 0 ? h("div", { class: "cell-sub text-bad" }, `비적격 ${money(e.ineligibleAmount, e.currency)}`) : null,
                 ),
-                h("td", {}, statusChip(e.status), e.flagCount ? h("div", { class: "cell-sub" }, `규칙 ${e.flagCount}건`) : null),
+                h("td", {}, statusChip(e.status), aiGateMark(e.aiGate) || (e.flagCount ? h("div", { class: "cell-sub" }, `규칙 ${e.flagCount}건`) : null)),
                 h("td", { class: "cell-action" }, icon("chevron")),
               ),
             ),
@@ -260,6 +262,14 @@ function batchView(b, go) {
       const p = noticeParts(n);
       notes.push(note(p.tone, p.label, `${e.merchant || "증빙"}: ${p.text}`));
     }
+  // AI 1차 적격 검증 — 정책 위반·판단 보류만 알린다
+  for (const e of r.entries) {
+    const g = e.aiGate;
+    if (g?.verdict === "fail")
+      notes.push(note("bad", "AI 정책 위반", `${e.merchantKo || e.merchant || "증빙"}: ${(g.violations || []).map((v) => v.reason).join(" · ") || g.summary} — 그대로 제출하면 자동 반려됩니다. 고치거나 제출할 때 소명을 적어 주세요.`, () => go(`entries/${e.entryId}`)));
+    else if (g?.verdict === "uncertain")
+      notes.push(note("warn", "AI 판단 보류", `${e.merchantKo || e.merchant || "증빙"}: ${g.summary || "정책 위반 여부를 판단하지 못했습니다"} — 결재자가 직접 확인합니다.`));
+  }
   for (const n of r.notices) {
     const p = noticeParts(`${n.code}: ${n.message}`);
     notes.push(note(p.tone, p.label, p.text));

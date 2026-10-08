@@ -10,6 +10,7 @@ import { renderAccount } from "./views/account.js";
 import { renderInbox, refreshInboxBadge } from "./views/inbox.js";
 import { renderHelp } from "./views/help.js";
 import { renderLimitSettings } from "./views/limitcfg.js";
+import { renderPolicy } from "./views/policy.js";
 import { initUploadQueue, resetUploadQueue } from "./uploadjob.js";
 
 const app = document.getElementById("app");
@@ -23,17 +24,19 @@ const REVIEWER_NAV = [
 ];
 // 분기 한도 설정 — 서버 권한(deps.require_limit_admin)과 같은 역할: 보도IMC팀·재무팀·관리자
 const LIMIT_NAV = { route: "limits", label: "분기 한도 설정", icon: "sliders" };
+// AI 적격 정책 — 서버 권한(deps.require_policy_admin)과 같은 역할: 보도IMC팀·재무팀·관리자 공용
+const POLICY_NAV = { route: "policy", label: "AI 적격 정책", icon: "shield" };
 export const NAV = {
   staff: [
     { route: "home", label: "홈", icon: "home" },
     { route: "upload", label: "증빙 업로드", icon: "upload" },
     { route: "entries", label: "증빙 조회", icon: "list" },
   ],
-  imc: [...REVIEWER_NAV, LIMIT_NAV],
+  imc: [...REVIEWER_NAV, LIMIT_NAV, POLICY_NAV],
   bureau_chief: REVIEWER_NAV,
   division_head: REVIEWER_NAV,
-  finance: [...REVIEWER_NAV, LIMIT_NAV],
-  admin: [...REVIEWER_NAV, LIMIT_NAV],
+  finance: [...REVIEWER_NAV, LIMIT_NAV, POLICY_NAV],
+  admin: [...REVIEWER_NAV, LIMIT_NAV, POLICY_NAV],
 };
 
 const ROUTES = {
@@ -44,6 +47,7 @@ const ROUTES = {
   account: (el, ctx) => renderAccount(el, ctx),
   help: (el, ctx) => renderHelp(el, ctx),
   limits: (el, ctx) => renderLimitSettings(el, ctx),
+  policy: (el, ctx) => renderPolicy(el, ctx),
 };
 
 function parseHash() {

@@ -4,6 +4,7 @@ import {
   BRANCH, ELIGIBILITY, ROLE, chip, clear, confirmDialog, dateText, dateTime, empty, errorText, h, icon, money,
   quarterLabel, select, spinner, statusChip, toast,
 } from "../ui.js";
+import { aiGateMark } from "../aigate.js";
 import { openDrawer } from "./entries.js";
 import { pageHeader, setNavBadge } from "./shell.js";
 
@@ -132,7 +133,7 @@ export function renderInbox(el, { me }) {
               h("td", { class: "num strong" }, money(e.amount, e.currency)),
               h("td", { class: `num ${e.ineligibleAmount > 0 ? "text-bad" : "muted"}` }, e.ineligibleAmount > 0 ? money(e.ineligibleAmount, e.currency) : "—"),
               h("td", {}, elig ? chip(elig[0], elig[1]) : e.ineligibleAmount > 0 ? chip("비적격 권장", "bad") : h("span", { class: "muted" }, "—")),
-              h("td", {}, statusChip(e.status)),
+              h("td", {}, statusChip(e.status), aiGateMark(e.aiGate) || (e.aiGate?.verdict === "pass" ? h("div", { class: "ai-mark ai-ok" }, "AI 검증 통과") : null)),
               h("td", { class: "cell-sub mono" }, dateTime(last?.at || e.updatedAt), last ? h("div", { class: "cell-sub" }, `${last.roleLabel || ""} ${last.email || ""}`) : null),
             );
           }),

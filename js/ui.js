@@ -48,6 +48,7 @@ const ICONS = {
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
   chevron: '<path d="m9 6 6 6-6 6"/>',
   sliders: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+  shield: '<path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z"/><path d="m8.8 12.2 2.3 2.3 4.2-4.6"/>',
   print: '<path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v7H7z"/>',
 };
 export function icon(name, cls = "ic") {
@@ -80,6 +81,19 @@ export const FINAL = new Set(["approved", "rejected", "deleted"]);
 export const ELIGIBILITY = { eligible: ["적격", "ok"], ineligible: ["비적격", "bad"] };
 export const REVIEWER_ROLES = new Set(["imc", "bureau_chief", "division_head", "finance", "admin"]);
 export const ACTION_LABEL = { submit: "제출", withdraw: "제출 취소", approve: "승인", return: "반려", reject: "불승인" };
+// AI 1차 적격 검증(gate) 판정 — 백엔드 services/ai_gate.py 와 같은 값
+export const AI_VERDICT = {
+  pass: { label: "AI 검증 통과", tone: "ok" },
+  fail: { label: "AI 정책 위반", tone: "bad" },
+  override: { label: "AI 위반 · 지국 소명", tone: "warn" },
+  uncertain: { label: "AI 판단 보류", tone: "warn" },
+  skipped: { label: "AI 정책 없음", tone: "muted" },
+  error: { label: "AI 검증 실패", tone: "warn" },
+};
+export function aiKey(gate) {
+  if (!gate?.verdict) return null;
+  return gate.verdict === "fail" && gate.override ? "override" : gate.verdict;
+}
 export const ROLE = {
   staff: "지국 담당자", imc: "보도IMC팀", bureau_chief: "보도국장",
   division_head: "보도본부장", finance: "재무팀", admin: "관리자",
@@ -250,6 +264,34 @@ export function confirmDialog({ title, message, confirm = "확인", danger = fal
     );
     document.body.append(back);
     back.querySelector(".btn-primary, .btn-danger").focus();
+  });
+}
+
+// 한 줄 입력이 필요한 확인 창(소명·사유 등). 확인하면 입력한 문자열, 취소하면 null. required 면 빈 값으로 확인할 수 없다.
+export function promptDialog({ title, message, placeholder = "", confirm = "확인", required = true }) {
+  return new Promise((resolve) => {
+    const area = h("textarea", { class: "input", rows: "3", placeholder });
+    const ok = h("button", { class: "btn btn-primary", type: "button", disabled: required }, confirm);
+    area.addEventListener("input", () => (ok.disabled = required && !area.value.trim()));
+    const close = (v) => {
+      back.remove();
+      resolve(v);
+    };
+    ok.addEventListener("click", () => close(area.value.trim()));
+    const back = h(
+      "div",
+      { class: "modal-back", onclick: (e) => e.target === back && close(null) },
+      h(
+        "div",
+        { class: "modal modal-wide", role: "dialog", "aria-modal": "true" },
+        h("div", { class: "modal-title" }, title),
+        h("div", { class: "modal-body" }, message),
+        h("div", { class: "field modal-field" }, area),
+        h("div", { class: "modal-actions" }, h("button", { class: "btn btn-ghost", type: "button", onclick: () => close(null) }, "취소"), ok),
+      ),
+    );
+    document.body.append(back);
+    area.focus();
   });
 }
 

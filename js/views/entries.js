@@ -3,9 +3,10 @@
 import { api } from "../api.js";
 import {
   ACCOUNTS, ACTION_LABEL, BRANCH, DOC_TYPE, ELIGIBILITY, FINAL, IN_REVIEW, ROLE, STAFF_EDITABLE, STATUS, chip, clear,
-  confirmDialog, dateText, dateTime, empty, errorText, field, h, icon, money, noticeParts,
+  confirmDialog, promptDialog, dateText, dateTime, empty, errorText, field, h, icon, money, noticeParts,
   QUARTER_SOURCE, quarterBadge, quarterLabel, quarterOf, quarterOptions, select, spinner, statusChip, toast,
 } from "../ui.js";
+import { aiGateMark, aiGatePanel } from "../aigate.js";
 import { fxStrip, loadFx, sumIn } from "../fx.js";
 import { refreshInboxBadge } from "./inbox.js";
 import { pageHeader } from "./shell.js";
@@ -182,7 +183,7 @@ export function renderEntries(el, { me, params }) {
               h("td", { class: "cell-sub" }, DOC_TYPE[e.docType] || e.docType || "—"),
               h("td", { class: "num strong" }, money(e.amount, e.currency)),
               h("td", { class: `num ${e.ineligibleAmount > 0 ? "text-bad" : "muted"}` }, e.ineligibleAmount > 0 ? money(e.ineligibleAmount, e.currency) : "—"),
-              h("td", {}, statusChip(e.status), e.eligibility ? h("div", { class: "cell-sub" }, ELIGIBILITY[e.eligibility][0]) : null),
+              h("td", {}, statusChip(e.status), e.eligibility ? h("div", { class: "cell-sub" }, ELIGIBILITY[e.eligibility][0]) : null, aiGateMark(e.aiGate)),
               h("td", { class: "cell-sub mono" }, dateTime(e.createdAt)),
               isStaff ? h("td", { class: "cell-del" }, EDITABLE_STATUS.has(e.status) ? rowDelete(e) : null) : null,
             );
@@ -272,16 +273,21 @@ export function renderEntries(el, { me, params }) {
     });
     if (!ok) return;
     let done = 0;
+    let aiReturned = 0;
     const failed = [];
     for (const e of picked) {
       try {
-        await api.post(`/entries/${e.id}/submit`);
-        done++;
+        const r = await api.post(`/entries/${e.id}/submit`, {});
+        if (r.status === "returned") aiReturned++;
+        else done++;
       } catch (ex) {
         failed.push(`${e.merchant || e.id}: ${errorText(ex)}`);
       }
     }
-    toast(failed.length ? `${done}건 제출, ${failed.length}건 실패` : `${done}건을 제출했습니다`, failed.length ? "bad" : "ok");
+    const parts = [`${done}건 제출`];
+    if (aiReturned) parts.push(`${aiReturned}건은 AI 1차 검증에서 정책 위반으로 자동 반려(증빙을 열어 사유 확인 · 소명 후 재제출 가능)`);
+    if (failed.length) parts.push(`${failed.length}건 실패 — ${failed[0]}`);
+    toast(parts.join(" · "), failed.length ? "bad" : aiReturned ? "warn" : "ok", aiReturned || failed.length ? 7000 : undefined);
     load();
   }
 
@@ -474,7 +480,7 @@ function detailForm(e, me) {
     banners.push(banner("info", "info", "한도 계산 제외", `${cur} 영수증은 지국 한도(${e.limitBasis.currency || "USD"}) 계산에서 빠집니다. 환산은 재무팀이 확인합니다.`));
   if (e.ineligibleAmount > 0)
     banners.push(banner("bad", "alert", "한도 초과 — 비적격", `분기 한도를 넘어 ${money(e.ineligibleAmount, cur)} 가 비적격 처리되었습니다(적격 ${money(e.eligibleAmount, cur)}). 제출은 가능합니다.`));
-  for (const f of e.flags || []) banners.push(banner(f.severity === "error" ? "bad" : "warn", "alert", f.severity === "error" ? "검증 오류" : "검토 필요", f.message));
+  for (const f of (e.flags || []).filter((x) => x.ruleId !== "ai-policy")) banners.push(banner(f.severity === "error" ? "bad" : "warn", "alert", f.severity === "error" ? "검증 오류" : "검토 필요", f.message));
   for (const n of e.notices || []) {
     const p = noticeParts(n);
     banners.push(banner(p.tone === "bad" ? "bad" : p.tone === "warn" ? "warn" : "info", "info", p.label, p.text));
@@ -490,6 +496,7 @@ function detailForm(e, me) {
   const node = h(
     "div",
     { class: "detail-form" },
+    aiGatePanel(e.aiGate, me.role === "staff" ? "staff" : "reviewer"),
     banners.length ? h("div", { class: "banners" }, banners) : null,
     h("div", { class: "section-label" }, "증빙 정보"),
     h(
@@ -746,11 +753,33 @@ function footer(e, form, { me, close, onChanged, reopen }) {
       confirm: "IMC팀에 제출",
     });
     if (!ok) return;
+    // AI 가 이미 정책 위반으로 판정했고 판정에 쓰인 내용을 고치지 않았다면, 소명 없이는 자동 반려된다 → 미리 소명을 받는다
+    const GATE_INPUTS = ["account", "merchant", "merchantKo", "memo", "amount", "txnDate"];
+    const touched = Object.keys(form.diff()).some((k) => GATE_INPUTS.includes(k));
+    let justification = null;
+    if (e.aiGate?.verdict === "fail" && !e.aiGate.stale && !touched) { // 반려 후 다시 낼 때도 새 소명이 필요하다
+      justification = await promptDialog({
+        title: "AI 1차 검증 — 소명 후 제출",
+        message: h("div", {}, h("p", {}, "AI 가 이 증빙을 정책 위반으로 판단했습니다. 소명 없이 제출하면 자동 반려됩니다."),
+          h("ul", { class: "ai-viol" }, (e.aiGate.violations || []).map((x) => h("li", {}, h("span", { class: "ai-viol-rule" }, x.rule), h("span", { class: "ai-viol-why" }, x.reason)))),
+          h("p", { class: "small" }, "업무상 필요한 지출이라면 사유를 적어 주세요. 소명과 함께 보도IMC팀으로 넘어가 사람이 판단합니다.")),
+        placeholder: "예) 지국 사무실 청소용품 — 업무용 비품으로 구매",
+        confirm: "소명하고 제출",
+      });
+      if (justification === null) return;
+    }
     lock(true);
     try {
       await save();
-      await api.post(`/entries/${e.id}/submit`);
-      toast("보도IMC팀에 제출했습니다", "ok");
+      const r = await api.post(`/entries/${e.id}/submit`, justification ? { justification } : {});
+      if (r.status === "returned") {
+        toast(r.message || "AI 1차 검증에서 정책 위반으로 자동 반려되었습니다.", "warn", 8000);
+        onChanged();
+        await close(true);
+        reopen(); // 반려 사유와 AI 판정을 바로 보여 준다
+        return;
+      }
+      toast(justification ? "소명과 함께 보도IMC팀에 제출했습니다" : "보도IMC팀에 제출했습니다", "ok");
       onChanged();
       close(true);
     } catch (ex) {
