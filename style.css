@@ -743,3 +743,9 @@ select.input { padding-right: 28px; }
 
 .page-actions { align-items: center; }
 @media (max-width: 560px) { .period-label { display: none; } }
+
+/* 증빙 삭제 — 행 끝의 휴지통, 선택 바의 [선택 삭제] */
+.cell-del { width: 44px; text-align: right; }
+.icon-btn-danger { color: var(--text-3); }
+.icon-btn-danger:hover:not(:disabled) { background: var(--bad-50); color: var(--bad); }
+.bulkbar .btn-bulk-danger:hover:not(:disabled) { background: var(--bad); border-color: var(--bad); }

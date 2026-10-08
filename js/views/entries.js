@@ -155,6 +155,7 @@ export function renderEntries(el, { me, params }) {
             th("비적격", "ineligibleAmount", "num"),
             th("상태", "status"),
             th("등록", "createdAt"),
+            isStaff ? h("th", { class: "cell-del" }) : null,
           ),
         ),
         h(
@@ -183,11 +184,60 @@ export function renderEntries(el, { me, params }) {
               h("td", { class: `num ${e.ineligibleAmount > 0 ? "text-bad" : "muted"}` }, e.ineligibleAmount > 0 ? money(e.ineligibleAmount, e.currency) : "—"),
               h("td", {}, statusChip(e.status), e.eligibility ? h("div", { class: "cell-sub" }, ELIGIBILITY[e.eligibility][0]) : null),
               h("td", { class: "cell-sub mono" }, dateTime(e.createdAt)),
+              isStaff ? h("td", { class: "cell-del" }, EDITABLE_STATUS.has(e.status) ? rowDelete(e) : null) : null,
             );
           }),
         ),
       ),
     );
+  }
+
+  // 증빙 1건 삭제 — 지국 담당자가 작성중·검토 필요·반려 상태의 증빙만(서버도 같은 규칙). 한도 계산에서도 빠진다.
+  function rowDelete(e) {
+    return h(
+      "button",
+      {
+        class: "icon-btn icon-btn-danger",
+        type: "button",
+        title: "삭제",
+        "aria-label": "삭제",
+        onclick: async (ev) => {
+          ev.stopPropagation();
+          const ok = await confirmDialog({ title: "증빙 삭제", message: h("div", {}, h("p", {}, `${e.merchantKo || e.merchant || "이 증빙"} ${money(e.amount, e.currency)} 을(를) 삭제할까요?`), h("p", { class: "muted small" }, "한도 계산에서도 빠지며 되돌릴 수 없습니다.")), confirm: "삭제", danger: true });
+          if (!ok) return;
+          try {
+            await api.del(`/entries/${e.id}`);
+            toast("삭제했습니다", "ok");
+            load();
+          } catch (ex) {
+            toast(errorText(ex), "bad");
+          }
+        },
+      },
+      icon("trash"),
+    );
+  }
+
+  async function bulkDelete(picked) {
+    const ok = await confirmDialog({
+      title: `증빙 ${picked.length}건 삭제`,
+      message: h("div", {}, h("p", {}, `선택한 증빙 ${picked.length}건(${money(sumIn(picked, "amount", fx, displayCurrency()).total, displayCurrency())})을 삭제할까요?`), h("p", { class: "muted small" }, "한도 계산에서도 빠지며 되돌릴 수 없습니다.")),
+      confirm: `${picked.length}건 삭제`,
+      danger: true,
+    });
+    if (!ok) return;
+    let done = 0;
+    const failed = [];
+    for (const e of picked) {
+      try {
+        await api.del(`/entries/${e.id}`);
+        done++;
+      } catch (ex) {
+        failed.push(`${e.merchant || e.id}: ${errorText(ex)}`);
+      }
+    }
+    toast(failed.length ? `${done}건 삭제, ${failed.length}건 실패 — ${failed[0]}` : `${done}건을 삭제했습니다`, failed.length ? "bad" : "ok", failed.length ? 6000 : 3800);
+    load();
   }
 
   function displayCurrency() {
@@ -204,7 +254,7 @@ export function renderEntries(el, { me, params }) {
     const cur = displayCurrency();
     bulk.append(
       h("span", {}, h("b", {}, `${selected.size}건`), ` 선택 · ${money(sumIn(picked, "amount", fx, cur).total, cur)}`),
-      h("div", { class: "bulk-actions" }, h("button", { class: "btn btn-ghost btn-sm", type: "button", onclick: () => (selected.clear(), paint()) }, "선택 해제"), h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => bulkSubmit(picked) }, icon("send"), h("span", {}, "선택 제출"))),
+      h("div", { class: "bulk-actions" }, h("button", { class: "btn btn-ghost btn-sm", type: "button", onclick: () => (selected.clear(), paint()) }, "선택 해제"), h("button", { class: "btn btn-ghost btn-sm btn-bulk-danger", type: "button", onclick: () => bulkDelete(picked) }, icon("trash"), h("span", {}, "선택 삭제")), h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => bulkSubmit(picked) }, icon("send"), h("span", {}, "선택 제출"))),
     );
   }
 
@@ -412,7 +462,7 @@ function detailForm(e, me) {
   syncMemoHint();
   // 적요 초안은 AI 가 영수증만 보고 쓴 것이라 업무 맥락(누구와·왜)이 없다 — 눈에 띄게 고쳐 쓰도록 안내한다.
   // 수정 가능한 증빙에서만, 사용자가 문구를 고치기 시작하면 사라진다.
-  const memoTip = h("span", { class: "memo-tip", role: "note" }, icon("info"), h("span", {}, "AI 작성 문구를 구체적으로 바꿔주세요"));
+  const memoTip = h("span", { class: "memo-tip", role: "note" }, icon("info"), h("span", {}, "AI가 작성한 문구를 구체적으로 바꿔주세요"));
   const syncMemoTip = () => memoTip.classList.toggle("hide", !editable || inputs.memo.value !== original.memo);
   inputs.memo.addEventListener("input", syncMemoTip);
   syncMemoTip();
