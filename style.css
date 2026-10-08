@@ -738,8 +738,8 @@ select.input { padding-right: 28px; }
 .period-seg + .period-seg { border-left: 1px solid var(--line-strong); }
 .period-seg:hover:not(.on) { background: var(--surface-2); color: var(--text); }
 .period-q { align-self: center; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
-.period-tag { align-self: center; font-size: 11px; font-weight: 600; color: var(--text-3); }
+
 .period-seg.on { background: var(--sbs-blue); color: #fff; }
-.period-seg.on .period-tag { color: rgba(255, 255, 255, .78); }
+
 .page-actions { align-items: center; }
 @media (max-width: 560px) { .period-label { display: none; } }

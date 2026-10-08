@@ -39,16 +39,15 @@ const shortLabel = (q) => {
   return `${y} Q${n}`;
 };
 
-// 분기 전환 스위치 — [전분기 | 현분기] 두 칸. onChange(q) 는 값이 바뀔 때만 부른다.
+// 분기 전환 스위치 — [직전 분기 | 현재 분기] 두 칸(글자는 분기 번호만). onChange(q) 는 값이 바뀔 때만 부른다.
 export function periodSwitch(onChange) {
   const [prev, cur] = periodChoices();
   let value = getPeriod();
-  const seg = (q, tag) => {
+  const seg = (q) => {
     const b = h(
       "button",
       { class: "period-seg", type: "button", role: "radio", dataset: { q } },
       h("span", { class: "period-q" }, shortLabel(q)),
-      h("span", { class: "period-tag" }, tag),
     );
     b.addEventListener("click", () => {
       if (q === value) return;
@@ -59,7 +58,7 @@ export function periodSwitch(onChange) {
     });
     return b;
   };
-  const segs = [seg(prev, "전분기"), seg(cur, "현분기")];
+  const segs = [seg(prev), seg(cur)];
   const node = h("div", { class: "period-switch", role: "radiogroup", "aria-label": "정산 분기" }, h("span", { class: "period-label" }, "정산 분기"), h("div", { class: "period-segs" }, segs));
   function paint() {
     for (const b of segs) {

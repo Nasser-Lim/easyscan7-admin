@@ -34,10 +34,9 @@ async function load(body, quarter, fxBar) {
     clear(body);
     const rows = Object.entries(u.accounts || {});
     const cur = u.currency;
-    const fxCount = rows.reduce((a, [, s]) => a + (s.fxCount || 0), 0);
     const fxSkipped = rows.reduce((a, [, s]) => a + (s.fxSkipped || 0), 0);
     // 지국 통화의 환율(뉴욕=원/달러, 베이징=원/위안…)과 합산 기준
-    fxBar.paint(fx, [cur], [`사용액은 ${cur} 환산 합계`, fxCount ? `다른 통화 ${fxCount}건 환산 포함(참고용)` : null, fxSkipped ? `환율 미확인 ${fxSkipped}건 제외` : null].filter(Boolean).join(" · "));
+    fxBar.paint(fx, [cur], fxSkipped ? `환율 미확인 ${fxSkipped}건 제외` : "");
     if (!rows.length) {
       body.append(h("p", { class: "card-pad muted small" }, "이 지국에는 설정된 분기 한도가 없습니다."));
       return;

@@ -96,14 +96,13 @@ export function renderEntries(el, { me, params }) {
     const conv = (arr, f = "amount") => sumIn(arr, f, fx, cur);
     const sum = (arr, f = "amount") => conv(arr, f).total;
     const skipped = conv(rows).skipped;
-    const converted = conv(rows).converted;
     const scope = isStaff ? [me.branchId] : state.branch === "all" ? Object.keys(fx?.branchCurrency || {}) : [state.branch];
     // 환율 띠: 보고 있는 지국의 통화(뉴욕=원/달러, 베이징=원/위안…) + 증빙에 실제로 나온 다른 통화
     const shown = [...scope.map((b) => fx?.branchCurrency?.[b]), cur, ...rows.map((e) => e.currency)];
     fxBar.paint(
       fx,
       shown,
-      [cur === "KRW" ? "합계 기준: 원화(KRW)" : `합계 기준: ${cur}`, converted ? `다른 통화 ${converted}건 환산 포함(참고용)` : null, skipped ? `환율 미확인 ${skipped}건 제외` : null].filter(Boolean).join(" · "),
+      skipped ? `환율 미확인 ${skipped}건 제외` : "",
     );
     const writing = by(new Set(["draft", "flagged"]));
     const returned = by(new Set(["returned"]));
