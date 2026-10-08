@@ -384,6 +384,12 @@ function detailForm(e, me) {
   inputs.account.addEventListener("change", syncMemoHint);
   inputs.memo.addEventListener("input", syncMemoHint);
   syncMemoHint();
+  // 적요 초안은 AI 가 영수증만 보고 쓴 것이라 업무 맥락(누구와·왜)이 없다 — 눈에 띄게 고쳐 쓰도록 안내한다.
+  // 수정 가능한 증빙에서만, 사용자가 문구를 고치기 시작하면 사라진다.
+  const memoTip = h("span", { class: "memo-tip", role: "note" }, icon("info"), h("span", {}, "AI 작성 문구를 구체적으로 바꿔주세요"));
+  const syncMemoTip = () => memoTip.classList.toggle("hide", !editable || inputs.memo.value !== original.memo);
+  inputs.memo.addEventListener("input", syncMemoTip);
+  syncMemoTip();
 
   const mark = (k, el) => (lowConf(k) ? h("div", { class: "lowconf" }, el, h("span", { class: "lowconf-tag", title: `AI 신뢰도 ${Math.round(confOf(k) * 100)}%` }, "확인")) : el);
 
@@ -419,7 +425,7 @@ function detailForm(e, me) {
       h("label", { class: "field" }, h("span", { class: "field-label" }, "정산 분기"), inputs.quarter, quarterHint),
       field("가맹점 (원문)", mark("merchant", inputs.merchant)),
       field("가맹점 (한글)", inputs.merchantKo),
-      h("label", { class: "field span-2" }, h("span", { class: "field-label" }, "적요"), inputs.memo, memoHint),
+      h("label", { class: "field span-2" }, h("span", { class: "field-label field-label-memo" }, "적요", memoTip), inputs.memo, memoHint),
     ),
     h("div", { class: "section-label" }, "AI 인식 정보"),
     h(
