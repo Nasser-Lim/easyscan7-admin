@@ -696,3 +696,12 @@ select.input { padding-right: 28px; }
 .memo-tip .ic { width: 14px; height: 14px; }
 .memo-tip.hide { display: none; }
 @keyframes memo-tip-in { from { opacity: 0; transform: translateX(-4px); } }
+
+/* 분기 배지 — 사용일 아래 작은 각진 꼬리표 */
+.q-line { margin-top: 3px; line-height: 1; }
+.q-badge {
+  display: inline-flex; align-items: center; height: 16px; padding: 0 5px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+  font-size: 10.5px; font-weight: 700; letter-spacing: .05em; line-height: 1; color: var(--text-3); background: var(--surface);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.q-badge.cur { color: var(--sbs-blue); border-color: #b8d8ea; background: #f5fafd; }

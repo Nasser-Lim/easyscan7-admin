@@ -247,7 +247,7 @@ function batchView(b, go) {
   const notes = [];
   const qs = [...new Set(r.entries.map((e) => e.quarter))].sort();
   if (qs.length > 1 || (qs.length === 1 && qs[0] !== currentQuarter()))
-    notes.push(note("info", "정산 분기", `영수증 날짜에 따라 ${qs.map((q) => `${quarterLabel(q)} ${r.entries.filter((e) => e.quarter === q).length}건`).join(", ")}으로 나뉘었습니다. 증빙 조회에서 해당 분기를 골라 확인하세요.`));
+    notes.push(note("info", "정산 분기", `영수증 날짜에 따라 ${qs.map((q) => `${quarterLabel(q)} ${r.entries.filter((e) => e.quarter === q).length}건`).join(", ")}으로 나뉘었습니다. 증빙 조회(기본: 전체 분기)에서 확인하세요.`));
   for (const m of r.merged)
     notes.push(note("info", "중복 병합", `${m.merchant || "기존 증빙"} ${money(m.amount, cur)} (주문 ${m.orderNumber}) — ${m.fileNames.join(", ")}`, () => go(`entries/${m.entryId}`)));
   for (const s of r.skippedFiles) notes.push(note("warn", SKIP_REASON[s.reason] || "건너뜀", `${s.fileName} — ${s.message}`));

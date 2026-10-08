@@ -154,6 +154,12 @@ export function quarterOf(date) {
   return mo >= 1 && mo <= 12 ? `${m[1]}Q${Math.floor((mo - 1) / 3) + 1}` : null;
 }
 export const QUARTER_SOURCE = { date: "영수증 날짜 기준", manual: "직접 지정", upload: "날짜 미인식 · 업로드 분기" };
+// 분기 배지 — 사용일 아래 작게. 이번 분기는 파란 톤, 나머지는 회색. 예: 2026 Q2
+export function quarterBadge(q) {
+  const m = /^(\d{4})Q([1-4])$/.exec(q || "");
+  if (!m) return null;
+  return h("span", { class: `q-badge${q === currentQuarter() ? " cur" : ""}`, title: quarterLabel(q) }, `${m[1]} Q${m[2]}`);
+}
 export function quarterLabel(q) {
   const m = /^(\d{4})Q([1-4])$/.exec(q || "");
   return m ? `${m[1]}년 ${m[2]}분기` : q || "—";

@@ -3,15 +3,18 @@
 import { api } from "../api.js";
 import {
   ACCOUNTS, ACTION_LABEL, BRANCH, DOC_TYPE, ELIGIBILITY, FINAL, IN_REVIEW, ROLE, STAFF_EDITABLE, STATUS, chip, clear,
-  confirmDialog, currentQuarter, dateText, dateTime, empty, errorText, field, h, icon, money, noticeParts,
-  QUARTER_SOURCE, quarterLabel, quarterOf, quarterOptions, select, spinner, statusChip, toast,
+  confirmDialog, dateText, dateTime, empty, errorText, field, h, icon, money, noticeParts,
+  QUARTER_SOURCE, quarterBadge, quarterLabel, quarterOf, quarterOptions, select, spinner, statusChip, toast,
 } from "../ui.js";
 import { refreshInboxBadge } from "./inbox.js";
 import { pageHeader } from "./shell.js";
 
 const EDITABLE_STATUS = STAFF_EDITABLE; // 지국 담당자가 고치고 제출할 수 있는 상태
 // 화면을 옮겨 다녀도 필터는 유지(세션 동안)
-const state = { quarter: currentQuarter(), account: "", status: "", q: "", sort: "txnDate", dir: -1, branch: "all" };
+// 분기는 영수증 날짜로 자동 지정되므로 방금 올린 증빙이 이번 분기가 아닐 수 있다 — 기본은 전체 분기("")
+// 분기 선택지: 오늘이 속한 분기부터 과거로 4개. (이미 그 밖의 분기에 있는 증빙은 '전체'로 조회하고, 상세에서는 자기 분기가 함께 보인다)
+const QUARTER_CHOICES = 4;
+const state = { quarter: "", account: "", status: "", q: "", sort: "txnDate", dir: -1, branch: "all" };
 
 export function renderEntries(el, { me, params }) {
   const isStaff = me.role === "staff";
@@ -19,7 +22,7 @@ export function renderEntries(el, { me, params }) {
   let rows = [];
   const selected = new Set();
 
-  const quarter = select(quarterOptions(6).map((q) => [q, quarterLabel(q)]), state.quarter, { class: "input input-sm" });
+  const quarter = select([["", "전체"], ...quarterOptions(QUARTER_CHOICES).map((q) => [q, quarterLabel(q)])], state.quarter, { class: "input input-sm" });
   const account = select([["", "전체 계정"], ...ACCOUNTS.map((a) => [a, a])], state.account, { class: "input input-sm" });
   const status = select([["", "전체 상태"], ...Object.keys(STATUS).filter((s) => s !== "deleted").map((s) => [s, STATUS[s].label])], state.status, { class: "input input-sm" });
   const branchSel = isStaff ? null : select([["all", "전체 지국"], ...Object.entries(BRANCH).map(([id, n]) => [id, `${n}지국`])], state.branch, { class: "input input-sm" });
@@ -56,8 +59,10 @@ export function renderEntries(el, { me, params }) {
     clear(tableWrap).append(h("div", { class: "card-loading" }, spinner()));
     selected.clear();
     try {
-      const br = isStaff ? "" : `&branch=${encodeURIComponent(state.branch)}`;
-      rows = (await api.get(`/entries?quarter=${encodeURIComponent(state.quarter)}${br}`)).entries;
+      const params = new URLSearchParams();
+      if (state.quarter) params.set("quarter", state.quarter);
+      if (!isStaff) params.set("branch", state.branch);
+      rows = (await api.get(`/entries${params.size ? `?${params}` : ""}`)).entries;
       paint();
     } catch (e) {
       clear(tableWrap).append(h("p", { class: "card-error" }, errorText(e)));
@@ -99,7 +104,7 @@ export function renderEntries(el, { me, params }) {
     for (const id of [...selected]) if (!list.some((e) => e.id === id && EDITABLE_STATUS.has(e.status))) selected.delete(id);
     paintBulk();
     if (!list.length) {
-      clear(tableWrap).append(rows.length ? empty("조건에 맞는 증빙이 없습니다", "필터를 바꿔 보세요.") : empty(`${quarterLabel(state.quarter)} 증빙이 없습니다`, "증빙을 업로드하면 AI 가 읽어 여기에 등록합니다."));
+      clear(tableWrap).append(rows.length ? empty("조건에 맞는 증빙이 없습니다", "필터를 바꿔 보세요.") : empty(`${state.quarter ? quarterLabel(state.quarter) : "등록된"} 증빙이 없습니다`, "증빙을 업로드하면 AI 가 읽어 여기에 등록합니다."));
       return;
     }
     const selectable = isStaff ? list.filter((e) => EDITABLE_STATUS.has(e.status)) : [];
@@ -150,7 +155,7 @@ export function renderEntries(el, { me, params }) {
               "tr",
               { class: `row-link${selected.has(e.id) ? " selected" : ""}`, onclick: () => openDrawer(e.id, me, onChanged) },
               isStaff ? h("td", { class: "cell-check" }, cb) : h("td", {}, BRANCH[e.branchId] || e.branchId),
-              h("td", { class: "mono" }, dateText(e.txnDate)),
+              h("td", { class: "mono" }, dateText(e.txnDate), h("div", { class: "q-line" }, quarterBadge(e.quarter))),
               h(
                 "td",
                 {},
@@ -354,7 +359,7 @@ function detailForm(e, me) {
     merchantKo: h("input", { class: "input", type: "text", value: e.merchantKo || "", disabled: !editable }),
     memo: h("textarea", { class: "input", rows: "2", disabled: !editable, placeholder: "취재 건명·동석자 등" }, e.memo || ""),
     quarter: select(
-      [...new Set([...quarterOptions(6), e.quarter].filter(Boolean))].sort().reverse().map((q) => [q, quarterLabel(q)]),
+      [...new Set([...quarterOptions(QUARTER_CHOICES), e.quarter].filter(Boolean))].sort().reverse().map((q) => [q, quarterLabel(q)]),
       e.quarter,
       { disabled: !editable },
     ),
@@ -628,7 +633,7 @@ function footer(e, form, { me, close, onChanged, reopen }) {
   }
 
   const saveBtn = h("button", { class: "btn btn-ghost", type: "button" }, icon("check"), h("span", {}, "저장"));
-  const submitBtn = h("button", { class: "btn btn-primary", type: "button" }, icon("send"), h("span", {}, "저장 후 제출"));
+  const submitBtn = h("button", { class: "btn btn-primary", type: "button" }, icon("send"), h("span", {}, "IMC팀에 제출"));
   const delBtn = h("button", { class: "btn btn-danger-ghost", type: "button" }, icon("trash"), h("span", {}, "삭제"));
   const lock = (v) => [saveBtn, submitBtn, delBtn].forEach((b) => (b.disabled = v));
 
@@ -665,16 +670,16 @@ function footer(e, form, { me, close, onChanged, reopen }) {
       return;
     }
     const ok = await confirmDialog({
-      title: "증빙 제출",
-      message: h("div", {}, h("p", {}, "원본 증빙과 대조를 마쳤나요? 제출하면 보도IMC팀 분류부터 결재선으로 넘어가고, 반려되기 전에는 수정할 수 없습니다."), e.status === "flagged" ? h("p", { class: "text-warn" }, "검토 필요 항목이 남아 있습니다.") : null),
-      confirm: "제출",
+      title: "보도IMC팀에 제출",
+      message: h("div", {}, h("p", {}, "원본 증빙과 대조를 마쳤나요? 수정한 내용을 저장하고 보도IMC팀에 제출합니다. 제출하면 결재선으로 넘어가며, 보도IMC팀이 분류하기 전에는 [제출 취소]로, 그 뒤에는 반려되어야 수정할 수 있습니다."), e.status === "flagged" ? h("p", { class: "text-warn" }, "검토 필요 항목이 남아 있습니다.") : null),
+      confirm: "IMC팀에 제출",
     });
     if (!ok) return;
     lock(true);
     try {
       await save();
       await api.post(`/entries/${e.id}/submit`);
-      toast("제출했습니다", "ok");
+      toast("보도IMC팀에 제출했습니다", "ok");
       onChanged();
       close(true);
     } catch (ex) {
