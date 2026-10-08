@@ -1,9 +1,10 @@
 // 증빙 업로드 — PDF·스크린샷 여러 개를 한 번에 올리면 AI 가 증빙으로 나눈다(POST /intake).
-import { api } from "../api.js";
+// 정산 분기는 항상 영수증 날짜 기준(자동). 업로드 진행·처리 결과 보관은 uploadjob.js 가 맡는다.
 import {
-  ACCOUNTS, BRANCH, DOC_TYPE, bytes, chip, clear, currentQuarter, errorText, field, h, icon, money, noticeParts,
-  quarterLabel, quarterOptions, select, spinner, statusChip, toast,
+  ACCOUNTS, BRANCH, DOC_TYPE, bytes, chip, clear, currentQuarter, field, h, icon, money, noticeParts,
+  quarterLabel, select, statusChip, toast,
 } from "../ui.js";
+import { dismiss, dismissAll, getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js";
 import { limitsCard } from "./limits.js";
 import { pageHeader } from "./shell.js";
 
@@ -14,17 +15,14 @@ const SKIP_REASON = { unsupported: "형식 미지원", too_large: "용량 초과
 
 export function renderUpload(el, { me, go }) {
   let files = [];
-  let busy = false;
   const branch = `${BRANCH[me.branchId] || me.branchId}지국`;
 
   const account = select(ACCOUNTS.map((a) => [a, a]), ACCOUNTS[0]);
-  const quarter = select([["auto", "자동 — 영수증 날짜 기준"], ...quarterOptions(4).map((q) => [q, `${quarterLabel(q)}로 고정`])], "auto");
-  const limitsQuarter = () => (quarter.value === "auto" ? currentQuarter() : quarter.value);
   const input = h("input", { type: "file", multiple: true, accept: ".pdf,.jpg,.jpeg,.png,.webp,.heic,application/pdf,image/*", class: "sr-only" });
   const list = h("div", { class: "file-list" });
   const submit = h("button", { class: "btn btn-primary btn-lg", type: "button", disabled: true }, icon("upload"), h("span", {}, "업로드하고 자동 인식"));
   const summary = h("div", { class: "upload-summary muted" });
-  const result = h("div", { class: "result" });
+  const queueSlot = h("div", { class: "stack" });
   const limitsSlot = h("div", {});
 
   const drop = h(
@@ -34,14 +32,14 @@ export function renderUpload(el, { me, go }) {
       tabindex: "0",
       role: "button",
       "aria-label": "파일 선택",
-      onclick: () => !busy && input.click(),
-      onkeydown: (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), !busy && input.click()),
+      onclick: () => !isBusy() && input.click(),
+      onkeydown: (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), !isBusy() && input.click()),
       ondragover: (e) => (e.preventDefault(), drop.classList.add("over")),
       ondragleave: () => drop.classList.remove("over"),
       ondrop: (e) => {
         e.preventDefault();
         drop.classList.remove("over");
-        if (!busy) add([...e.dataTransfer.files]);
+        if (!isBusy()) add([...e.dataTransfer.files]);
       },
     },
     icon("upload", "ic dropzone-ic"),
@@ -75,6 +73,7 @@ export function renderUpload(el, { me, go }) {
   }
 
   function paint() {
+    const busy = isBusy();
     clear(list);
     files.forEach((f, i) =>
       list.append(
@@ -90,43 +89,50 @@ export function renderUpload(el, { me, go }) {
     const total = files.reduce((a, f) => a + f.size, 0);
     summary.textContent = files.length ? `${files.length}개 파일 · ${bytes(total)}` : "선택한 파일이 없습니다";
     submit.disabled = busy || !files.length;
+    account.disabled = busy;
+  }
+
+  function paintQueue() {
+    clear(queueSlot);
+    const q = getQueue();
+    if (!q.length) return;
+    queueSlot.append(
+      h(
+        "div",
+        { class: "queue-head" },
+        h(
+          "div",
+          {},
+          h("div", { class: "card-title" }, `처리 결과 · 확인 대기 ${q.length}건`),
+          h("div", { class: "card-sub" }, "증빙은 이미 '작성중'으로 저장되어 있습니다. 결과를 확인했으면 [확인 완료]로 목록에서 치우세요. 이 탭을 닫기 전까지는 다른 메뉴에 다녀와도 남아 있습니다."),
+        ),
+        q.length > 1 ? h("button", { class: "btn btn-ghost btn-sm", type: "button", onclick: dismissAll }, icon("check"), h("span", {}, "모두 확인 완료")) : null,
+      ),
+      ...q.map((b) => batchView(b, go)),
+    );
   }
 
   submit.addEventListener("click", async () => {
-    if (!files.length || busy) return;
-    busy = true;
-    account.disabled = quarter.disabled = true;
+    if (!files.length || isBusy()) return;
+    const picked = files;
     paint();
-    clear(result).append(
-      h(
-        "section",
-        { class: "card progress-card" },
-        spinner(),
-        h("div", {}, h("div", { class: "card-title" }, "AI 가 증빙을 읽고 있습니다"), h("div", { class: "muted small" }, `${files.length}개 파일 — 쪽 수에 따라 수십 초~몇 분 걸립니다. 이 화면을 닫지 마세요.`)),
-      ),
-    );
-    const fd = new FormData();
-    files.forEach((f) => fd.append("files", f, f.name));
-    fd.append("account", account.value);
-    fd.append("quarter", quarter.value);
-    try {
-      const r = await api.postForm("/intake", fd);
-      clear(result).append(resultView(r, go));
-      const n = r.entries.length;
-      toast(n ? `증빙 ${n}건을 등록했습니다` : "새로 등록된 증빙이 없습니다", n ? "ok" : "info");
-      files = [];
-      clear(limitsSlot).append(limitsCard(limitsQuarter()));
-    } catch (e) {
-      clear(result).append(h("div", { class: "banner banner-bad" }, icon("alert"), h("div", {}, h("b", {}, "업로드 실패"), h("div", {}, errorText(e)))));
-    } finally {
-      busy = false;
-      account.disabled = quarter.disabled = false;
-      paint();
+    const ok = await startUpload(picked, account.value);
+    if (ok) files = files.filter((f) => !picked.includes(f));
+    if (queueSlot.isConnected) paint();
+  });
+
+  // 업로드가 끝나거나 결과를 치우면 다시 그린다. 이 화면을 떠나면(슬롯이 문서에서 빠지면) 구독을 끊는다.
+  const off = subscribe((event) => {
+    if (!queueSlot.isConnected) return off();
+    paintQueue();
+    paint();
+    if (event === "done") {
+      clear(limitsSlot).append(limitsCard(currentQuarter()));
+      queueSlot.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   });
 
-  quarter.addEventListener("change", () => clear(limitsSlot).append(limitsCard(limitsQuarter())));
-  limitsSlot.append(limitsCard(limitsQuarter()));
+  limitsSlot.append(limitsCard(currentQuarter()));
 
   el.append(
     pageHeader({
@@ -144,7 +150,7 @@ export function renderUpload(el, { me, go }) {
           "section",
           { class: "card" },
           h("div", { class: "card-head" }, h("div", { class: "card-title" }, "1. 정산 구분")),
-          h("div", { class: "form-row" }, field("계정", account, "이번에 올리는 증빙 전체에 적용됩니다"), field("정산 분기", quarter, "자동이면 증빙마다 영수증 사용일의 분기로 들어갑니다. 증빙에서 바꿀 수 있습니다")),
+          h("div", { class: "field-narrow" }, field("계정", account, "이번에 올리는 증빙 전체에 적용됩니다. 정산 분기는 영수증 날짜를 기준으로 자동 지정됩니다.")),
         ),
         h(
           "section",
@@ -155,12 +161,13 @@ export function renderUpload(el, { me, go }) {
           list,
           h("div", { class: "upload-foot" }, summary, submit),
         ),
-        result,
+        queueSlot,
       ),
       h("div", { class: "stack" }, limitsSlot, tipsCard()),
     ),
   );
   paint();
+  paintQueue();
 }
 
 function tipsCard() {
@@ -171,15 +178,23 @@ function tipsCard() {
     h(
       "ul",
       { class: "tips" },
-      h("li", {}, "주문 내역·결제 확인·배송 안내처럼 같은 주문의 여러 장은 한 번에 올리면 1건으로 합쳐집니다."),
-      h("li", {}, "이미 등록된 주문(주문번호·금액 동일)을 다시 올리면 새 증빙 없이 기존 증빙에 합쳐지고 알려 드립니다."),
-      h("li", {}, "광고·약관 같은 증빙이 아닌 쪽은 자동으로 제외됩니다."),
-      h("li", {}, "분기 한도를 넘는 금액은 비적격으로 처리되며, 제출은 막지 않습니다."),
+      h("li", {}, "주문 내역·결제 확인·배송 안내처럼 같은 주문의 여러 장 증빙은 한 번에 올리면 1건으로 합쳐집니다."),
+      h("li", {}, "이미 등록된 증빙(주문번호·금액 동일)을 다시 올리면 새 증빙 없이 기존 증빙에 합쳐지고 알려 드립니다."),
+      h("li", {}, "광고·약관 같은 증빙이 아닌 입력은 자동으로 제외됩니다."),
+      h("li", {}, "분기 한도를 넘는 금액은 비적격 처리되며, 제출은 막지 않습니다."),
     ),
   );
 }
 
-function resultView(r, go) {
+function whenText(at) {
+  const d = new Date(at);
+  const time = d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+  return d.toDateString() === new Date().toDateString() ? time : `${d.getMonth() + 1}/${d.getDate()} ${time}`;
+}
+
+// 업로드 1회의 처리 결과(큐 항목).
+function batchView(b, go) {
+  const r = b.result;
   const cur = r.entries.find((e) => e.currency)?.currency || "USD";
   const parts = [];
   parts.push(
@@ -196,28 +211,32 @@ function resultView(r, go) {
   if (r.entries.length) {
     parts.push(
       h(
-        "table",
-        { class: "table" },
-        h("thead", {}, h("tr", {}, h("th", {}, "사용일"), h("th", {}, "분기"), h("th", {}, "가맹점"), h("th", {}, "증빙"), h("th", { class: "num" }, "금액"), h("th", {}, "상태"), h("th", {}))),
+        "div",
+        { class: "result-table" },
         h(
-          "tbody",
-          {},
-          r.entries.map((e) =>
-            h(
-              "tr",
-              { class: "row-link", onclick: () => go(`entries/${e.entryId}`) },
-              h("td", { class: "mono" }, e.txnDate || "—"),
-              h("td", { class: "cell-sub" }, quarterLabel(e.quarter)),
-              h("td", {}, h("div", { class: "cell-main" }, e.merchantKo || e.merchant || "—"), h("div", { class: "cell-sub" }, DOC_TYPE[e.docType] || e.docType || "")),
-              h("td", { class: "cell-sub" }, [...new Set((e.sources || []).map((s) => s.fileName))].join(", ")),
+          "table",
+          { class: "table" },
+          h("thead", {}, h("tr", {}, h("th", {}, "사용일"), h("th", {}, "분기"), h("th", {}, "가맹점"), h("th", {}, "증빙"), h("th", { class: "num" }, "금액"), h("th", {}, "등록 시 상태"), h("th", {}))),
+          h(
+            "tbody",
+            {},
+            r.entries.map((e) =>
               h(
-                "td",
-                { class: "num" },
-                money(e.amount, e.currency),
-                e.ineligibleAmount > 0 ? h("div", { class: "cell-sub text-bad" }, `비적격 ${money(e.ineligibleAmount, e.currency)}`) : null,
+                "tr",
+                { class: "row-link", onclick: () => go(`entries/${e.entryId}`) },
+                h("td", { class: "mono" }, e.txnDate || "—"),
+                h("td", { class: "cell-sub" }, quarterLabel(e.quarter)),
+                h("td", {}, h("div", { class: "cell-main" }, e.merchantKo || e.merchant || "—"), h("div", { class: "cell-sub" }, DOC_TYPE[e.docType] || e.docType || "")),
+                h("td", { class: "cell-sub" }, e.fileNames.join(", ")),
+                h(
+                  "td",
+                  { class: "num" },
+                  money(e.amount, e.currency),
+                  e.ineligibleAmount > 0 ? h("div", { class: "cell-sub text-bad" }, `비적격 ${money(e.ineligibleAmount, e.currency)}`) : null,
+                ),
+                h("td", {}, statusChip(e.status), e.flagCount ? h("div", { class: "cell-sub" }, `규칙 ${e.flagCount}건`) : null),
+                h("td", { class: "cell-action" }, icon("chevron")),
               ),
-              h("td", {}, statusChip(e.status), e.flags?.length ? h("div", { class: "cell-sub" }, `규칙 ${e.flags.length}건`) : null),
-              h("td", { class: "cell-action" }, icon("chevron")),
             ),
           ),
         ),
@@ -233,25 +252,34 @@ function resultView(r, go) {
     notes.push(note("info", "중복 병합", `${m.merchant || "기존 증빙"} ${money(m.amount, cur)} (주문 ${m.orderNumber}) — ${m.fileNames.join(", ")}`, () => go(`entries/${m.entryId}`)));
   for (const s of r.skippedFiles) notes.push(note("warn", SKIP_REASON[s.reason] || "건너뜀", `${s.fileName} — ${s.message}`));
   for (const g of r.ignored) notes.push(note("neutral", "제외된 쪽", `${g.fileName} ${g.page}쪽 — 증빙이 아닌 쪽으로 판단`));
-  for (const e of r.entries) for (const n of e.notices || []) {
-    const p = noticeParts(n);
-    notes.push(note(p.tone, p.label, `${e.merchant || "증빙"}: ${p.text}`));
-  }
-  // 묶음 단위 알림 중 증빙에 붙지 않는 것(인식 실패·쪽수 초과)만. 나머지는 위 증빙별 알림과 같다.
-  for (const n of r.notices || []) {
-    if (typeof n !== "object" || !["PAGE_FAILED", "PAGES_TRUNCATED"].includes(n.code)) continue;
+  for (const e of r.entries)
+    for (const n of e.notices) {
+      const p = noticeParts(n);
+      notes.push(note(p.tone, p.label, `${e.merchant || "증빙"}: ${p.text}`));
+    }
+  for (const n of r.notices) {
     const p = noticeParts(`${n.code}: ${n.message}`);
     notes.push(note(p.tone, p.label, p.text));
   }
 
   return h(
     "section",
-    { class: "card" },
+    { class: "card result" },
     h(
       "div",
       { class: "card-head" },
-      h("div", {}, h("div", { class: "card-title" }, "처리 결과"), h("div", { class: "card-sub" }, "증빙을 눌러 원본과 대조하고 수정·제출하세요.")),
-      h("a", { class: "btn btn-ghost btn-sm", href: "#/entries" }, "증빙 조회로", icon("chevron")),
+      h(
+        "div",
+        {},
+        h("div", { class: "card-title" }, `${whenText(b.at)} 업로드 · ${b.account}`),
+        h("div", { class: "card-sub" }, `파일 ${b.fileCount}개 — 증빙을 눌러 원본과 대조하고 수정·제출하세요.`),
+      ),
+      h(
+        "div",
+        { class: "card-actions" },
+        h("a", { class: "btn btn-ghost btn-sm", href: "#/entries" }, "증빙 조회로", icon("chevron")),
+        h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => dismiss(b.id) }, icon("check"), h("span", {}, "확인 완료")),
+      ),
     ),
     parts,
     notes.length ? h("div", { class: "notes" }, notes) : null,

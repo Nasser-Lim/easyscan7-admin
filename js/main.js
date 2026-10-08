@@ -10,6 +10,7 @@ import { renderAccount } from "./views/account.js";
 import { renderInbox, refreshInboxBadge } from "./views/inbox.js";
 import { renderHelp } from "./views/help.js";
 import { renderLimitSettings } from "./views/limitcfg.js";
+import { initUploadQueue, resetUploadQueue } from "./uploadjob.js";
 
 const app = document.getElementById("app");
 let me = null;
@@ -85,11 +86,13 @@ async function boot() {
   }
   clear(app);
   content = renderShell(app, me, NAV[me.role] || []);
+  initUploadQueue(me);
   navigate();
   refreshInboxBadge(me);
 }
 
 onSignedOut(() => {
+  resetUploadQueue();
   me = null;
   content = null;
   boot();

@@ -119,6 +119,43 @@ async function request(path, { method = "GET", json, form } = {}) {
   return r;
 }
 
+// 업로드 진행률이 필요한 요청(관리웹 증빙 업로드) — fetch 는 업로드 진행을 알려 주지 않아 XHR 을 쓴다.
+// onUpload(loaded, total): 전송 중, onSent(): 전송이 끝나 서버가 처리를 시작함.
+async function postFormProgress(path, form, { onUpload, onSent } = {}) {
+  let t;
+  try {
+    t = await token();
+  } catch (e) {
+    logout();
+    throw e;
+  }
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open("POST", C.apiBase + path);
+    x.setRequestHeader("Authorization", `Bearer ${t}`);
+    x.upload.onprogress = (e) => e.lengthComputable && onUpload && onUpload(e.loaded, e.total);
+    x.upload.onload = () => onSent && onSent();
+    x.onerror = () => reject(new ApiError(0, "서버에 연결하지 못했습니다. 네트워크를 확인하고 다시 시도하세요."));
+    x.onabort = () => reject(new ApiError(0, "업로드가 취소되었습니다."));
+    x.onload = () => {
+      let j = {};
+      try {
+        j = JSON.parse(x.responseText || "{}");
+      } catch {
+        /* 본문이 JSON 이 아니면 빈 객체 */
+      }
+      if (x.status === 401) {
+        logout();
+        reject(new ApiError(401, "세션이 만료되었습니다. 다시 로그인하세요."));
+        return;
+      }
+      if (x.status < 200 || x.status >= 300) reject(new ApiError(x.status, j.detail ?? j));
+      else resolve(j);
+    };
+    x.send(form);
+  });
+}
+
 async function parse(r) {
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new ApiError(r.status, j.detail ?? j);
@@ -132,6 +169,7 @@ export const api = {
   patch: (p, json) => request(p, { method: "PATCH", json }).then(parse),
   del: (p) => request(p, { method: "DELETE" }).then(parse),
   postForm: (p, form) => request(p, { method: "POST", form }).then(parse),
+  postFormProgress,
   async blob(p) {
     const r = await request(p);
     if (!r.ok) throw new ApiError(r.status, "원본을 불러오지 못했습니다.");
