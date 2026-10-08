@@ -61,6 +61,9 @@ export function sumIn(rows, f, fx, target) {
   return { total, skipped, converted };
 }
 
+// 환산액은 어디까지나 참고용 — 정산 시점의 환율로 다시 계산하면 금액이 달라질 수 있다(오해 방지).
+export const FX_DISCLAIMER = "환산액은 참고용이며, 정산 시점의 환율에 따라 달라질 수 있습니다";
+
 // 환율 띠 — 현재 환율과 기준일. currencies: 보여 줄 통화 목록(원화 제외).
 export function fxStrip() {
   const node = h("div", { class: "fx-strip", role: "note" });
@@ -69,7 +72,7 @@ export function fxStrip() {
     paint(fx, currencies, note) {
       node.replaceChildren();
       const list = [...new Set(currencies)].filter((c) => c && c !== "KRW");
-      node.append(h("span", { class: "fx-label" }, "환율"));
+      node.append(h("span", { class: "fx-label" }, "환율"), h("span", { class: "fx-ref" }, "참고용"));
       if (!fx?.available) {
         node.append(h("span", { class: "fx-miss" }, "환율을 불러오지 못했습니다 — 다른 통화 금액은 합계에서 제외됩니다"));
         return;
@@ -79,7 +82,7 @@ export function fxStrip() {
         if (r) node.append(h("span", { class: "fx-chip" }, h("span", { class: "fx-pair" }, r.label), h("b", {}, fmtRate(r.value))));
       }
       node.append(h("span", { class: "fx-asof" }, `${fx.asOf || ""} 기준`, fx.source ? h("span", { class: "fx-src" }, ` · ${fx.source}`) : null, fx.stale ? " · 갱신 실패, 직전 값" : ""));
-      if (note) node.append(h("span", { class: "fx-note" }, note));
+      node.append(h("span", { class: "fx-note" }, [note, FX_DISCLAIMER].filter(Boolean).join(" · ")));
     },
   };
 }

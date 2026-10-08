@@ -103,7 +103,7 @@ export function renderEntries(el, { me, params }) {
     fxBar.paint(
       fx,
       shown,
-      [cur === "KRW" ? "합계 기준: 원화(KRW)" : `합계 기준: ${cur}`, converted ? `다른 통화 ${converted}건 환산 포함` : null, skipped ? `환율 미확인 ${skipped}건 제외` : null].filter(Boolean).join(" · "),
+      [cur === "KRW" ? "합계 기준: 원화(KRW)" : `합계 기준: ${cur}`, converted ? `다른 통화 ${converted}건 환산 포함(참고용)` : null, skipped ? `환율 미확인 ${skipped}건 제외` : null].filter(Boolean).join(" · "),
     );
     const writing = by(new Set(["draft", "flagged"]));
     const returned = by(new Set(["returned"]));

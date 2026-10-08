@@ -37,7 +37,7 @@ async function load(body, quarter, fxBar) {
     const fxCount = rows.reduce((a, [, s]) => a + (s.fxCount || 0), 0);
     const fxSkipped = rows.reduce((a, [, s]) => a + (s.fxSkipped || 0), 0);
     // 지국 통화의 환율(뉴욕=원/달러, 베이징=원/위안…)과 합산 기준
-    fxBar.paint(fx, [cur], [`사용액은 ${cur} 환산 합계`, fxCount ? `다른 통화 ${fxCount}건 환산 포함` : null, fxSkipped ? `환율 미확인 ${fxSkipped}건 제외` : null].filter(Boolean).join(" · "));
+    fxBar.paint(fx, [cur], [`사용액은 ${cur} 환산 합계`, fxCount ? `다른 통화 ${fxCount}건 환산 포함(참고용)` : null, fxSkipped ? `환율 미확인 ${fxSkipped}건 제외` : null].filter(Boolean).join(" · "));
     if (!rows.length) {
       body.append(h("p", { class: "card-pad muted small" }, "이 지국에는 설정된 분기 한도가 없습니다."));
       return;
@@ -58,7 +58,7 @@ async function load(body, quarter, fxBar) {
             h(
               "tr",
               {},
-              h("td", {}, h("div", { class: "cell-main" }, acc), h("div", { class: "cell-sub" }, `${s.count}건`, s.fxCount ? ` · 환산 ${s.fxCount}건 포함` : "")),
+              h("td", {}, h("div", { class: "cell-main" }, acc), h("div", { class: "cell-sub" }, `${s.count}건`, s.fxCount ? ` · 환산 ${s.fxCount}건(참고용)` : "")),
               h("td", { class: "num" }, money(s.used, cur), s.ineligible > 0 ? h("div", { class: "cell-sub text-bad" }, `비적격 ${money(s.ineligible, cur)}`) : null),
               h("td", { class: "num muted" }, money(s.limit, cur)),
               h("td", { class: "num col-usage" }, usage(pctOf(s.used, s.limit))),

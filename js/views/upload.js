@@ -4,6 +4,7 @@ import {
   ACCOUNTS, BRANCH, DOC_TYPE, bytes, chip, clear, currentQuarter, field, h, icon, money, noticeParts,
   quarterLabel, select, statusChip, toast,
 } from "../ui.js";
+import { getPeriod, periodSwitch } from "../period.js";
 import { dismiss, dismissAll, getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js";
 import { limitsCard } from "./limits.js";
 import { pageHeader } from "./shell.js";
@@ -127,18 +128,20 @@ export function renderUpload(el, { me, go }) {
     paintQueue();
     paint();
     if (event === "done") {
-      clear(limitsSlot).append(limitsCard(currentQuarter()));
+      clear(limitsSlot).append(limitsCard(getPeriod()));
       queueSlot.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   });
 
-  limitsSlot.append(limitsCard(currentQuarter()));
+  limitsSlot.append(limitsCard(getPeriod()));
 
   el.append(
     pageHeader({
       crumbs: [branch, "업무"],
       title: "증빙 업로드",
       desc: "PDF·스크린샷 증빙을 올리면 AI 가 영수증 단위로 나눠 증빙으로 등록합니다. 촬영 영수증은 촬영앱을 이용하세요.",
+      // 오른쪽 분기 한도 현황을 볼 분기. 증빙의 정산 분기는 이와 무관하게 영수증 날짜로 정해진다
+      actions: [periodSwitch((q) => clear(limitsSlot).append(limitsCard(q)))],
     }),
     h(
       "div",

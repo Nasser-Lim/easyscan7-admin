@@ -1,12 +1,20 @@
-// 홈 — 이번 분기 요약 지표, 한도 현황, 최근 증빙, 바로가기.
+// 홈 — 고른 정산 분기(현분기·전분기)의 요약 지표, 한도 현황, 최근 증빙, 바로가기.
 import { api } from "../api.js";
-import { BRANCH, clear, currentQuarter, dateText, empty, errorText, h, icon, money, quarterLabel, spinner, statusChip } from "../ui.js";
+import { BRANCH, clear, dateText, empty, errorText, h, icon, money, quarterLabel, spinner, statusChip } from "../ui.js";
 import { loadFx, sumIn } from "../fx.js";
+import { getPeriod, periodSwitch } from "../period.js";
 import { limitsCard } from "./limits.js";
 import { pageHeader } from "./shell.js";
 
-export function renderHome(el, { me, go }) {
-  const quarter = currentQuarter();
+export function renderHome(el, ctx) {
+  draw(el, ctx);
+}
+
+// 분기를 바꾸면 화면 전체를 그 분기로 다시 그린다
+function draw(el, { me, go }) {
+  clear(el);
+  const quarter = getPeriod();
+  const qName = quarterLabel(quarter).replace(/^\d{4}년 /, ""); // "3분기"
   const branch = `${BRANCH[me.branchId] || me.branchId}지국`;
   const kpis = h("div", { class: "kpis" }, h("div", { class: "card-loading" }, spinner(true)));
   const recent = h("div", { class: "card-body-flush" }, h("div", { class: "card-loading" }, spinner(true)));
@@ -17,6 +25,7 @@ export function renderHome(el, { me, go }) {
       title: "홈",
       desc: `${quarterLabel(quarter)} 정산 현황입니다.`,
       actions: [
+        periodSwitch(() => draw(el, { me, go })),
         h("a", { class: "btn btn-ghost", href: "#/entries" }, icon("list"), h("span", {}, "증빙 조회")),
         h("a", { class: "btn btn-primary", href: "#/upload" }, icon("upload"), h("span", {}, "증빙 업로드")),
       ],
@@ -45,9 +54,10 @@ export function renderHome(el, { me, go }) {
       const todo = count(["draft", "flagged", "returned"]);
       const inReview = count(["submitted", "chief_review", "finance_review"]);
       const inel = sumIn(entries, "ineligibleAmount", fx, cur).total;
-      const total = sumIn(entries, "amount", fx, cur).total;
+      const totalSum = sumIn(entries, "amount", fx, cur);
+      const total = totalSum.total;
       clear(kpis).append(
-        kpi("이번 분기 증빙", `${entries.length}건`, money(total, cur), "neutral"),
+        kpi(`${qName} 증빙`, `${entries.length}건`, `${money(total, cur)}${totalSum.converted ? " · 환산 포함(참고용)" : ""}`, "neutral"),
         kpi("미제출", `${todo}건`, count(["returned"]) ? `반려 ${count(["returned"])}건 — 고쳐서 다시 제출` : count(["flagged"]) ? `검토 필요 ${count(["flagged"])}건` : "확인 후 제출하세요", count(["returned"]) ? "bad" : todo ? "warn" : "ok", () => go("entries")),
         kpi("결재 진행·완료", `${inReview + count(["approved"])}건`, `진행 ${inReview}건 · 완료 ${count(["approved"])}건${count(["rejected"]) ? ` · 불승인 ${count(["rejected"])}건` : ""}`, "info"),
         kpi("한도 초과 비적격", money(inel, cur), inel > 0 ? "초과분은 비적격 처리" : "초과 없음", inel > 0 ? "bad" : "ok"),
@@ -75,7 +85,7 @@ export function renderHome(el, { me, go }) {
                 ),
               ),
             )
-          : empty("이번 분기 증빙이 없습니다", "증빙을 업로드하면 AI 가 내용을 읽어 정리합니다."),
+          : empty(`${quarterLabel(quarter)} 증빙이 없습니다`, "증빙을 업로드하면 AI 가 내용을 읽어 정리합니다."),
       );
     })
     .catch((e) => {
