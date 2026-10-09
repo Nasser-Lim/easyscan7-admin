@@ -516,6 +516,7 @@ function detailForm(e, me) {
       { class: "kv kv-compact" },
       h("dt", {}, "증빙 유형"), h("dd", {}, DOC_TYPE[e.docType] || e.docType || "—"),
       h("dt", {}, "주문번호"), h("dd", { class: "mono" }, e.orderNumber || "—"),
+      e.discountAmount ? [h("dt", {}, "할인"), h("dd", {}, `− ${money(e.discountAmount, cur)}`)] : null,
       h("dt", {}, "인쇄 합계"), h("dd", {}, money(e.printedTotal, cur)),
       h("dt", {}, "수기 합계"), h("dd", {}, e.handwrittenTotal != null ? money(e.handwrittenTotal, cur) : "—"),
       h("dt", {}, "팁"), h("dd", {}, e.tipAmount != null ? money(e.tipAmount, cur) : "—"),
