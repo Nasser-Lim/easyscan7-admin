@@ -476,8 +476,6 @@ function detailForm(e, me) {
   const mark = (k, el) => (lowConf(k) ? h("div", { class: "lowconf" }, el, h("span", { class: "lowconf-tag", title: `AI 신뢰도 ${Math.round(confOf(k) * 100)}%` }, "확인")) : el);
 
   const banners = [];
-  if (e.limitBasis?.status === "excluded_currency")
-    banners.push(banner("info", "info", "한도 계산 제외", `${cur} 영수증은 지국 한도(${e.limitBasis.currency || "USD"}) 계산에서 빠집니다. 환산은 재무팀이 확인합니다.`));
   if (e.ineligibleAmount > 0)
     banners.push(banner("bad", "alert", "한도 초과 — 비적격", `분기 한도를 넘어 ${money(e.ineligibleAmount, cur)} 가 비적격 처리되었습니다(적격 ${money(e.eligibleAmount, cur)}). 제출은 가능합니다.`));
   for (const f of (e.flags || []).filter((x) => x.ruleId !== "ai-policy")) banners.push(banner(f.severity === "error" ? "bad" : "warn", "alert", f.severity === "error" ? "검증 오류" : "검토 필요", f.message));
