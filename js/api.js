@@ -170,6 +170,16 @@ export const api = {
   del: (p) => request(p, { method: "DELETE" }).then(parse),
   postForm: (p, form) => request(p, { method: "POST", form }).then(parse),
   postFormProgress,
+  // 파일 내려받기 — 실패하면 서버가 준 사유(한글)를 그대로 던진다. filename 은 Content-Disposition 의 filename*(UTF-8)
+  async download(p) {
+    const r = await request(p);
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      throw new ApiError(r.status, j.detail ?? j);
+    }
+    const m = /filename\*=UTF-8''([^;]+)/i.exec(r.headers.get("Content-Disposition") || "");
+    return { blob: await r.blob(), filename: m ? decodeURIComponent(m[1]) : null };
+  },
   async blob(p) {
     const r = await request(p);
     if (!r.ok) throw new ApiError(r.status, "원본을 불러오지 못했습니다.");

@@ -1,17 +1,18 @@
 // 관리웹 진입점 — 세션 확인 → 로그인 화면 또는 앱 셸 + 해시 라우터.
-import { api, hasSession, logout, onSignedOut } from "./api.js?v=783c662";
-import { clear, h, spinner, toast, errorText } from "./ui.js?v=783c662";
-import { renderLogin } from "./views/login.js?v=783c662";
-import { renderShell, setActiveNav } from "./views/shell.js?v=783c662";
-import { renderHome } from "./views/home.js?v=783c662";
-import { renderUpload } from "./views/upload.js?v=783c662";
-import { renderEntries } from "./views/entries.js?v=783c662";
-import { renderAccount } from "./views/account.js?v=783c662";
-import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=783c662";
-import { renderHelp } from "./views/help.js?v=783c662";
-import { renderLimitSettings } from "./views/limitcfg.js?v=783c662";
-import { renderPolicy } from "./views/policy.js?v=783c662";
-import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=783c662";
+import { api, hasSession, logout, onSignedOut } from "./api.js?v=a3e2aca";
+import { clear, h, spinner, toast, errorText } from "./ui.js?v=a3e2aca";
+import { renderLogin } from "./views/login.js?v=a3e2aca";
+import { renderShell, setActiveNav } from "./views/shell.js?v=a3e2aca";
+import { renderHome } from "./views/home.js?v=a3e2aca";
+import { renderUpload } from "./views/upload.js?v=a3e2aca";
+import { renderEntries } from "./views/entries.js?v=a3e2aca";
+import { renderAccount } from "./views/account.js?v=a3e2aca";
+import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=a3e2aca";
+import { renderHelp } from "./views/help.js?v=a3e2aca";
+import { renderLimitSettings } from "./views/limitcfg.js?v=a3e2aca";
+import { renderPolicy } from "./views/policy.js?v=a3e2aca";
+import { renderSettle } from "./views/settle.js?v=a3e2aca";
+import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=a3e2aca";
 
 const app = document.getElementById("app");
 let me = null;
@@ -25,6 +26,8 @@ const REVIEWER_NAV = [
   { route: "entries", label: "전체 증빙", icon: "list" },
 ];
 // 분기 한도 설정 — 서버 권한(deps.require_limit_admin)과 같은 역할: 보도IMC팀·재무팀·관리자
+// 정산출력 — 서버 권한(settlements.require_export)과 같은 역할: 지국 담당자·보도IMC팀·재무팀·관리자
+const SETTLE_NAV = { route: "settle", label: "정산출력", icon: "file" };
 const LIMIT_NAV = { route: "limits", label: "분기 한도 설정", icon: "sliders" };
 // AI 적격 정책 — 서버 권한(deps.require_policy_admin)과 같은 역할: 보도IMC팀·재무팀·관리자 공용
 const POLICY_NAV = { route: "policy", label: "AI 적격 정책", icon: "shield" };
@@ -33,12 +36,13 @@ export const NAV = {
     { route: "home", label: "홈", icon: "home" },
     { route: "upload", label: "증빙 업로드", icon: "upload" },
     { route: "entries", label: "증빙 조회", icon: "list" },
+    SETTLE_NAV,
   ],
-  imc: [...REVIEWER_NAV, LIMIT_NAV, POLICY_NAV],
+  imc: [...REVIEWER_NAV, SETTLE_NAV, LIMIT_NAV, POLICY_NAV],
   bureau_chief: REVIEWER_NAV,
   division_head: REVIEWER_NAV,
-  finance: [...REVIEWER_NAV, LIMIT_NAV, POLICY_NAV],
-  admin: [...REVIEWER_NAV, LIMIT_NAV, POLICY_NAV],
+  finance: [...REVIEWER_NAV, SETTLE_NAV, LIMIT_NAV, POLICY_NAV],
+  admin: [...REVIEWER_NAV, SETTLE_NAV, LIMIT_NAV, POLICY_NAV],
 };
 
 const ROUTES = {
@@ -50,6 +54,7 @@ const ROUTES = {
   help: (el, ctx) => renderHelp(el, ctx),
   limits: (el, ctx) => renderLimitSettings(el, ctx),
   policy: (el, ctx) => renderPolicy(el, ctx),
+  settle: (el, ctx) => renderSettle(el, ctx),
 };
 
 function parseHash() {
