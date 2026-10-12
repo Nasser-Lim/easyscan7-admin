@@ -1,10 +1,10 @@
 // 정산 출력 — 최종 결재가 끝난 증빙으로 재무팀 정산 양식(엑셀)을 바로 만들어 내려받는다.
 // 지국 담당자(자기 지국)·보도IMC팀·재무팀. 서버가 양식 파일에 값만 채워 주므로 서식·수식은 원본 그대로다.
-import { api } from "../api.js?v=60a3df0";
-import { LIVE_BRANCHES } from "./dashboard.js?v=60a3df0";
-import { getPeriod } from "../period.js?v=60a3df0";
-import { BRANCH, clear, empty, errorText, field, h, icon, money, quarterLabel, quarterOptions, select, spinner, toast } from "../ui.js?v=60a3df0";
-import { pageHeader } from "./shell.js?v=60a3df0";
+import { api } from "../api.js?v=049ba62";
+import { LIVE_BRANCHES } from "./dashboard.js?v=049ba62";
+import { getPeriod } from "../period.js?v=049ba62";
+import { BRANCH, clear, empty, errorText, field, h, icon, money, quarterLabel, quarterOptions, select, spinner, toast } from "../ui.js?v=049ba62";
+import { pageHeader } from "./shell.js?v=049ba62";
 
 const ACCOUNT_ORDER = ["취재비", "경상비", "차량유지비"];
 const SHEET = { 취재비: "취재비", 경상비: "지국경상비", 차량유지비: "차량유지비" };
@@ -126,9 +126,9 @@ function guideCard() {
     h(
       "ul",
       { class: "tips" },
-      h("li", {}, "재무팀 양식(해외지국 정산 양식)과 똑같은 엑셀입니다. 취재비·경상비·차량유지비 세부내역 시트와 정산서 시트가 들어 있습니다."),
+      h("li", {}, "재무팀 양식(해외지국 정산 양식)의 세부내역 3개 시트(취재비·지국경상비·차량유지비)가 들어 있고, 각 시트 마지막 행에 합계가 채워집니다."),
       h("li", {}, h("b", {}, "최종 결재가 끝난 증빙만"), " 들어갑니다. 결재 중인 증빙은 끝난 뒤 다시 출력하세요."),
-      h("li", {}, "날짜순으로 번호가 매겨지고 합계는 엑셀 수식입니다."),
+      h("li", {}, "날짜순으로 번호가 매겨집니다."),
       h("li", {}, "결재가 취소되면 그 증빙은 다음 출력부터 빠집니다."),
     ),
   );
