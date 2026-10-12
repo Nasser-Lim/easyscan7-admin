@@ -1,17 +1,17 @@
 // 증빙 조회 — 필터·정렬 목록, 일괄 제출, 상세 서랍(원본 증빙 대조 + 수정·제출·삭제 / 결재).
 // 지국 담당자: 자기 지국 · 본사 결재자: 전 지국(지국 필터), 결재는 결재함 또는 이 화면의 상세 서랍에서.
-import { api } from "../api.js?v=88cfd8a";
+import { api } from "../api.js?v=653273d";
 import {
   ACCOUNTS, ACTION_LABEL, BRANCH, DOC_TYPE, ELIGIBILITY, FINAL, IN_REVIEW, ROLE, STAFF_EDITABLE, STATUS, chip, clear,
   confirmDialog, promptDialog, dateText, dateTime, empty, errorText, field, h, icon, money, noticeParts,
   QUARTER_SOURCE, quarterBadge, quarterLabel, quarterOf, quarterOptions, select, spinner, statusChip, toast,
-} from "../ui.js?v=88cfd8a";
-import { aiGateMark, aiGatePanel } from "../aigate.js?v=88cfd8a";
-import { createPager } from "../pager.js?v=88cfd8a";
-import { flowDiagram } from "../flow.js?v=88cfd8a";
-import { fxStrip, loadFx, sumIn } from "../fx.js?v=88cfd8a";
-import { refreshInboxBadge } from "./inbox.js?v=88cfd8a";
-import { pageHeader } from "./shell.js?v=88cfd8a";
+} from "../ui.js?v=653273d";
+import { aiGateMark, aiGatePanel } from "../aigate.js?v=653273d";
+import { createPager } from "../pager.js?v=653273d";
+import { flowDiagram } from "../flow.js?v=653273d";
+import { fxStrip, loadFx, sumIn } from "../fx.js?v=653273d";
+import { refreshInboxBadge } from "./inbox.js?v=653273d";
+import { pageHeader } from "./shell.js?v=653273d";
 
 const EDITABLE_STATUS = STAFF_EDITABLE; // 지국 담당자가 고치고 제출할 수 있는 상태
 // 화면을 옮겨 다녀도 필터는 유지(세션 동안)
@@ -183,7 +183,7 @@ export function renderEntries(el, { me, params }) {
               h("td", { class: "mono" }, dateText(e.txnDate), h("div", { class: "q-line" }, quarterBadge(e.quarter))),
               h(
                 "td",
-                {},
+                { class: "cell-merchant" },
                 h("div", { class: "cell-main" }, e.merchantKo || e.merchant || "—", notes ? h("span", { class: "dot-note", title: `알림 ${notes}건` }) : null),
                 h("div", { class: "cell-sub" }, [e.merchantKo ? e.merchant : null, e.orderNumber ? `#${e.orderNumber}` : null].filter(Boolean).join(" · ")),
               ),
@@ -191,7 +191,8 @@ export function renderEntries(el, { me, params }) {
               h("td", { class: "cell-sub" }, DOC_TYPE[e.docType] || e.docType || "—"),
               h("td", { class: "num strong" }, money(e.amount, e.currency)),
               h("td", { class: `num ${e.ineligibleAmount > 0 ? "text-bad" : "muted"}` }, e.ineligibleAmount > 0 ? money(e.ineligibleAmount, e.currency) : "—"),
-              h("td", {}, statusChip(e.status), e.eligibility ? h("div", { class: "cell-sub" }, ELIGIBILITY[e.eligibility][0]) : null, aiGateMark(e.aiGate)),
+              // 상태 칸은 두 줄 — 위: 상태 칩, 아래: 분류(적격·비적격)와 AI 판정을 한 줄에
+              h("td", {}, statusChip(e.status), [e.eligibility ? h("span", { class: "cell-sub" }, ELIGIBILITY[e.eligibility][0]) : null, aiGateMark(e.aiGate)].some(Boolean) ? h("div", { class: "status-sub" }, e.eligibility ? h("span", { class: "cell-sub" }, ELIGIBILITY[e.eligibility][0]) : null, aiGateMark(e.aiGate)) : null),
               h("td", { class: "cell-sub mono" }, dateTime(e.createdAt)),
               isStaff ? h("td", { class: "cell-del" }, EDITABLE_STATUS.has(e.status) ? rowDelete(e) : null) : null,
             );

@@ -1,18 +1,18 @@
 // 관리웹 진입점 — 세션 확인 → 로그인 화면 또는 앱 셸 + 해시 라우터.
-import { api, hasSession, logout, onSignedOut } from "./api.js?v=88cfd8a";
-import { clear, h, spinner, toast, errorText } from "./ui.js?v=88cfd8a";
-import { renderLogin } from "./views/login.js?v=88cfd8a";
-import { renderShell, setActiveNav } from "./views/shell.js?v=88cfd8a";
-import { renderHome } from "./views/home.js?v=88cfd8a";
-import { renderUpload } from "./views/upload.js?v=88cfd8a";
-import { renderEntries } from "./views/entries.js?v=88cfd8a";
-import { renderAccount } from "./views/account.js?v=88cfd8a";
-import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=88cfd8a";
-import { renderHelp } from "./views/help.js?v=88cfd8a";
-import { renderLimitSettings } from "./views/limitcfg.js?v=88cfd8a";
-import { renderPolicy } from "./views/policy.js?v=88cfd8a";
-import { renderSettle } from "./views/settle.js?v=88cfd8a";
-import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=88cfd8a";
+import { api, hasSession, logout, onSignedOut } from "./api.js?v=653273d";
+import { clear, h, spinner, toast, errorText } from "./ui.js?v=653273d";
+import { renderLogin } from "./views/login.js?v=653273d";
+import { renderShell, setActiveNav } from "./views/shell.js?v=653273d";
+import { renderHome } from "./views/home.js?v=653273d";
+import { renderUpload } from "./views/upload.js?v=653273d";
+import { renderEntries } from "./views/entries.js?v=653273d";
+import { renderAccount } from "./views/account.js?v=653273d";
+import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=653273d";
+import { renderHelp } from "./views/help.js?v=653273d";
+import { renderLimitSettings } from "./views/limitcfg.js?v=653273d";
+import { renderPolicy } from "./views/policy.js?v=653273d";
+import { renderSettle } from "./views/settle.js?v=653273d";
+import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=653273d";
 
 const app = document.getElementById("app");
 let me = null;

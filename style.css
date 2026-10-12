@@ -968,3 +968,9 @@ select.input { padding-right: 28px; }
 .settle-pick { display: flex; gap: 16px; flex-wrap: wrap; } .settle-pick .field { min-width: 180px; }
 .card-head-pad { padding: 12px 16px; }
 .settle-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 16px; border-top: 1px solid var(--line); background: var(--surface-2); }
+
+/* 증빙 표(증빙 조회·결재함): PC 에서는 한 행을 두 줄로 — 칸 안 글자가 줄바꿈되지 않게 하고, 긴 가맹점·적요는 말줄임 */
+.table-entries td { white-space: nowrap; }
+.table-entries .cell-merchant > div { max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
+.status-sub { display: flex; align-items: center; gap: 8px; margin-top: 2px; white-space: nowrap; }
+.status-sub .ai-mark { margin: 0; }

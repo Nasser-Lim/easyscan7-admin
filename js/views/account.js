@@ -1,6 +1,6 @@
 // 내 계정 — 역할·지국·계정 종류. 지국 담당자 외 역할은 메뉴가 준비 중임을 안내한다.
-import { ACCT, BRANCH, ROLE, h } from "../ui.js?v=88cfd8a";
-import { pageHeader } from "./shell.js?v=88cfd8a";
+import { ACCT, BRANCH, ROLE, h } from "../ui.js?v=653273d";
+import { pageHeader } from "./shell.js?v=653273d";
 
 const PERMS = {
   staff: ["자기 지국 증빙 업로드(관리웹·촬영앱)", "자기 지국 증빙 조회·수정·제출·제출 취소·삭제", "분기 한도 현황 조회", "정산 출력(자기 지국)"],

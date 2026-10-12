@@ -1,13 +1,13 @@
 // 결재함 — 내 역할이 결재할 단계의 증빙(전 지국). 행을 열어 원본 대조 후 결재, 단순 승인 단계는 일괄 처리.
-import { api } from "../api.js?v=88cfd8a";
+import { api } from "../api.js?v=653273d";
 import {
   BRANCH, ELIGIBILITY, ROLE, chip, clear, confirmDialog, dateText, dateTime, empty, errorText, h, icon, money,
   quarterLabel, select, spinner, statusChip, toast,
-} from "../ui.js?v=88cfd8a";
-import { aiGateMark } from "../aigate.js?v=88cfd8a";
-import { createPager } from "../pager.js?v=88cfd8a";
-import { openDrawer } from "./entries.js?v=88cfd8a";
-import { pageHeader, setNavBadge } from "./shell.js?v=88cfd8a";
+} from "../ui.js?v=653273d";
+import { aiGateMark } from "../aigate.js?v=653273d";
+import { createPager } from "../pager.js?v=653273d";
+import { openDrawer } from "./entries.js?v=653273d";
+import { pageHeader, setNavBadge } from "./shell.js?v=653273d";
 
 const ROLE_GUIDE = {
   imc: "제출된 증빙을 원본과 대조해 적격 / 비적격으로 분류합니다. 적격은 재무팀으로, 비적격(사유 필수)은 보도국장 전결로 올라갑니다.",
@@ -135,7 +135,7 @@ export function renderInbox(el, { me }) {
               h("td", { class: "cell-check" }, cb),
               h("td", {}, `${BRANCH[e.branchId] || e.branchId}`),
               h("td", { class: "mono" }, dateText(e.txnDate), h("div", { class: "cell-sub" }, quarterLabel(e.quarter))),
-              h("td", {}, h("div", { class: "cell-main" }, e.merchantKo || e.merchant || "—"), e.memo ? h("div", { class: "cell-sub" }, e.memo) : null),
+              h("td", { class: "cell-merchant" }, h("div", { class: "cell-main" }, e.merchantKo || e.merchant || "—"), e.memo ? h("div", { class: "cell-sub" }, e.memo) : null),
               h("td", {}, e.account || "—"),
               h("td", { class: "num strong" }, money(e.amount, e.currency)),
               h("td", { class: `num ${e.ineligibleAmount > 0 ? "text-bad" : "muted"}` }, e.ineligibleAmount > 0 ? money(e.ineligibleAmount, e.currency) : "—"),
