@@ -3,13 +3,14 @@
 import {
   ACCOUNTS, BRANCH, DOC_TYPE, bytes, chip, clear, currentQuarter, field, h, icon, money, noticeParts,
   quarterLabel, select, statusChip, toast,
-} from "../ui.js?v=049ba62";
-import { aiGateMark } from "../aigate.js?v=049ba62";
-import { getPeriod, periodSwitch } from "../period.js?v=049ba62";
-import { createPager } from "../pager.js?v=049ba62";
-import { getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js?v=049ba62";
-import { limitsCard } from "./limits.js?v=049ba62";
-import { pageHeader } from "./shell.js?v=049ba62";
+} from "../ui.js?v=39361ca";
+import { aiGateMark } from "../aigate.js?v=39361ca";
+import { api } from "../api.js?v=39361ca";
+import { getPeriod, periodSwitch } from "../period.js?v=39361ca";
+import { createPager } from "../pager.js?v=39361ca";
+import { getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js?v=39361ca";
+import { limitsCard } from "./limits.js?v=39361ca";
+import { pageHeader } from "./shell.js?v=39361ca";
 
 const MAX_FILES = 20;
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -97,14 +98,24 @@ export function renderUpload(el, { me, go }) {
 
   // 처리 결과 기록 — 업로드 1회가 카드 1장. 오래된 기록은 쪽으로 나눠 본다(확인 절차 없음).
   const pager = createPager("upload-history", () => paintQueue(), { sizes: [5, 10, 20, 50], def: 5, unit: "회" });
+  // 기록의 상태·금액은 업로드 당시 값이 아니라 **지금 값**(증빙 조회와 같은 값)으로 보여 준다 — 서버에서 한 번 받아 둔다
+  let live = null; // { entryId: 증빙 } — 못 받으면 null(기록에 저장된 값으로 대체)
+  async function refreshLive() {
+    try {
+      const { entries } = await api.get("/entries");
+      live = Object.fromEntries(entries.map((e) => [e.id, e]));
+    } catch {
+      /* 현재 상태를 못 받아도 기록은 보여 준다 */
+    }
+    if (queueSlot.isConnected) paintQueue();
+  }
   function paintQueue() {
     clear(queueSlot);
     const q = getQueue();
     if (!q.length) return;
     queueSlot.append(
       h("div", { class: "queue-head" }, h("div", {}, h("div", { class: "card-title" }, `처리 결과 · 총 ${q.length}회`), h("div", { class: "card-sub" }, "업로드할 때마다 기록으로 남습니다. 증빙은 이미 '작성중'으로 저장되어 있으니 눌러서 원본과 대조하고 제출하세요."))),
-      ...pager.slice(q).map((b) => batchView(b, go)),
-      q.length > 5 ? h("div", { class: "card card-flush" }, pager.node(q.length)) : null,
+      ...[...pager.slice(q).map((b) => batchView(b, go, live)), q.length > 5 ? h("div", { class: "card card-flush" }, pager.node(q.length)) : null].filter(Boolean),
     );
   }
 
@@ -123,6 +134,7 @@ export function renderUpload(el, { me, go }) {
     paintQueue();
     paint();
     if (event === "done") {
+      refreshLive();
       clear(limitsSlot).append(limitsCard(getPeriod()));
       pager.reset(); // 방금 올린 결과가 맨 앞 쪽에 보이게
       paintQueue();
@@ -168,6 +180,7 @@ export function renderUpload(el, { me, go }) {
   );
   paint();
   paintQueue();
+  refreshLive();
 }
 
 function tipsCard() {
@@ -194,7 +207,7 @@ function whenText(at) {
 }
 
 // 업로드 1회의 처리 결과(큐 항목).
-function batchView(b, go) {
+function batchView(b, go, live) {
   const r = b.result;
   const cur = r.entries.find((e) => e.currency)?.currency || "USD";
   const parts = [];
@@ -217,14 +230,18 @@ function batchView(b, go) {
         h(
           "table",
           { class: "table" },
-          h("thead", {}, h("tr", {}, h("th", {}, "사용일"), h("th", {}, "분기"), h("th", {}, "가맹점"), h("th", {}, "증빙"), h("th", { class: "num" }, "금액"), h("th", {}, "등록 시 상태"), h("th", {}))),
+          h("thead", {}, h("tr", {}, h("th", {}, "사용일"), h("th", {}, "분기"), h("th", {}, "가맹점"), h("th", {}, "증빙"), h("th", { class: "num" }, "금액"), h("th", {}, "상태"), h("th", {}))),
           h(
             "tbody",
             {},
-            r.entries.map((e) =>
-              h(
+            r.entries.map((x) => {
+              // 상태·금액·AI 판정은 지금 값(증빙 조회와 같은 값). 서버에서 못 받았으면 업로드 당시 값
+              const c = live?.[x.entryId];
+              const e = c ? { ...x, status: c.status, amount: c.amount, ineligibleAmount: c.ineligibleAmount, aiGate: c.aiGate ?? x.aiGate } : x;
+              const gone = !!live && !c; // 목록에 없으면 삭제된 증빙
+              return h(
                 "tr",
-                { class: "row-link", onclick: () => go(`entries/${e.entryId}`) },
+                { class: gone ? "" : "row-link", onclick: gone ? null : () => go(`entries/${e.entryId}`) },
                 h("td", { class: "mono" }, e.txnDate || "—"),
                 h("td", { class: "cell-sub" }, quarterLabel(e.quarter)),
                 h("td", {}, h("div", { class: "cell-main" }, e.merchantKo || e.merchant || "—"), h("div", { class: "cell-sub" }, DOC_TYPE[e.docType] || e.docType || "")),
@@ -235,10 +252,10 @@ function batchView(b, go) {
                   money(e.amount, e.currency),
                   e.ineligibleAmount > 0 ? h("div", { class: "cell-sub text-bad" }, `비적격 ${money(e.ineligibleAmount, e.currency)}`) : null,
                 ),
-                h("td", {}, statusChip(e.status), aiGateMark(e.aiGate) || (e.flagCount ? h("div", { class: "cell-sub" }, `규칙 ${e.flagCount}건`) : null)),
-                h("td", { class: "cell-action" }, icon("chevron")),
-              ),
-            ),
+                h("td", {}, statusChip(gone ? "deleted" : e.status), gone ? null : aiGateMark(e.aiGate) || (e.flagCount ? h("div", { class: "cell-sub" }, `규칙 ${e.flagCount}건`) : null)),
+                h("td", { class: "cell-action" }, gone ? null : icon("chevron")),
+              );
+            }),
           ),
         ),
       ),
@@ -259,7 +276,10 @@ function batchView(b, go) {
       notes.push(note(p.tone, p.label, `${e.merchant || "증빙"}: ${p.text}`));
     }
   // AI 1차 적격 검증 — 정책 위반·판단 보류만 알린다
-  for (const e of r.entries) {
+  for (const x of r.entries) {
+    const c = live?.[x.entryId];
+    if (live && (!c || !["draft", "flagged"].includes(c.status))) continue; // 이미 제출·반려·삭제된 증빙은 상태 열이 말해 준다
+    const e = c ? { ...x, aiGate: c.aiGate ?? x.aiGate } : x;
     const g = e.aiGate;
     if (g?.verdict === "fail")
       notes.push(note("bad", "AI 정책 위반", `${e.merchantKo || e.merchant || "증빙"}: ${(g.violations || []).map((v) => v.reason).join(" · ") || g.summary} — 그대로 제출하면 자동 반려됩니다. 고치거나 제출할 때 소명을 적어 주세요.`, () => go(`entries/${e.entryId}`)));

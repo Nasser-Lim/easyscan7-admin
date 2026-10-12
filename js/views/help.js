@@ -1,8 +1,8 @@
 // 도움말 — EASY SCAN 결재선 다이어그램(역할별 레인 + AI 1차 검증), 상태 안내, 내 역할 안내, 현재 AI 적격 정책, 자주 묻는 질문. 전 계정 공통.
-import { api } from "../api.js?v=049ba62";
-import { ACCOUNTS, ROLE, STATUS, chip, clear, dateTime, h, icon, spinner, policyVer } from "../ui.js?v=049ba62";
-import { BUILD, VERSION } from "../version.js?v=049ba62";
-import { pageHeader } from "./shell.js?v=049ba62";
+import { api } from "../api.js?v=39361ca";
+import { ACCOUNTS, ROLE, STATUS, chip, clear, dateTime, h, icon, spinner, policyVer } from "../ui.js?v=39361ca";
+import { BUILD, VERSION } from "../version.js?v=39361ca";
+import { pageHeader } from "./shell.js?v=39361ca";
 
 // ── 역할 → 다이어그램 레인 ──
 const LANES = [
