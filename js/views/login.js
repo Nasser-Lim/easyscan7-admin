@@ -1,6 +1,6 @@
 // 로그인 화면 — 왼쪽 브랜드 패널(SBS 흰색 로고, 네이비), 오른쪽 폼.
-import { health, login } from "../api.js?v=ff42d09";
-import { h, icon, spinner } from "../ui.js?v=ff42d09";
+import { health, login } from "../api.js?v=88cfd8a";
+import { h, icon, spinner } from "../ui.js?v=88cfd8a";
 
 export function renderLogin(root, onSuccess) {
   const err = h("div", { class: "form-error", role: "alert" });
@@ -60,7 +60,7 @@ export function renderLogin(root, onSuccess) {
         { class: "login-points" },
         h("li", {}, icon("upload"), h("span", {}, "PDF·스크린샷 증빙을 올리면 AI가 대신 처리합니다")),
         h("li", {}, icon("check"), h("span", {}, "한글 번역·검산·분기 한도를 자동으로 확인합니다")),
-        h("li", {}, icon("send"), h("span", {}, "증빙 결재가 완료되면 정산서가 알아서 완성됩니다")),
+        h("li", {}, icon("send"), h("span", {}, "결재가 끝난 증빙은 정산 양식 엑셀로 바로 출력합니다")),
       ),
     ),
     h("div", { class: "login-brand-foot" }, "© SBS · EASYSCAN"),

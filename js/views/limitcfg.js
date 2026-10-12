@@ -1,8 +1,8 @@
 // 분기 한도 설정 — 지국별·계정별 분기 한도와 통화. 보도IMC팀(실무·팀장)·재무팀·관리자.
 // 저장하면 서버가 영향받는 (지국·분기·계정) 그룹을 다시 계산한다. 결재선에 오른 증빙의 배분은 고정(services/limits.py).
-import { api } from "../api.js?v=ff42d09";
-import { ROLE, chip, clear, confirmDialog, dateTime, errorText, h, icon, select, spinner, toast } from "../ui.js?v=ff42d09";
-import { pageHeader } from "./shell.js?v=ff42d09";
+import { api } from "../api.js?v=88cfd8a";
+import { ROLE, chip, clear, confirmDialog, dateTime, errorText, h, icon, select, spinner, toast } from "../ui.js?v=88cfd8a";
+import { pageHeader } from "./shell.js?v=88cfd8a";
 
 const SYMBOL = { USD: "$", KRW: "₩", JPY: "¥", EUR: "€", CNY: "¥" };
 // 화면 표시 순서 — 머리글과 입력칸이 같은 배열에서 만들어져 어긋나지 않게 한다(서버 목록 순서와 무관)
@@ -30,9 +30,9 @@ export function renderLimitSettings(el, { me }) {
       { class: "banner banner-info limit-note" },
       icon("info"),
       h("div", {}, h("b", {}, "한도를 바꾸면 이렇게 반영됩니다"),
-        h("ul", {}, h("li", {}, "작성 중·분류 전·반려된 증빙은 새 한도로 다시 계산됩니다."),
-          h("li", {}, "보도IMC팀 분류 이후(결재 진행 중·완료) 증빙은 결재자가 본 금액 그대로 고정됩니다."),
-          h("li", {}, "한도를 비워 두면 그 계정은 한도 없이 운영됩니다. 통화를 바꾸면 다른 통화 증빙은 한도 계산에서 빠집니다."))),
+        h("ul", {}, h("li", {}, "작성 중·반려·보도IMC팀 분류 전 증빙은 새 한도로 다시 계산됩니다."),
+          h("li", {}, "보도국장·재무팀 단계로 넘어간 증빙과 결재 완료 증빙은 적격·비적격 금액이 고정됩니다(재무팀이 금액을 고치면 다시 계산)."),
+          h("li", {}, "칸을 비우면 한도 없음, 0이면 전액 비적격입니다. 지국 통화와 다른 통화의 영수증은 한도 판정에서 제외되며, 현황에는 환산해 참고용으로만 더해 보입니다."))),
     ),
     h(
       "section",

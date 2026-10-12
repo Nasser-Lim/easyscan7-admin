@@ -2,8 +2,8 @@
 //  · 진행 중: 모달 프로그레스 바(파일 전송 → AI 인식 → 정리). 메뉴를 이동해도 모달과 처리는 계속된다.
 //  · 처리 결과: 업로드마다 '처리 결과' 기록으로 남는다(확인 절차 없음, 직접 지울 수 있음). 이 브라우저에 계정별로 최근 5회만 보관한다.
 // 증빙 자체는 서버가 업로드 즉시 '작성중'으로 저장한다 — 기록은 그 처리 결과를 다시 볼 수 있게 한 것이지 데이터 보관소가 아니다.
-import { api } from "./api.js?v=ff42d09";
-import { bytes, errorText, h, icon, toast } from "./ui.js?v=ff42d09";
+import { api } from "./api.js?v=88cfd8a";
+import { bytes, errorText, h, icon, toast } from "./ui.js?v=88cfd8a";
 
 const KEY = "es7.upload-history";
 const MAX_QUEUE = 5;

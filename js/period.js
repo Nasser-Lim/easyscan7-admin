@@ -1,6 +1,6 @@
 // 정산 분기 선택 — 현분기와 전분기 중 하나. 한 분기의 정산은 다음 분기에 하므로 오늘 날짜로 고정하지 않는다.
 // 고른 값은 이 탭에서 기억해 홈·증빙 업로드(분기 한도 현황)가 같은 분기를 본다.
-import { currentQuarter, h } from "./ui.js?v=ff42d09";
+import { currentQuarter, h } from "./ui.js?v=88cfd8a";
 
 const KEY = "es7.period";
 

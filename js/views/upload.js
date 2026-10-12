@@ -3,13 +3,13 @@
 import {
   ACCOUNTS, BRANCH, DOC_TYPE, bytes, chip, clear, currentQuarter, field, h, icon, money, noticeParts,
   quarterLabel, select, statusChip, toast,
-} from "../ui.js?v=ff42d09";
-import { aiGateMark } from "../aigate.js?v=ff42d09";
-import { api } from "../api.js?v=ff42d09";
-import { getPeriod, periodSwitch } from "../period.js?v=ff42d09";
-import { dismiss, dismissAll, getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js?v=ff42d09";
-import { limitsCard } from "./limits.js?v=ff42d09";
-import { pageHeader } from "./shell.js?v=ff42d09";
+} from "../ui.js?v=88cfd8a";
+import { aiGateMark } from "../aigate.js?v=88cfd8a";
+import { api } from "../api.js?v=88cfd8a";
+import { getPeriod, periodSwitch } from "../period.js?v=88cfd8a";
+import { dismiss, dismissAll, getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js?v=88cfd8a";
+import { limitsCard } from "./limits.js?v=88cfd8a";
+import { pageHeader } from "./shell.js?v=88cfd8a";
 
 const MAX_FILES = 20;
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -115,7 +115,7 @@ export function renderUpload(el, { me, go }) {
       h(
         "div",
         { class: "queue-head" },
-        h("div", {}, h("div", { class: "card-title" }, `처리 결과 · 최근 ${q.length}회`), h("div", { class: "card-sub" }, "최근 5회까지 보여 줍니다. 증빙은 이미 '작성중'으로 저장되어 있으니 눌러서 원본과 대조하고 제출하세요. 기록은 지워도 증빙은 그대로 남습니다.")),
+        h("div", {}, h("div", { class: "card-title" }, "최근 처리 결과(최대 5건까지 표시)")),
         q.length > 1 ? h("button", { class: "btn btn-ghost btn-sm", type: "button", onclick: dismissAll }, icon("trash"), h("span", {}, "모두 지우기")) : null,
       ),
       ...q.map((b) => batchView(b, go, live)),
@@ -195,7 +195,8 @@ function tipsCard() {
       h("li", {}, "주문 내역·결제 확인·배송 안내처럼 같은 주문의 여러 장 증빙은 한 번에 올리면 1건으로 합쳐집니다."),
       h("li", {}, "이미 등록된 증빙(주문번호·금액 동일)을 다시 올리면 새 증빙 없이 기존 증빙에 합쳐지고 알려 드립니다."),
       h("li", {}, "광고·약관 같은 증빙이 아닌 입력은 자동으로 제외됩니다."),
-      h("li", {}, "분기 한도를 넘는 금액은 비적격 처리되며, 제출은 막지 않습니다."),
+      h("li", {}, "올린 증빙은 바로 '지국 작성중'으로 저장됩니다. 원본과 대조해 고친 뒤 직접 제출해야 결재가 시작됩니다."),
+      h("li", {}, "분기 한도를 넘는 금액은 비적격 처리되며, 제출은 막지 않습니다. 원화처럼 지국 통화와 다른 영수증은 한도 판정에 들어가지 않습니다."),
       h("li", {}, h("b", {}, "AI 가 재무팀·보도IMC팀이 정한 정책으로 적격 여부를 먼저 검증합니다."), " 위반이면 검토 필요로 표시되고, 그대로 제출하면 자동 반려됩니다. 정당한 사유가 있으면 제출할 때 소명을 적어 주세요."),
     ),
   );

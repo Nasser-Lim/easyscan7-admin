@@ -1,11 +1,11 @@
 // 홈 — 고른 정산 분기(현분기·전분기)의 요약 지표, 한도 현황, 최근 증빙, 바로가기.
-import { api } from "../api.js?v=ff42d09";
-import { BRANCH, clear, dateText, empty, errorText, h, icon, money, quarterLabel, spinner, statusChip } from "../ui.js?v=ff42d09";
-import { loadFx, sumIn } from "../fx.js?v=ff42d09";
-import { getPeriod, periodSwitch } from "../period.js?v=ff42d09";
-import { limitsCard } from "./limits.js?v=ff42d09";
-import { renderDashboard } from "./dashboard.js?v=ff42d09";
-import { pageHeader } from "./shell.js?v=ff42d09";
+import { api } from "../api.js?v=88cfd8a";
+import { BRANCH, clear, dateText, empty, errorText, h, icon, money, quarterLabel, spinner, statusChip } from "../ui.js?v=88cfd8a";
+import { loadFx, sumIn } from "../fx.js?v=88cfd8a";
+import { getPeriod, periodSwitch } from "../period.js?v=88cfd8a";
+import { limitsCard } from "./limits.js?v=88cfd8a";
+import { renderDashboard } from "./dashboard.js?v=88cfd8a";
+import { pageHeader } from "./shell.js?v=88cfd8a";
 
 export function renderHome(el, ctx) {
   if (ctx.me.role !== "staff") return renderDashboard(el, ctx); // 본사(보도IMC팀·보도국장·재무팀): 전 지국 대시보드
@@ -117,7 +117,8 @@ function guideCard() {
       { class: "steps" },
       step("1", "증빙 업로드", "PDF·스크린샷을 여러 개 한 번에 올립니다. 촬영 영수증은 촬영앱을 쓰세요."),
       step("2", "증빙 확인·수정", "AI 가 읽은 날짜·가맹점·금액을 원본과 대조합니다. 취재비는 적요 필수."),
-      step("3", "제출", "확인한 증빙을 제출하면 결재선으로 넘어갑니다."),
+      step("3", "제출", "확인한 증빙을 제출하면 결재선으로 넘어갑니다. 보도IMC팀이 분류하기 전에는 제출 취소가 가능합니다."),
+      step("4", "정산 출력", "결재가 끝난 증빙은 '정산 출력' 메뉴에서 정산 양식 엑셀로 받습니다."),
     ),
   );
 }
