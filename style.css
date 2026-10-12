@@ -893,3 +893,20 @@ select.input { padding-right: 28px; }
   .live-on i { animation: live-blink 2.4s ease-in-out infinite; }
   .card.is-live::before { animation: live-blink 2.4s ease-in-out infinite; background-size: 100% 100%; background-position: 0 0; }
 }
+
+/* ── 페이지 나누기 ── */
+.pager { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; padding: 10px 16px; border-top: 1px solid var(--line); background: var(--surface-2); font-size: 12.5px; color: var(--text-2); }
+.pg-range b { color: var(--text); font-variant-numeric: tabular-nums; }
+.pg-nav { display: flex; align-items: center; gap: 2px; }
+.pg-btn { min-width: 28px; height: 28px; padding: 0 7px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; font: inherit; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--text-2); cursor: pointer; }
+.pg-btn:hover:not(:disabled):not(.on) { background: var(--surface); border-color: var(--line-strong); }
+.pg-btn.on { background: var(--sbs-blue); border-color: var(--sbs-blue); color: #fff; font-weight: 700; cursor: default; }
+.pg-btn:disabled { opacity: .35; cursor: not-allowed; }
+.pg-gap { padding: 0 4px; color: var(--text-3); }
+.pg-size { display: inline-flex; align-items: center; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); overflow: hidden; }
+.pg-size-btn { height: 26px; min-width: 34px; padding: 0 8px; border: 0; border-right: 1px solid var(--line); background: transparent; font: inherit; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--text-2); cursor: pointer; }
+.pg-size-btn:hover:not(.on) { background: var(--surface-2); }
+.pg-size-btn.on { background: var(--sbs-sky-50); color: var(--sbs-blue); font-weight: 700; box-shadow: inset 0 -2px 0 var(--sbs-blue); cursor: default; }
+.pg-size-unit { padding: 0 9px; color: var(--text-3); }
+@media (max-width: 720px) { .pager { justify-content: center; } }
+.pg-nav .pg-btn[title] { font-size: 17px; line-height: 1; }

@@ -1,16 +1,17 @@
 // 증빙 조회 — 필터·정렬 목록, 일괄 제출, 상세 서랍(원본 증빙 대조 + 수정·제출·삭제 / 결재).
 // 지국 담당자: 자기 지국 · 본사 결재자: 전 지국(지국 필터), 결재는 결재함 또는 이 화면의 상세 서랍에서.
-import { api } from "../api.js?v=949480b";
+import { api } from "../api.js?v=f2eb3e2";
 import {
   ACCOUNTS, ACTION_LABEL, BRANCH, DOC_TYPE, ELIGIBILITY, FINAL, IN_REVIEW, ROLE, STAFF_EDITABLE, STATUS, chip, clear,
   confirmDialog, promptDialog, dateText, dateTime, empty, errorText, field, h, icon, money, noticeParts,
   QUARTER_SOURCE, quarterBadge, quarterLabel, quarterOf, quarterOptions, select, spinner, statusChip, toast,
-} from "../ui.js?v=949480b";
-import { aiGateMark, aiGatePanel } from "../aigate.js?v=949480b";
-import { flowDiagram } from "../flow.js?v=949480b";
-import { fxStrip, loadFx, sumIn } from "../fx.js?v=949480b";
-import { refreshInboxBadge } from "./inbox.js?v=949480b";
-import { pageHeader } from "./shell.js?v=949480b";
+} from "../ui.js?v=f2eb3e2";
+import { aiGateMark, aiGatePanel } from "../aigate.js?v=f2eb3e2";
+import { createPager } from "../pager.js?v=f2eb3e2";
+import { flowDiagram } from "../flow.js?v=f2eb3e2";
+import { fxStrip, loadFx, sumIn } from "../fx.js?v=f2eb3e2";
+import { refreshInboxBadge } from "./inbox.js?v=f2eb3e2";
+import { pageHeader } from "./shell.js?v=f2eb3e2";
 
 const EDITABLE_STATUS = STAFF_EDITABLE; // 지국 담당자가 고치고 제출할 수 있는 상태
 // 화면을 옮겨 다녀도 필터는 유지(세션 동안)
@@ -29,19 +30,21 @@ export function renderEntries(el, { me, params }) {
   const account = select([["", "전체 계정"], ...ACCOUNTS.map((a) => [a, a])], state.account, { class: "input input-sm" });
   const status = select([["", "전체 상태"], ...Object.keys(STATUS).filter((s) => s !== "deleted").map((s) => [s, STATUS[s].label])], state.status, { class: "input input-sm" });
   const branchSel = isStaff ? null : select([["all", "전체 지국"], ...Object.entries(BRANCH).map(([id, n]) => [id, `${n}지국`])], state.branch, { class: "input input-sm" });
-  branchSel?.addEventListener("change", () => ((state.branch = branchSel.value), load()));
+  branchSel?.addEventListener("change", () => ((state.branch = branchSel.value), pager.reset(), load()));
   const search = h("input", { class: "input input-sm", type: "search", placeholder: "가맹점·주문번호·적요 검색", value: state.q });
   const kpiBar = h("div", { class: "kpis kpis-sm" });
   const fxBar = fxStrip();
   let fx = null;
   const bulk = h("div", { class: "bulkbar" });
   const tableWrap = h("div", { class: "table-wrap" }, h("div", { class: "card-loading" }, spinner()));
+  const pager = createPager("entries", () => paint());
+  const pagerBox = h("div", {});
   const refreshBtn = h("button", { class: "btn btn-ghost", type: "button", onclick: () => load() }, icon("refresh"), h("span", {}, "새로고침"));
 
-  quarter.addEventListener("change", () => ((state.quarter = quarter.value), load()));
-  account.addEventListener("change", () => ((state.account = account.value), paint()));
-  status.addEventListener("change", () => ((state.status = status.value), paint()));
-  search.addEventListener("input", () => ((state.q = search.value), paint()));
+  quarter.addEventListener("change", () => ((state.quarter = quarter.value), pager.reset(), load()));
+  account.addEventListener("change", () => ((state.account = account.value), pager.reset(), paint()));
+  status.addEventListener("change", () => ((state.status = status.value), pager.reset(), paint()));
+  search.addEventListener("input", () => ((state.q = search.value), pager.reset(), paint()));
 
   el.append(
     pageHeader({
@@ -58,6 +61,7 @@ export function renderEntries(el, { me, params }) {
       h("div", { class: "toolbar" }, h("div", { class: "toolbar-filters" }, branchSel, quarter, account, status), h("div", { class: "toolbar-search" }, icon("search"), search)),
       bulk,
       tableWrap,
+      pagerBox,
     ),
   );
 
@@ -120,11 +124,14 @@ export function renderEntries(el, { me, params }) {
     const list = visible();
     for (const id of [...selected]) if (!list.some((e) => e.id === id && EDITABLE_STATUS.has(e.status))) selected.delete(id);
     paintBulk();
+    clear(pagerBox);
     if (!list.length) {
       clear(tableWrap).append(rows.length ? empty("조건에 맞는 증빙이 없습니다", "필터를 바꿔 보세요.") : empty(`${state.quarter ? quarterLabel(state.quarter) : "등록된"} 증빙이 없습니다`, "증빙을 업로드하면 AI 가 읽어 여기에 등록합니다."));
       return;
     }
-    const selectable = isStaff ? list.filter((e) => EDITABLE_STATUS.has(e.status)) : [];
+    const pageRows = pager.slice(list); // 선택은 쪽을 넘어서도 유지하고, '전체 선택'은 지금 보이는 쪽만
+    pagerBox.append(pager.node(list.length));
+    const selectable = isStaff ? pageRows.filter((e) => EDITABLE_STATUS.has(e.status)) : [];
     const all = h("input", { type: "checkbox", class: "check", "aria-label": "전체 선택", disabled: !selectable.length });
     all.checked = selectable.length > 0 && selectable.every((e) => selected.has(e.id));
     all.addEventListener("change", () => {
@@ -134,7 +141,7 @@ export function renderEntries(el, { me, params }) {
     const th = (label, key, cls) =>
       h(
         "th",
-        { class: `${cls || ""} sortable${state.sort === key ? " sorted" : ""}`, onclick: () => ((state.dir = state.sort === key ? -state.dir : -1), (state.sort = key), paint()) },
+        { class: `${cls || ""} sortable${state.sort === key ? " sorted" : ""}`, onclick: () => ((state.dir = state.sort === key ? -state.dir : -1), (state.sort = key), pager.reset(), paint()) },
         label,
         state.sort === key ? h("span", { class: "sort-ind" }, state.dir > 0 ? "▲" : "▼") : null,
       );
@@ -163,7 +170,7 @@ export function renderEntries(el, { me, params }) {
         h(
           "tbody",
           {},
-          list.map((e) => {
+          pageRows.map((e) => {
             const cb = h("input", { type: "checkbox", class: "check", "aria-label": "선택", disabled: !isStaff || !EDITABLE_STATUS.has(e.status) });
             cb.checked = selected.has(e.id);
             cb.addEventListener("click", (ev) => ev.stopPropagation());

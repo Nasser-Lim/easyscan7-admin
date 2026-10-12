@@ -1,10 +1,10 @@
 // 홈 — 고른 정산 분기(현분기·전분기)의 요약 지표, 한도 현황, 최근 증빙, 바로가기.
-import { api } from "../api.js?v=949480b";
-import { BRANCH, clear, dateText, empty, errorText, h, icon, money, quarterLabel, spinner, statusChip } from "../ui.js?v=949480b";
-import { loadFx, sumIn } from "../fx.js?v=949480b";
-import { getPeriod, periodSwitch } from "../period.js?v=949480b";
-import { limitsCard } from "./limits.js?v=949480b";
-import { pageHeader } from "./shell.js?v=949480b";
+import { api } from "../api.js?v=f2eb3e2";
+import { BRANCH, clear, dateText, empty, errorText, h, icon, money, quarterLabel, spinner, statusChip } from "../ui.js?v=f2eb3e2";
+import { loadFx, sumIn } from "../fx.js?v=f2eb3e2";
+import { getPeriod, periodSwitch } from "../period.js?v=f2eb3e2";
+import { limitsCard } from "./limits.js?v=f2eb3e2";
+import { pageHeader } from "./shell.js?v=f2eb3e2";
 
 export function renderHome(el, ctx) {
   draw(el, ctx);

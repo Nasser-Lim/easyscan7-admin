@@ -1,12 +1,13 @@
 // 결재함 — 내 역할이 결재할 단계의 증빙(전 지국). 행을 열어 원본 대조 후 결재, 단순 승인 단계는 일괄 처리.
-import { api } from "../api.js?v=949480b";
+import { api } from "../api.js?v=f2eb3e2";
 import {
   BRANCH, ELIGIBILITY, ROLE, chip, clear, confirmDialog, dateText, dateTime, empty, errorText, h, icon, money,
   quarterLabel, select, spinner, statusChip, toast,
-} from "../ui.js?v=949480b";
-import { aiGateMark } from "../aigate.js?v=949480b";
-import { openDrawer } from "./entries.js?v=949480b";
-import { pageHeader, setNavBadge } from "./shell.js?v=949480b";
+} from "../ui.js?v=f2eb3e2";
+import { aiGateMark } from "../aigate.js?v=f2eb3e2";
+import { createPager } from "../pager.js?v=f2eb3e2";
+import { openDrawer } from "./entries.js?v=f2eb3e2";
+import { pageHeader, setNavBadge } from "./shell.js?v=f2eb3e2";
 
 const ROLE_GUIDE = {
   imc: "제출된 증빙을 원본과 대조해 적격 / 비적격으로 분류합니다. 적격은 재무팀으로, 비적격(사유 필수)은 보도국장 전결로 올라갑니다.",
@@ -41,7 +42,9 @@ export function renderInbox(el, { me }) {
   const kpiBar = h("div", { class: "kpis kpis-sm" });
   const bulk = h("div", { class: "bulkbar" });
   const tableWrap = h("div", { class: "table-wrap" }, h("div", { class: "card-loading" }, spinner()));
-  branchSel.addEventListener("change", () => ((branchFilter = branchSel.value), paint()));
+  const pagerBox = h("div", {});
+  const pager = createPager("inbox", () => paint());
+  branchSel.addEventListener("change", () => ((branchFilter = branchSel.value), pager.reset(), paint()));
 
   el.append(
     pageHeader({
@@ -57,6 +60,7 @@ export function renderInbox(el, { me }) {
       h("div", { class: "toolbar" }, h("div", { class: "toolbar-filters" }, branchSel), h("div", { class: "muted small" }, "오래 기다린 순")),
       bulk,
       tableWrap,
+      pagerBox,
     ),
   );
 
@@ -91,11 +95,14 @@ export function renderInbox(el, { me }) {
     );
     for (const id of [...selected]) if (!list.some((e) => e.id === id && bulkable(e))) selected.delete(id);
     paintBulk();
+    clear(pagerBox);
     if (!list.length) {
       clear(tableWrap).append(empty("결재할 증빙이 없습니다", "새로 올라오는 증빙은 여기에 쌓입니다."));
       return;
     }
-    const canBulk = list.filter(bulkable);
+    const pageRows = pager.slice(list); // 선택은 쪽을 넘어서도 유지, '전체 선택'은 지금 보이는 쪽만
+    pagerBox.append(pager.node(list.length));
+    const canBulk = pageRows.filter(bulkable);
     const all = h("input", { type: "checkbox", class: "check", "aria-label": "전체 선택", disabled: !canBulk.length });
     all.checked = canBulk.length > 0 && canBulk.every((e) => selected.has(e.id));
     all.addEventListener("change", () => {
@@ -115,7 +122,7 @@ export function renderInbox(el, { me }) {
         h(
           "tbody",
           {},
-          list.map((e) => {
+          pageRows.map((e) => {
             const cb = h("input", { type: "checkbox", class: "check", "aria-label": "선택", disabled: !bulkable(e) });
             cb.checked = selected.has(e.id);
             cb.addEventListener("click", (ev) => ev.stopPropagation());
