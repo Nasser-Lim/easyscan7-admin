@@ -90,6 +90,8 @@ export const AI_VERDICT = {
   skipped: { label: "AI 정책 없음", tone: "muted" },
   error: { label: "AI 검증 실패", tone: "warn" },
 };
+// AI 적격 정책 버전 표기 — 저장할 때마다 0.1 씩(1.0 → 1.1 → 1.2 …). 내부 값은 저장 횟수(정수)
+export const policyVer = (n) => (n == null || n === "-" ? "-" : `v${(1 + (Number(n) - 1) / 10).toFixed(1)}`);
 export function aiKey(gate) {
   if (!gate?.verdict) return null;
   return gate.verdict === "fail" && gate.override ? "override" : gate.verdict;

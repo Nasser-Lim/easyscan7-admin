@@ -1,6 +1,6 @@
 // AI 1차 적격 검증(gate) 표시 — 증빙 상세 패널, 목록용 작은 표식.
 // 판정은 서버(services/ai_gate.py)가 한다: 업로드 직후 사전 판정, 제출할 때 최종 판정(위반이면 자동 반려, 소명하면 사람 결재로).
-import { AI_VERDICT, aiKey, chip, dateTime, h, icon } from "./ui.js?v=3c1dbf2";
+import { AI_VERDICT, aiKey, chip, dateTime, h, icon, policyVer } from "./ui.js?v=2a96a03";
 
 // 목록 상태 칸 아래 한 줄 — 통과·정책 없음은 조용히, 확인이 필요한 판정만 보인다
 export function aiGateMark(gate) {
@@ -36,6 +36,6 @@ export function aiGatePanel(gate, audience) {
       ? h("ul", { class: "ai-viol" }, gate.violations.map((x) => h("li", {}, h("span", { class: "ai-viol-rule" }, x.rule), h("span", { class: "ai-viol-why" }, x.reason))))
       : null,
     gate.override ? h("div", { class: "ai-override" }, h("b", {}, "지국 소명"), h("span", {}, gate.override.justification), h("span", { class: "muted small" }, `${gate.override.by || ""} · ${dateTime(gate.override.at)}`)) : null,
-    h("div", { class: "ai-panel-foot muted small" }, `정책 v${gate.policyVersion ?? "-"} · ${dateTime(gate.checkedAt)} 판정`),
+    h("div", { class: "ai-panel-foot muted small" }, `정책 ${policyVer(gate.policyVersion ?? "-")} · ${dateTime(gate.checkedAt)} 판정`),
   );
 }

@@ -1,7 +1,7 @@
 // 앱 셸 — 상단 헤더(SBS 컬러 로고·인쇄 시 검정 로고), 왼쪽 메뉴, 본문.
-import { logout } from "../api.js?v=3c1dbf2";
-import { ACCT, BRANCH, ROLE, h, icon } from "../ui.js?v=3c1dbf2";
-import { BUILD, VERSION } from "../version.js?v=3c1dbf2";
+import { logout } from "../api.js?v=2a96a03";
+import { ACCT, BRANCH, ROLE, h, icon } from "../ui.js?v=2a96a03";
+import { BUILD, VERSION } from "../version.js?v=2a96a03";
 
 let navLinks = [];
 

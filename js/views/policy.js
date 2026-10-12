@@ -1,9 +1,9 @@
 // AI 적격 정책 — 보도IMC팀·재무팀이 계정별로 '이런 경우 비적격' 문장을 적는다(공용 설정).
 // 이 정책으로 AI 가 지국 증빙의 1차 적격 검증(gate)을 한다: 업로드 직후 사전 판정, 제출할 때 위반이면 자동 반려.
-import { api } from "../api.js?v=3c1dbf2";
-import { aiGatePanel } from "../aigate.js?v=3c1dbf2";
-import { ACCOUNTS, BRANCH, clear, confirmDialog, dateTime, errorText, h, icon, money, select, spinner, toast } from "../ui.js?v=3c1dbf2";
-import { pageHeader } from "./shell.js?v=3c1dbf2";
+import { api } from "../api.js?v=2a96a03";
+import { aiGatePanel } from "../aigate.js?v=2a96a03";
+import { ACCOUNTS, BRANCH, clear, confirmDialog, dateTime, errorText, h, icon, money, policyVer, select, spinner, toast } from "../ui.js?v=2a96a03";
+import { pageHeader } from "./shell.js?v=2a96a03";
 
 const EXAMPLE = {
   취재비: "- 주류만 단독으로 구매한 영수증은 비적격(식사와 함께면 가능)\n- 취재와 무관한 개인 식사(1인 식사)는 비적격\n- 적요에 만난 사람·취재 건명이 없으면 비적격",
@@ -69,7 +69,7 @@ export function renderPolicy(el) {
       refreshLive();
       const dirty = snapshot() !== initial;
       saveBtn.disabled = !dirty;
-      dirtyNote.textContent = dirty ? "저장 전 변경 있음" : p.version ? `v${p.version} · ${p.updatedTeam || "—"} · ${dateTime(p.updatedAt)}` : "저장한 정책 없음";
+      dirtyNote.textContent = dirty ? "저장 전 변경 있음" : p.version ? `${policyVer(p.version)} · ${p.updatedTeam || "—"} · ${dateTime(p.updatedAt)}` : "저장한 정책 없음";
     }
     syncDirty();
 
@@ -86,7 +86,7 @@ export function renderPolicy(el) {
       saveBtn.disabled = true;
       try {
         const saved = await api.put("/policies", { baseVersion: p.version, enabled: master.checked, accounts: Object.fromEntries(ACCOUNTS.map((a) => [a, { enabled: forms[a].on.checked, rules: forms[a].area.value.trim() }])) });
-        toast(`AI 적격 정책을 저장했습니다 (v${saved.version})`, "ok");
+        toast(`AI 적격 정책을 저장했습니다 (${policyVer(saved.version)})`, "ok");
         draw(saved);
       } catch (e) {
         if (e.status === 409 && e.detail?.reason === "stale_policy") {
@@ -95,7 +95,7 @@ export function renderPolicy(el) {
           const reload = await confirmDialog({
             title: "다른 사용자가 먼저 정책을 수정했습니다",
             message: h("div", {},
-              h("p", {}, `${d.updatedTeam || "다른 사용자"}이(가) v${d.currentVersion} 로 저장했습니다${d.updatedAt ? ` · ${dateTime(d.updatedAt)}` : ""}.`),
+              h("p", {}, `${d.updatedTeam || "다른 사용자"}이(가) ${policyVer(d.currentVersion)} 로 저장했습니다${d.updatedAt ? ` · ${dateTime(d.updatedAt)}` : ""}.`),
               h("p", { class: "small" }, "불러오면 지금 입력한 내용은 사라집니다. 남기려면 닫고 먼저 복사하세요.")),
             confirm: "최신 내용 불러오기",
           });
@@ -221,7 +221,7 @@ function historyCard() {
                 const parts = [];
                 if (x.before?.enabled !== x.after?.enabled) parts.push(x.after?.enabled ? "AI 검증 켬" : "AI 검증 끔");
                 if (changed.length) parts.push(`${changed.join(", ")} 정책`);
-                return h("tr", {}, h("td", { class: "mono" }, `v${x.version}`), h("td", { class: "mono cell-sub" }, dateTime(x.at)), h("td", {}, x.team ? h("b", {}, x.team) : "—"), h("td", { class: "cell-sub" }, parts.join(" · ") || "—"));
+                return h("tr", {}, h("td", { class: "mono" }, policyVer(x.version)), h("td", { class: "mono cell-sub" }, dateTime(x.at)), h("td", {}, x.team ? h("b", {}, x.team) : "—"), h("td", { class: "cell-sub" }, parts.join(" · ") || "—"));
               })))
           : h("p", { class: "card-pad muted small" }, "아직 변경 이력이 없습니다."),
       );

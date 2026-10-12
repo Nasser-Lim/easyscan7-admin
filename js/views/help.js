@@ -1,8 +1,8 @@
 // 도움말 — EASY SCAN 결재선 다이어그램(역할별 레인 + AI 1차 검증), 상태 안내, 내 역할 안내, 현재 AI 적격 정책, 자주 묻는 질문. 전 계정 공통.
-import { api } from "../api.js?v=3c1dbf2";
-import { ACCOUNTS, ROLE, STATUS, chip, clear, dateTime, h, icon, spinner } from "../ui.js?v=3c1dbf2";
-import { BUILD, VERSION } from "../version.js?v=3c1dbf2";
-import { pageHeader } from "./shell.js?v=3c1dbf2";
+import { api } from "../api.js?v=2a96a03";
+import { ACCOUNTS, ROLE, STATUS, chip, clear, dateTime, h, icon, spinner, policyVer } from "../ui.js?v=2a96a03";
+import { BUILD, VERSION } from "../version.js?v=2a96a03";
+import { pageHeader } from "./shell.js?v=2a96a03";
 
 // ── 역할 → 다이어그램 레인 ──
 const LANES = [
@@ -190,7 +190,7 @@ function policyCard() {
                 h("div", { class: "policy-read-head" }, h("b", {}, a), on ? chip(`${lines.length}개 기준`, "info") : chip("적용 안 함", "muted")),
                 on ? h("ul", { class: "tips" }, lines.map((l) => h("li", {}, l))) : h("p", { class: "muted small" }, "이 계정은 AI 정책 검증을 하지 않습니다."));
             })),
-        p.version ? h("p", { class: "muted small policy-read-foot" }, `정책 v${p.version} · ${p.updatedTeam ? `최종 수정 ${p.updatedTeam} · ` : ""}${dateTime(p.updatedAt)} · 보도IMC팀·재무팀 공용 관리`) : null,
+        p.version ? h("p", { class: "muted small policy-read-foot" }, `정책 ${policyVer(p.version)} · ${p.updatedTeam ? `최종 수정 ${p.updatedTeam} · ` : ""}${dateTime(p.updatedAt)} · 보도IMC팀·재무팀 공용 관리`) : null,
       );
     })
     .catch(() => clear(box).append(h("p", { class: "muted small" }, "정책을 불러오지 못했습니다.")));
