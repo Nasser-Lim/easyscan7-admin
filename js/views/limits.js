@@ -1,7 +1,7 @@
 // 분기 한도 현황 카드 — 계정별 사용액·한도·사용률을 원장(ledger) 표로. 한도 초과분은 비적격.
-import { api } from "../api.js?v=950f20a";
-import { fxStrip, loadFx } from "../fx.js?v=950f20a";
-import { clear, h, money, quarterLabel, spinner } from "../ui.js?v=950f20a";
+import { api } from "../api.js?v=9477401";
+import { fxStrip, loadFx } from "../fx.js?v=9477401";
+import { clear, h, money, quarterLabel, spinner } from "../ui.js?v=9477401";
 
 export function limitsCard(quarter, { compact = false } = {}) {
   const body = h("div", { class: "card-body-flush" }, h("div", { class: "card-loading" }, spinner(true)));
@@ -20,7 +20,7 @@ export function limitsCard(quarter, { compact = false } = {}) {
 }
 
 const pctOf = (used, limit) => (limit > 0 ? (used / limit) * 100 : 0);
-const toneOf = (pct) => (pct > 100 ? "bad" : pct >= 80 ? "warn" : "ok");
+const toneOf = (pct) => (pct > 100 ? "bad" : "ok"); // 정상·초과 두 단계
 
 function usage(pct) {
   const fill = h("span", { class: `meter-fill meter-${toneOf(pct)}` });

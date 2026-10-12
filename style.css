@@ -355,12 +355,10 @@ select.input { padding-right: 28px; }
 .ledger .col-usage { width: 92px; }
 .pct { display: block; font-weight: 650; font-variant-numeric: tabular-nums; }
 .pct-ok { color: var(--text); }
-.pct-warn { color: var(--warn); }
 .pct-bad { color: var(--bad); }
 .meter { display: block; height: 3px; margin-top: 4px; background: #e6eaef; overflow: hidden; }
 .meter-fill { display: block; height: 100%; transition: width .4s; }
 .meter-ok { background: var(--sbs-blue); }
-.meter-warn { background: var(--sbs-orange); }
 .meter-bad { background: var(--bad); }
 
 /* ── 절차·팁·권한 목록 ── */
