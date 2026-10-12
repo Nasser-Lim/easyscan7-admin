@@ -17,7 +17,7 @@ export function renderPolicy(el) {
     pageHeader({
       crumbs: ["본사", "설정"],
       title: "AI 적격 정책",
-      desc: "지국이 올린 증빙을 AI 가 먼저 검증하는 기준입니다. 보도IMC팀과 재무팀이 함께 관리합니다.",
+      desc: "지국 증빙을 AI 가 먼저 검증하는 기준 · 보도IMC팀과 재무팀 공용",
     }),
     body,
   );
@@ -40,20 +40,36 @@ export function renderPolicy(el) {
     for (const acc of ACCOUNTS) {
       const on = h("input", { type: "checkbox", class: "check" });
       on.checked = p.accounts[acc]?.enabled !== false;
-      const area = h("textarea", { class: "input policy-text", rows: "7", maxlength: String(p.maxChars), placeholder: `한 줄에 하나씩 적습니다. 예)\n${EXAMPLE[acc]}` }, p.accounts[acc]?.rules || "");
+      const area = h("textarea", { class: "input policy-text", rows: "7", maxlength: String(p.maxChars), placeholder: `한 줄에 하나씩. 예)\n${EXAMPLE[acc]}` }, p.accounts[acc]?.rules || "");
       area.addEventListener("input", () => syncDirty());
       on.addEventListener("change", syncDirty);
-      forms[acc] = { on, area };
+      forms[acc] = { on, area, live: liveBadge() };
     }
     master.addEventListener("change", syncDirty);
     const snapshot = () => JSON.stringify({ e: master.checked, a: ACCOUNTS.map((a) => [forms[a].on.checked, forms[a].area.value.trim()]) });
     const initial = snapshot();
     const saveBtn = h("button", { class: "btn btn-primary", type: "button", disabled: true }, icon("check"), h("span", {}, "정책 저장"));
     const dirtyNote = h("span", { class: "muted small" });
+    const masterSub = h("span", { class: "muted small" });
+    const masterCard = h("section", { class: "card policy-master" });
+    // 감시 상태 — 켜져 있고 기준이 있는 계정만 '감시 중'. 입력하는 즉시 반영된다
+    function refreshLive() {
+      let n = 0;
+      for (const acc of ACCOUNTS) {
+        const f = forms[acc];
+        const st = !master.checked || !f.on.checked ? "off" : f.area.value.trim() ? "on" : "idle";
+        if (st === "on") n++;
+        setLive(f.live, st);
+        f.area.closest(".card")?.classList.toggle("is-live", st === "on");
+      }
+      masterCard.classList.toggle("is-live", master.checked && n > 0);
+      masterSub.textContent = !master.checked ? "꺼짐 — 증빙이 AI 검증 없이 보도IMC팀으로 갑니다" : n ? `${n}개 계정 감시 중` : "적용 중인 기준이 없습니다";
+    }
     function syncDirty() {
+      refreshLive();
       const dirty = snapshot() !== initial;
       saveBtn.disabled = !dirty;
-      dirtyNote.textContent = dirty ? "저장하지 않은 변경이 있습니다" : p.version ? `v${p.version} · 최종 수정 ${p.updatedTeam || "—"} · ${dateTime(p.updatedAt)}` : "아직 저장한 정책이 없습니다";
+      dirtyNote.textContent = dirty ? "저장 전 변경 있음" : p.version ? `v${p.version} · ${p.updatedTeam || "—"} · ${dateTime(p.updatedAt)}` : "저장한 정책 없음";
     }
     syncDirty();
 
@@ -61,9 +77,9 @@ export function renderPolicy(el) {
       const changed = ACCOUNTS.filter((a) => forms[a].area.value.trim() !== (p.accounts[a]?.rules || "").trim() || forms[a].on.checked !== (p.accounts[a]?.enabled !== false));
       const ok = await confirmDialog({
         title: "AI 적격 정책 저장",
-        message: h("div", {}, h("p", {}, "저장하면 바로 적용됩니다. 이후 올리거나 제출하는 증빙부터 새 정책으로 검증합니다."),
+        message: h("div", {}, h("p", {}, "저장하면 바로 적용됩니다."),
           changed.length ? h("p", { class: "small" }, `바뀐 계정: ${changed.join(", ")}`) : null,
-          !master.checked ? h("p", { class: "small text-warn" }, "AI 1차 검증이 꺼진 상태로 저장됩니다 — 모든 증빙이 검증 없이 보도IMC팀으로 갑니다.") : null),
+          !master.checked ? h("p", { class: "small text-warn" }, "AI 검증이 꺼진 상태로 저장됩니다.") : null),
         confirm: "저장",
       });
       if (!ok) return;
@@ -80,7 +96,7 @@ export function renderPolicy(el) {
             title: "다른 사용자가 먼저 정책을 수정했습니다",
             message: h("div", {},
               h("p", {}, `${d.updatedTeam || "다른 사용자"}이(가) v${d.currentVersion} 로 저장했습니다${d.updatedAt ? ` · ${dateTime(d.updatedAt)}` : ""}.`),
-              h("p", { class: "small" }, "[최신 내용 불러오기] 를 누르면 화면이 최신 정책으로 바뀌고 지금 입력한 내용은 사라집니다. 내 입력을 남겨 두고 싶으면 [닫기] 를 누르고 먼저 복사해 두세요.")),
+              h("p", { class: "small" }, "불러오면 지금 입력한 내용은 사라집니다. 남기려면 닫고 먼저 복사하세요.")),
             confirm: "최신 내용 불러오기",
           });
           if (reload) load();
@@ -93,31 +109,31 @@ export function renderPolicy(el) {
     });
 
     body.append(
-      howCard(),
-      h(
-        "section",
-        { class: "card policy-master" },
-        h("label", { class: "policy-switch" }, master, h("span", {}, h("b", {}, "AI 1차 적격 검증 사용"), h("span", { class: "muted small" }, "끄면 모든 증빙이 AI 검증 없이 보도IMC팀으로 갑니다"))),
+      (masterCard.append(
+        h("label", { class: "policy-switch" }, master, h("span", {}, h("b", {}, "AI 1차 적격 검증"), masterSub)),
         h("div", { class: "policy-save" }, dirtyNote, saveBtn),
       ),
+      masterCard),
+      howLine(),
       h("div", { class: "policy-grid" }, ACCOUNTS.map((acc) =>
         h(
           "section",
           { class: "card" },
-          h("div", { class: "card-head" }, h("div", { class: "card-title" }, acc), h("label", { class: "policy-acc-on" }, forms[acc].on, h("span", {}, "적용"))),
+          h("div", { class: "card-head" }, h("div", { class: "policy-acc-title" }, h("div", { class: "card-title" }, acc), forms[acc].live), h("label", { class: "policy-acc-on" }, forms[acc].on, h("span", {}, "적용"))),
           forms[acc].area,
-          h("div", { class: "policy-foot" }, h("button", { class: "btn btn-ghost btn-sm", type: "button", onclick: () => { if (!forms[acc].area.value.trim()) { forms[acc].area.value = EXAMPLE[acc]; forms[acc].area.dispatchEvent(new Event("input")); } else toast("내용이 있어 예시를 넣지 않았습니다 — 비운 뒤 다시 누르세요", "info"); } }, "예시 넣기")),
+          h("div", { class: "policy-foot" }, h("button", { class: "btn btn-ghost btn-sm", type: "button", onclick: () => { if (!forms[acc].area.value.trim()) { forms[acc].area.value = EXAMPLE[acc]; forms[acc].area.dispatchEvent(new Event("input")); } else toast("내용이 있어 넣지 않았습니다", "info"); } }, "예시 넣기")),
         ),
       )),
       testCard(forms),
       historyCard(),
     );
+    refreshLive(); // 카드가 화면에 붙은 뒤 감시 표시를 다시 그린다
     // 글자 수 표시는 area 바로 아래
     for (const acc of ACCOUNTS) {
       const card = forms[acc].area.closest(".card");
       const foot = card.querySelector(".policy-foot");
       const cnt = h("span", { class: "muted small mono" });
-      const sync = () => (cnt.textContent = `${forms[acc].area.value.split("\n").filter((l) => l.trim()).length}개 기준 · ${forms[acc].area.value.length.toLocaleString()}/${p.maxChars.toLocaleString()}자`);
+      const sync = () => (cnt.textContent = `${forms[acc].area.value.split("\n").filter((l) => l.trim()).length}개 · ${forms[acc].area.value.length.toLocaleString()}/${p.maxChars.toLocaleString()}자`);
       forms[acc].area.addEventListener("input", sync);
       sync();
       foot.prepend(cnt);
@@ -125,21 +141,20 @@ export function renderPolicy(el) {
   }
 }
 
-function howCard() {
-  const step = (n, t, d) => h("li", {}, h("span", { class: "step-no" }, n), h("div", {}, h("div", { class: "step-title" }, t), h("div", { class: "step-desc" }, d)));
-  return h(
-    "section",
-    { class: "card policy-how" },
-    h("div", { class: "card-head" }, h("div", { class: "card-title" }, "작동 방식"), h("span", { class: "muted small" }, "AI 는 여기 적힌 기준만 적용합니다")),
-    h(
-      "ol",
-      { class: "steps steps-row" },
-      step("1", "업로드 직후 사전 판정", "촬영앱·관리웹으로 올리면 AI 가 계정별 정책으로 판정합니다. 위반이면 '검토 필요'로 표시해 지국이 제출 전에 압니다."),
-      step("2", "제출할 때 최종 판정", "정책 위반이면 결재선에 올리지 않고 자동 반려합니다. 반려 사유와 위반 기준이 증빙과 결재 이력에 남습니다."),
-      step("3", "소명하면 사람이 판단", "업무상 필요한 지출이면 지국이 소명을 적어 제출합니다. 보도IMC팀이 AI 판정과 소명을 함께 보고 분류합니다."),
-    ),
-    h("p", { class: "muted small" }, "판단할 정보가 부족하면 '판단 보류'로 통과시키고 결재자에게 표시합니다. 정책이 없는 계정은 검증하지 않습니다. 증빙 이미지가 아니라 AI 가 읽은 가맹점·품목·금액·적요로 판정합니다."),
-  );
+const LIVE = { on: "감시 중", idle: "기준 없음", off: "꺼짐" };
+function liveBadge() {
+  return h("span", { class: "live live-off", role: "status" }, h("i", { "aria-hidden": "true" }), h("span", {}, LIVE.off));
+}
+function setLive(el, st) {
+  el.className = `live live-${st}`;
+  el.lastChild.textContent = LIVE[st];
+}
+
+// 작동 방식은 한 줄로 — 업로드 때 사전 판정, 제출 때 최종 판정(위반이면 자동 반려), 소명하면 사람이 판단
+function howLine() {
+  const node = (t) => h("span", { class: "how-node" }, t);
+  const arrow = () => h("span", { class: "how-arrow", "aria-hidden": "true" }, "→");
+  return h("div", { class: "policy-how-line" }, node("업로드 · 사전 판정"), arrow(), node("제출 · 최종 판정"), arrow(), node("위반 시 자동 반려"), arrow(), node("소명하면 사람이 판단"));
 }
 
 // 저장 전 문장으로 기존 증빙을 판정해 본다(결과는 저장하지 않음)
@@ -147,7 +162,7 @@ function testCard(forms) {
   const acc = select(ACCOUNTS.map((a) => [a, a]), ACCOUNTS[0], { class: "input input-sm" });
   const entrySel = h("select", { class: "input input-sm" });
   const run = h("button", { class: "btn btn-primary btn-sm", type: "button" }, icon("shield"), h("span", {}, "이 정책으로 판정"));
-  const out = h("div", { class: "policy-test-out" }, h("p", { class: "muted small" }, "계정과 증빙을 고르고 판정해 보세요. 위 입력란의 (저장 전) 문장으로 판정하며 증빙에는 반영하지 않습니다."));
+  const out = h("div", { class: "policy-test-out" }, h("p", { class: "muted small" }, "저장 전 문장으로 판정해 봅니다. 증빙에는 반영되지 않습니다."));
   async function loadEntries() {
     entrySel.replaceChildren(h("option", { value: "" }, "불러오는 중…"));
     try {
@@ -184,7 +199,7 @@ function testCard(forms) {
   return h(
     "section",
     { class: "card" },
-    h("div", { class: "card-head" }, h("div", { class: "card-title" }, "시험해 보기"), h("span", { class: "muted small" }, "저장 전 문장으로 기존 증빙 판정")),
+    h("div", { class: "card-head" }, h("div", { class: "card-title" }, "시험"), h("span", { class: "muted small" }, "저장 없이 판정")),
     h("div", { class: "policy-test-bar" }, acc, entrySel, run),
     out,
   );
