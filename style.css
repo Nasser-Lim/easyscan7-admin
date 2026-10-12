@@ -859,6 +859,11 @@ select.input { padding-right: 28px; }
 .fn-bad .fn-note { color: var(--bad); font-weight: 600; }
 @keyframes fn-pulse { 50% { transform: scale(.55); opacity: .5; } }
 @keyframes fn-ripple { 0% { transform: scale(1); opacity: .65; } 100% { transform: scale(2.3); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .fn-current .fn-dot i, .fn-current .fn-dot::after { animation: none; } .fn-current .fn-dot { box-shadow: 0 0 0 4px rgba(0, 133, 205, .18); } }
+/* '동작 줄이기'(Windows 애니메이션 끄기 포함)에서는 크기가 변하는 효과를 빼고 천천히 깜빡이기만 한다 */
+@keyframes fn-blink { 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) {
+  .fn-current .fn-dot::after { animation: none; opacity: 1; inset: -5px; border: 3px solid rgba(0, 133, 205, .22); }
+  .fn-current .fn-dot i { animation: fn-blink 2.4s ease-in-out infinite; }
+}
 .tl-cancel .tl-dot { background: var(--text-3); }
 .btn-cancel-review { color: var(--warn); }
