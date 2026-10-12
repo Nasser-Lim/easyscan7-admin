@@ -3,14 +3,13 @@
 import {
   ACCOUNTS, BRANCH, DOC_TYPE, bytes, chip, clear, currentQuarter, field, h, icon, money, noticeParts,
   quarterLabel, select, statusChip, toast,
-} from "../ui.js?v=39361ca";
-import { aiGateMark } from "../aigate.js?v=39361ca";
-import { api } from "../api.js?v=39361ca";
-import { getPeriod, periodSwitch } from "../period.js?v=39361ca";
-import { createPager } from "../pager.js?v=39361ca";
-import { getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js?v=39361ca";
-import { limitsCard } from "./limits.js?v=39361ca";
-import { pageHeader } from "./shell.js?v=39361ca";
+} from "../ui.js?v=ff42d09";
+import { aiGateMark } from "../aigate.js?v=ff42d09";
+import { api } from "../api.js?v=ff42d09";
+import { getPeriod, periodSwitch } from "../period.js?v=ff42d09";
+import { dismiss, dismissAll, getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js?v=ff42d09";
+import { limitsCard } from "./limits.js?v=ff42d09";
+import { pageHeader } from "./shell.js?v=ff42d09";
 
 const MAX_FILES = 20;
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -96,8 +95,6 @@ export function renderUpload(el, { me, go }) {
     account.disabled = busy;
   }
 
-  // 처리 결과 기록 — 업로드 1회가 카드 1장. 오래된 기록은 쪽으로 나눠 본다(확인 절차 없음).
-  const pager = createPager("upload-history", () => paintQueue(), { sizes: [5, 10, 20, 50], def: 5, unit: "회" });
   // 기록의 상태·금액은 업로드 당시 값이 아니라 **지금 값**(증빙 조회와 같은 값)으로 보여 준다 — 서버에서 한 번 받아 둔다
   let live = null; // { entryId: 증빙 } — 못 받으면 null(기록에 저장된 값으로 대체)
   async function refreshLive() {
@@ -109,13 +106,19 @@ export function renderUpload(el, { me, go }) {
     }
     if (queueSlot.isConnected) paintQueue();
   }
+  // 처리 결과 — 최근 5회만 보이고(더 오래된 것은 자동으로 밀려남), 카드마다 지울 수 있다. 증빙은 지워지지 않는다.
   function paintQueue() {
     clear(queueSlot);
     const q = getQueue();
     if (!q.length) return;
     queueSlot.append(
-      h("div", { class: "queue-head" }, h("div", {}, h("div", { class: "card-title" }, `처리 결과 · 총 ${q.length}회`), h("div", { class: "card-sub" }, "업로드할 때마다 기록으로 남습니다. 증빙은 이미 '작성중'으로 저장되어 있으니 눌러서 원본과 대조하고 제출하세요."))),
-      ...[...pager.slice(q).map((b) => batchView(b, go, live)), q.length > 5 ? h("div", { class: "card card-flush" }, pager.node(q.length)) : null].filter(Boolean),
+      h(
+        "div",
+        { class: "queue-head" },
+        h("div", {}, h("div", { class: "card-title" }, `처리 결과 · 최근 ${q.length}회`), h("div", { class: "card-sub" }, "최근 5회까지 보여 줍니다. 증빙은 이미 '작성중'으로 저장되어 있으니 눌러서 원본과 대조하고 제출하세요. 기록은 지워도 증빙은 그대로 남습니다.")),
+        q.length > 1 ? h("button", { class: "btn btn-ghost btn-sm", type: "button", onclick: dismissAll }, icon("trash"), h("span", {}, "모두 지우기")) : null,
+      ),
+      ...q.map((b) => batchView(b, go, live)),
     );
   }
 
@@ -136,8 +139,6 @@ export function renderUpload(el, { me, go }) {
     if (event === "done") {
       refreshLive();
       clear(limitsSlot).append(limitsCard(getPeriod()));
-      pager.reset(); // 방금 올린 결과가 맨 앞 쪽에 보이게
-      paintQueue();
       queueSlot.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   });
@@ -303,6 +304,7 @@ function batchView(b, go, live) {
         h("div", { class: "card-title" }, `${whenText(b.at)} 업로드 · ${b.account}`),
         h("div", { class: "card-sub" }, `파일 ${b.fileCount}개 — 증빙을 눌러 원본과 대조하고 수정·제출하세요.`),
       ),
+      h("div", { class: "card-actions" }, h("button", { class: "btn btn-ghost btn-sm", type: "button", title: "이 처리 결과 기록을 지웁니다(증빙은 그대로)", onclick: () => dismiss(b.id) }, icon("trash"), h("span", {}, "지우기"))),
     ),
     parts,
     notes.length ? h("div", { class: "notes" }, notes) : null,

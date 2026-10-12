@@ -1,12 +1,12 @@
 // 증빙 업로드 작업 — 화면(뷰)과 분리해 두어, 업로드 중·처리 후에 다른 메뉴로 갔다 와도 상태가 남는다.
 //  · 진행 중: 모달 프로그레스 바(파일 전송 → AI 인식 → 정리). 메뉴를 이동해도 모달과 처리는 계속된다.
-//  · 처리 결과: 업로드마다 '처리 결과' 기록으로 남는다(확인 절차 없음). 이 브라우저에 계정별로 보관하며 최근 100회까지.
+//  · 처리 결과: 업로드마다 '처리 결과' 기록으로 남는다(확인 절차 없음, 직접 지울 수 있음). 이 브라우저에 계정별로 최근 5회만 보관한다.
 // 증빙 자체는 서버가 업로드 즉시 '작성중'으로 저장한다 — 기록은 그 처리 결과를 다시 볼 수 있게 한 것이지 데이터 보관소가 아니다.
-import { api } from "./api.js?v=39361ca";
-import { bytes, errorText, h, icon, toast } from "./ui.js?v=39361ca";
+import { api } from "./api.js?v=ff42d09";
+import { bytes, errorText, h, icon, toast } from "./ui.js?v=ff42d09";
 
 const KEY = "es7.upload-history";
-const MAX_QUEUE = 100;
+const MAX_QUEUE = 5;
 const listeners = new Set();
 
 let owner = null; // 기록 소유자(로그인 이메일) — 같은 브라우저에서 계정을 바꿔도 남의 결과가 보이지 않게
@@ -18,7 +18,7 @@ const storageKey = () => `${KEY}.${owner}`;
 function load() {
   try {
     const v = JSON.parse(localStorage.getItem(storageKey()) || "[]");
-    return Array.isArray(v) ? v : [];
+    return Array.isArray(v) ? v.slice(0, MAX_QUEUE) : []; // 예전에 쌓인 기록도 최근 5회까지만
   } catch {
     return [];
   }
@@ -48,6 +48,15 @@ export function resetUploadQueue() {
 }
 export const getQueue = () => queue;
 export const isBusy = () => !!job;
+// 기록 지우기 — 증빙 자체는 서버에 그대로 있고, 이 화면의 처리 결과 기록만 지운다.
+export function dismiss(id) {
+  queue = queue.filter((b) => b.id !== id);
+  emit("dismiss");
+}
+export function dismissAll() {
+  queue = [];
+  emit("dismiss");
+}
 export function subscribe(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);

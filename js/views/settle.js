@@ -1,10 +1,10 @@
 // 정산 출력 — 최종 결재가 끝난 증빙으로 재무팀 정산 양식(엑셀)을 바로 만들어 내려받는다.
 // 지국 담당자(자기 지국)·보도IMC팀·재무팀. 서버가 양식 파일에 값만 채워 주므로 서식·수식은 원본 그대로다.
-import { api } from "../api.js?v=39361ca";
-import { LIVE_BRANCHES } from "./dashboard.js?v=39361ca";
-import { getPeriod } from "../period.js?v=39361ca";
-import { BRANCH, clear, empty, errorText, field, h, icon, money, quarterLabel, quarterOptions, select, spinner, toast } from "../ui.js?v=39361ca";
-import { pageHeader } from "./shell.js?v=39361ca";
+import { api } from "../api.js?v=ff42d09";
+import { LIVE_BRANCHES } from "./dashboard.js?v=ff42d09";
+import { getPeriod } from "../period.js?v=ff42d09";
+import { BRANCH, clear, empty, errorText, field, h, icon, money, quarterLabel, quarterOptions, select, spinner, toast } from "../ui.js?v=ff42d09";
+import { pageHeader } from "./shell.js?v=ff42d09";
 
 const ACCOUNT_ORDER = ["취재비", "경상비", "차량유지비"];
 const SHEET = { 취재비: "취재비", 경상비: "지국경상비", 차량유지비: "차량유지비" };
