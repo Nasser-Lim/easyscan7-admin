@@ -1,11 +1,12 @@
 // 본사 홈 — 전 지국의 분기 한도 소진 현황을 지국 카드로 한눈에 본다(보도IMC팀·보도국장·재무팀·관리자).
 // 지금은 뉴욕만 실데이터이고, 나머지 지국은 화면 설계를 보여 주는 예시(mock) 데이터다 — 카드에 '예시'로 표시한다.
 // 지국을 실제로 열 때는 LIVE_BRANCHES 에 ID 를 추가하면 그 지국은 GET /limits 실데이터로 바뀐다(mock 은 무시).
-import { api } from "../api.js?v=9477401";
-import { compact, gauge, limitBar, toneOfPct } from "../charts.js?v=9477401";
-import { getPeriod, periodSwitch } from "../period.js?v=9477401";
-import { ACCOUNTS, BRANCH, clear, errorText, h, icon, money, quarterLabel, spinner } from "../ui.js?v=9477401";
-import { pageHeader } from "./shell.js?v=9477401";
+import { api } from "../api.js?v=3b03bfb";
+import { branchIcon } from "../branchicons.js?v=3b03bfb";
+import { compact, gauge, limitBar, toneOfPct } from "../charts.js?v=3b03bfb";
+import { getPeriod, periodSwitch } from "../period.js?v=3b03bfb";
+import { ACCOUNTS, BRANCH, clear, errorText, h, icon, money, quarterLabel, spinner } from "../ui.js?v=3b03bfb";
+import { pageHeader } from "./shell.js?v=3b03bfb";
 
 export const LIVE_BRANCHES = ["newyork"];
 
@@ -16,6 +17,7 @@ const MOCK = {
   beijing: { currency: "CNY", accounts: { 취재비: { used: 17200, limit: 30000, ineligible: 0, count: 12 }, 경상비: { used: 8900, limit: 12000, ineligible: 0, count: 25 }, 차량유지비: { used: 2100, limit: 6000, ineligible: 0, count: 6 } } },
   tokyo: { currency: "JPY", accounts: { 취재비: { used: 412000, limit: 600000, ineligible: 0, count: 11 }, 경상비: { used: 188000, limit: 240000, ineligible: 0, count: 16 }, 차량유지비: { used: 96000, limit: 120000, ineligible: 0, count: 7 } } },
 };
+const COUNTRY = { newyork: "미국", washington: "미국", paris: "프랑스", beijing: "중국", tokyo: "일본" };
 const ACC_CLS = { 취재비: "seg-a", 경상비: "seg-b", 차량유지비: "seg-c" };
 
 export function renderDashboard(el, ctx, live = LIVE_BRANCHES) {
@@ -53,7 +55,11 @@ function draw(el, ctx, live) {
 
 function branchCard(b) {
   const tag = b.mock ? h("span", { class: "bc-tag bc-mock", title: "화면 설계용 예시 데이터입니다" }, "예시") : h("span", { class: "bc-tag bc-live" }, h("i", {}), "실데이터");
-  const head = h("div", { class: "card-head" }, h("div", { class: "bc-title" }, h("span", { class: "card-title" }, `${b.name}지국`), tag), h("span", { class: "card-meta" }, b.currency || ""));
+  const head = h(
+    "div",
+    { class: "card-head bc-head" },
+    h("div", { class: "bc-title" }, h("span", { class: "bc-icon" }, branchIcon(b.id)), h("div", {}, h("div", { class: "bc-name" }, h("span", { class: "card-title" }, `${b.name}지국`), tag), h("div", { class: "bc-sub" }, [COUNTRY[b.id], b.currency].filter(Boolean).join(" · ")))),
+  );
   if (b.error) return h("section", { class: "card branch-card" }, head, h("p", { class: "card-error" }, b.error));
 
   const rows = ACCOUNTS.map((acc) => [acc, b.accounts[acc]]).filter(([, v]) => v && v.limit > 0);

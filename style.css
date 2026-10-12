@@ -954,3 +954,12 @@ select.input { padding-right: 28px; }
 .lb-foot { display: flex; justify-content: space-between; margin-top: 4px; font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 @keyframes bar-in { from { transform: scaleX(0); } }
 
+
+/* 지국 카드 머리: 대표 랜드마크 아이콘 + 지국명 · 국가와 통화 */
+.bc-head { min-height: 58px; padding-top: 8px; padding-bottom: 8px; }
+.bc-title { gap: 12px; }
+.bc-icon { display: grid; place-items: center; flex: none; width: 40px; height: 40px; border: 1px solid #cfdce7; background: var(--sbs-sky-50); color: var(--sbs-blue); border-radius: var(--radius-sm); }
+.bc-icon .bi-svg { width: 28px; height: 28px; }
+.bc-name { display: flex; align-items: center; gap: 10px; }
+.bc-sub { margin-top: 2px; font-size: 11.5px; color: var(--text-3); }
+.is-mock .bc-icon { background: var(--surface-2); border-color: var(--line-strong); color: var(--text-3); }
