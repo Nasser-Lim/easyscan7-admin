@@ -1,24 +1,26 @@
 // 관리웹 진입점 — 세션 확인 → 로그인 화면 또는 앱 셸 + 해시 라우터.
-import { api, hasSession, logout, onSignedOut } from "./api.js?v=f2eb3e2";
-import { clear, h, spinner, toast, errorText } from "./ui.js?v=f2eb3e2";
-import { renderLogin } from "./views/login.js?v=f2eb3e2";
-import { renderShell, setActiveNav } from "./views/shell.js?v=f2eb3e2";
-import { renderHome } from "./views/home.js?v=f2eb3e2";
-import { renderUpload } from "./views/upload.js?v=f2eb3e2";
-import { renderEntries } from "./views/entries.js?v=f2eb3e2";
-import { renderAccount } from "./views/account.js?v=f2eb3e2";
-import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=f2eb3e2";
-import { renderHelp } from "./views/help.js?v=f2eb3e2";
-import { renderLimitSettings } from "./views/limitcfg.js?v=f2eb3e2";
-import { renderPolicy } from "./views/policy.js?v=f2eb3e2";
-import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=f2eb3e2";
+import { api, hasSession, logout, onSignedOut } from "./api.js?v=25c4b60";
+import { clear, h, spinner, toast, errorText } from "./ui.js?v=25c4b60";
+import { renderLogin } from "./views/login.js?v=25c4b60";
+import { renderShell, setActiveNav } from "./views/shell.js?v=25c4b60";
+import { renderHome } from "./views/home.js?v=25c4b60";
+import { renderUpload } from "./views/upload.js?v=25c4b60";
+import { renderEntries } from "./views/entries.js?v=25c4b60";
+import { renderAccount } from "./views/account.js?v=25c4b60";
+import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=25c4b60";
+import { renderHelp } from "./views/help.js?v=25c4b60";
+import { renderLimitSettings } from "./views/limitcfg.js?v=25c4b60";
+import { renderPolicy } from "./views/policy.js?v=25c4b60";
+import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=25c4b60";
 
 const app = document.getElementById("app");
 let me = null;
 let content = null;
 
 // 역할별 메뉴 — 실제 권한 검사는 서버(deps.py·workflow.py)가 한다. 메뉴는 편의.
+const HOME_NAV = { route: "home", label: "홈", icon: "home" };
 const REVIEWER_NAV = [
+  HOME_NAV,
   { route: "inbox", label: "결재함", icon: "check" },
   { route: "entries", label: "전체 증빙", icon: "list" },
 ];
