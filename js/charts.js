@@ -1,6 +1,6 @@
 // 대시보드용 작은 차트 모음 — 외부 라이브러리 없이 SVG/CSS 로 그린다.
 // 색은 CSS 클래스(style.css 의 .tone-* / .seg-*)로 입히고, 값만 코드에서 정한다(CSP 상 인라인 스타일 속성은 쓰지 않는다).
-import { h } from "./ui.js?v=b74f178";
+import { h } from "./ui.js?v=950f20a";
 
 const NS = "http://www.w3.org/2000/svg";
 export function s(tag, attrs = {}, ...children) {
@@ -26,24 +26,21 @@ export function compact(n, cur = "USD") {
   return `${sym}${Math.round(v).toLocaleString()}`;
 }
 
-export const toneOfPct = (pct) => (pct > 100 ? "bad" : pct >= 80 ? "warn" : "ok");
+// 정상 / 초과 두 단계만 — 한도 이내는 정상, 넘으면 초과
+export const toneOfPct = (pct) => (pct > 100 ? "bad" : "ok");
 
-/** 270° 링 게이지 — 한도 사용률. 80% 지점에 눈금, 100% 초과는 가득 채운 빨간 링. */
+/** 270° 링 게이지 — 한도 사용률. 100% 초과는 가득 채운 빨간 링. */
 export function gauge(pct, { label = "한도 사용" } = {}) {
   const r = 62;
   const C = 2 * Math.PI * r;
   const arc = 0.75 * C;
   const shown = Math.max(0, Math.min(pct, 100));
   const tone = toneOfPct(pct);
-  // 80% 눈금 — 링 시작(135°)에서 270° 의 80% 지점
-  const ang = ((135 + 270 * 0.8) * Math.PI) / 180;
-  const tick = s("line", { x1: 80 + (r - 11) * Math.cos(ang), y1: 80 + (r - 11) * Math.sin(ang), x2: 80 + (r + 11) * Math.cos(ang), y2: 80 + (r + 11) * Math.sin(ang), class: "g-tick" });
   const svg = s(
     "svg",
     { viewBox: "0 0 160 160", class: "gauge-svg", role: "img", "aria-label": `${label} ${pct.toFixed(0)}%` },
     s("circle", { cx: 80, cy: 80, r, class: "g-track", "stroke-dasharray": `${arc} ${C}`, transform: "rotate(135 80 80)" }),
     s("circle", { cx: 80, cy: 80, r, class: `g-fill tone-${tone}`, "stroke-dasharray": `${(arc * shown) / 100} ${C}`, transform: "rotate(135 80 80)" }),
-    tick,
   );
   return h(
     "div",
@@ -53,10 +50,10 @@ export function gauge(pct, { label = "한도 사용" } = {}) {
   );
 }
 
-/** 계정별 한도 막대 — 사용률 채움 + 80% 눈금(초과분은 빨강) */
+/** 계정별 한도 막대 — 사용률 채움(초과는 빨강) */
 export function limitBar(pct) {
   const tone = toneOfPct(pct);
   const fill = h("span", { class: `lb-fill tone-bg-${tone}` });
   fill.style.width = `${Math.min(Math.max(pct, 0), 100)}%`;
-  return h("div", { class: "lb", role: "img", "aria-label": `${pct.toFixed(0)}%` }, fill, h("span", { class: "lb-tick", "aria-hidden": "true" }));
+  return h("div", { class: "lb", role: "img", "aria-label": `${pct.toFixed(0)}%` }, fill);
 }

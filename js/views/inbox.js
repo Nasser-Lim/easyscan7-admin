@@ -1,13 +1,13 @@
 // 결재함 — 내 역할이 결재할 단계의 증빙(전 지국). 행을 열어 원본 대조 후 결재, 단순 승인 단계는 일괄 처리.
-import { api } from "../api.js?v=b74f178";
+import { api } from "../api.js?v=950f20a";
 import {
   BRANCH, ELIGIBILITY, ROLE, chip, clear, confirmDialog, dateText, dateTime, empty, errorText, h, icon, money,
   quarterLabel, select, spinner, statusChip, toast,
-} from "../ui.js?v=b74f178";
-import { aiGateMark } from "../aigate.js?v=b74f178";
-import { createPager } from "../pager.js?v=b74f178";
-import { openDrawer } from "./entries.js?v=b74f178";
-import { pageHeader, setNavBadge } from "./shell.js?v=b74f178";
+} from "../ui.js?v=950f20a";
+import { aiGateMark } from "../aigate.js?v=950f20a";
+import { createPager } from "../pager.js?v=950f20a";
+import { openDrawer } from "./entries.js?v=950f20a";
+import { pageHeader, setNavBadge } from "./shell.js?v=950f20a";
 
 const ROLE_GUIDE = {
   imc: "제출된 증빙을 원본과 대조해 적격 / 비적격으로 분류합니다. 적격은 재무팀으로, 비적격(사유 필수)은 보도국장 전결로 올라갑니다.",

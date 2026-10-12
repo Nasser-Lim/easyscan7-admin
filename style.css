@@ -913,9 +913,10 @@ select.input { padding-right: 28px; }
 
 /* ── 본사 홈: 지국별 분기 한도 소진 ── */
 :root { --c-a: #3d78a5; --c-b: #4c9a8c; --c-c: #c8923a; --c-d: #8794a6; }
-.branch-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
-@media (max-width: 1280px) { .branch-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 760px) { .branch-grid { grid-template-columns: 1fr; } }
+.branch-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; align-items: stretch; }
+.branch-grid > .branch-card { flex: 0 1 calc((100% - 32px) / 3); }
+@media (max-width: 1280px) { .branch-grid > .branch-card { flex-basis: calc((100% - 16px) / 2); } }
+@media (max-width: 760px) { .branch-grid > .branch-card { flex-basis: 100%; } }
 .branch-card { display: flex; flex-direction: column; min-width: 0; }
 .branch-card.is-mock { background: repeating-linear-gradient(135deg, var(--surface) 0 14px, #fafbfc 14px 28px); border-style: dashed; }
 .bc-title { display: flex; align-items: center; gap: 10px; }
@@ -928,8 +929,8 @@ select.input { padding-right: 28px; }
 .bc-sum { font-size: 13px; color: var(--text-3); font-variant-numeric: tabular-nums; } .bc-sum b { color: var(--text); font-weight: 700; }
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 8px; flex: none; }
 .seg-a { background: var(--c-a); } .seg-b { background: var(--c-b); } .seg-c { background: var(--c-c); } .seg-d { background: var(--c-d); }
-.tone-text-ok { color: var(--ok); } .tone-text-warn { color: var(--warn); } .tone-text-bad { color: var(--bad); }
-.tone-bg-ok { background: var(--ok); } .tone-bg-warn { background: var(--sbs-orange); } .tone-bg-bad { background: var(--bad); }
+.tone-text-ok { color: var(--ok); } .tone-text-bad { color: var(--bad); }
+.tone-bg-ok { background: var(--ok); } .tone-bg-bad { background: var(--bad); }
 .text-ok { color: var(--ok); }
 
 /* 링 게이지 */
@@ -938,8 +939,7 @@ select.input { padding-right: 28px; }
 .g-track, .g-fill { fill: none; stroke-width: 13; stroke-linecap: round; }
 .g-track { stroke: #e9edf1; }
 .g-fill { animation: arc-in 1s cubic-bezier(.2, .7, .2, 1) both; }
-.g-fill.tone-ok { stroke: var(--ok); } .g-fill.tone-warn { stroke: var(--sbs-orange); } .g-fill.tone-bad { stroke: var(--bad); }
-.g-tick { stroke: var(--text-3); stroke-width: 1.5; opacity: .7; }
+.g-fill.tone-ok { stroke: var(--ok); } .g-fill.tone-bad { stroke: var(--bad); }
 .gauge-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .gauge-pct { font-size: 32px; font-weight: 750; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1; }
 .gauge-pct small { font-size: 15px; font-weight: 600; margin-left: 1px; }
@@ -953,15 +953,6 @@ select.input { padding-right: 28px; }
 .lb-pct { font-weight: 700; font-variant-numeric: tabular-nums; }
 .lb { position: relative; height: 8px; border-radius: 4px; background: #e9edf1; overflow: hidden; }
 .lb-fill { display: block; height: 100%; border-radius: 4px; animation: bar-in .9s cubic-bezier(.2, .7, .2, 1) both; transform-origin: left; }
-.lb-tick { position: absolute; left: 80%; top: 0; bottom: 0; width: 1.5px; background: rgba(23, 32, 43, .35); }
 .lb-foot { display: flex; justify-content: space-between; margin-top: 4px; font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 @keyframes bar-in { from { transform: scaleX(0); } }
 
-.legend-card { background: var(--surface-2); }
-.lg-list { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 12px; }
-.lg-list li { display: grid; grid-template-columns: 24px 44px 1fr; align-items: center; gap: 10px; font-size: 13px; }
-.lg-list span { color: var(--text-3); }
-.lg-swatch { display: block; width: 24px; height: 8px; border-radius: 4px; }
-.lg-tickmark { width: 1.5px; height: 14px; margin-left: 11px; background: rgba(23, 32, 43, .45); border-radius: 0; }
-.lg-note { margin: auto 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12px; line-height: 1.55; color: var(--text-3); }
-.lg-note b { color: var(--text-2); }

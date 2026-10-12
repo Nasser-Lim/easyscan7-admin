@@ -1,11 +1,11 @@
 // 본사 홈 — 전 지국의 분기 한도 소진 현황을 지국 카드로 한눈에 본다(보도IMC팀·보도국장·재무팀·관리자).
 // 지금은 뉴욕만 실데이터이고, 나머지 지국은 화면 설계를 보여 주는 예시(mock) 데이터다 — 카드에 '예시'로 표시한다.
 // 지국을 실제로 열 때는 LIVE_BRANCHES 에 ID 를 추가하면 그 지국은 GET /limits 실데이터로 바뀐다(mock 은 무시).
-import { api } from "../api.js?v=b74f178";
-import { compact, gauge, limitBar, toneOfPct } from "../charts.js?v=b74f178";
-import { getPeriod, periodSwitch } from "../period.js?v=b74f178";
-import { ACCOUNTS, BRANCH, clear, errorText, h, icon, money, quarterLabel, spinner } from "../ui.js?v=b74f178";
-import { pageHeader } from "./shell.js?v=b74f178";
+import { api } from "../api.js?v=950f20a";
+import { compact, gauge, limitBar, toneOfPct } from "../charts.js?v=950f20a";
+import { getPeriod, periodSwitch } from "../period.js?v=950f20a";
+import { ACCOUNTS, BRANCH, clear, errorText, h, icon, money, quarterLabel, spinner } from "../ui.js?v=950f20a";
+import { pageHeader } from "./shell.js?v=950f20a";
 
 export const LIVE_BRANCHES = ["newyork"];
 
@@ -48,26 +48,7 @@ function draw(el, ctx, live) {
         return { id, name: BRANCH[id], mock: false, error: errorText(e) };
       }
     }),
-  ).then((branches) => clear(grid).append(...branches.map(branchCard), legendCard()));
-}
-
-// 그리드의 빈 칸을 채우는 보는 법 — 색의 뜻과 눈금, 예시 표시
-function legendCard() {
-  const row = (cls, name, desc) => h("li", {}, h("i", { class: `lg-swatch ${cls}` }), h("b", {}, name), h("span", {}, desc));
-  return h(
-    "section",
-    { class: "card branch-card legend-card" },
-    h("div", { class: "card-head" }, h("div", { class: "card-title" }, "보는 법")),
-    h(
-      "ul",
-      { class: "lg-list" },
-      row("tone-bg-ok", "정상", "한도의 80% 미만"),
-      row("tone-bg-warn", "주의", "80% 이상 · 100% 이하"),
-      row("tone-bg-bad", "초과", "100% 초과 — 초과분은 비적격 처리"),
-      h("li", { class: "lg-tick" }, h("i", { class: "lg-swatch lg-tickmark" }), h("b", {}, "눈금"), h("span", {}, "80% 지점")),
-    ),
-    h("p", { class: "lg-note" }, "사용액은 지국 통화 기준이며, 다른 통화 증빙은 환산해 더한 참고용입니다. ", h("b", {}, "예시"), " 표시 지국은 화면 설계용 가상 데이터입니다."),
-  );
+  ).then((branches) => clear(grid).append(...branches.map(branchCard)));
 }
 
 function branchCard(b) {
