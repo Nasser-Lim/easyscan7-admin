@@ -1,6 +1,6 @@
 // 결재 흐름 도식 — 증빙 상세 상단에 '지금 어디까지 왔는지'를 한눈에 보여 준다.
 // 지국 제출 → AI 1차 검증 → 보도IMC팀 분류 → 보도국장 전결(비적격일 때) → 재무팀 최종 결재
-import { h, icon } from "./ui.js?v=2a96a03";
+import { h, icon } from "./ui.js?v=949480b";
 
 const NODES = [
   { key: "staff", label: "지국", sub: "작성 · 제출" },

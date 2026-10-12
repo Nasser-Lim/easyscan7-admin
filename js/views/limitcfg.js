@@ -1,8 +1,8 @@
 // 분기 한도 설정 — 지국별·계정별 분기 한도와 통화. 보도IMC팀(실무·팀장)·재무팀·관리자.
 // 저장하면 서버가 영향받는 (지국·분기·계정) 그룹을 다시 계산한다. 결재선에 오른 증빙의 배분은 고정(services/limits.py).
-import { api } from "../api.js?v=2a96a03";
-import { ROLE, chip, clear, confirmDialog, dateTime, errorText, h, icon, select, spinner, toast } from "../ui.js?v=2a96a03";
-import { pageHeader } from "./shell.js?v=2a96a03";
+import { api } from "../api.js?v=949480b";
+import { ROLE, chip, clear, confirmDialog, dateTime, errorText, h, icon, select, spinner, toast } from "../ui.js?v=949480b";
+import { pageHeader } from "./shell.js?v=949480b";
 
 const SYMBOL = { USD: "$", KRW: "₩", JPY: "¥", EUR: "€", CNY: "¥" };
 // 화면 표시 순서 — 머리글과 입력칸이 같은 배열에서 만들어져 어긋나지 않게 한다(서버 목록 순서와 무관)

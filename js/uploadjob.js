@@ -2,9 +2,9 @@
 //  · 진행 중: 모달 프로그레스 바(파일 전송 → AI 인식 → 정리). 메뉴를 이동해도 모달과 처리는 계속된다.
 //  · 처리 결과: '확인 대기' 큐에 쌓이고 [확인 완료]를 누를 때까지 남는다(같은 탭이면 새로고침해도 유지).
 // 증빙 자체는 서버가 업로드 즉시 '작성중'으로 저장한다 — 큐는 결과를 확인하기 위한 목록이지 데이터 보관소가 아니다.
-import { api } from "./api.js?v=2a96a03";
-import { bytes, errorText, h, icon, toast } from "./ui.js?v=2a96a03";
-import { setNavBadge } from "./views/shell.js?v=2a96a03";
+import { api } from "./api.js?v=949480b";
+import { bytes, errorText, h, icon, toast } from "./ui.js?v=949480b";
+import { setNavBadge } from "./views/shell.js?v=949480b";
 
 const KEY = "es7.upload-queue";
 const MAX_QUEUE = 20;

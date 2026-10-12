@@ -1,7 +1,7 @@
 // 분기 한도 현황 카드 — 계정별 사용액·한도·사용률을 원장(ledger) 표로. 한도 초과분은 비적격.
-import { api } from "../api.js?v=2a96a03";
-import { fxStrip, loadFx } from "../fx.js?v=2a96a03";
-import { clear, h, money, quarterLabel, spinner } from "../ui.js?v=2a96a03";
+import { api } from "../api.js?v=949480b";
+import { fxStrip, loadFx } from "../fx.js?v=949480b";
+import { clear, h, money, quarterLabel, spinner } from "../ui.js?v=949480b";
 
 export function limitsCard(quarter, { compact = false } = {}) {
   const body = h("div", { class: "card-body-flush" }, h("div", { class: "card-loading" }, spinner(true)));

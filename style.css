@@ -858,7 +858,13 @@ select.input { padding-right: 28px; }
 .fn-current .fn-note { color: var(--sbs-blue); font-weight: 600; }
 .fn-bad .fn-note { color: var(--bad); font-weight: 600; }
 @keyframes fn-pulse { 50% { transform: scale(.55); opacity: .5; } }
-@keyframes fn-ripple { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(2.8); opacity: 0; } }
+@keyframes fn-ripple { 0% { transform: scale(1); opacity: .65; } 100% { transform: scale(2.3); opacity: 0; } }
+/* '동작 줄이기'(Windows 애니메이션 끄기 포함)에서는 크기가 변하는 효과를 빼고 천천히 깜빡이기만 한다 */
+@keyframes fn-blink { 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) {
+  .fn-current .fn-dot::after { animation: none; opacity: 1; inset: -5px; border: 3px solid rgba(61, 120, 165, .22); }
+  .fn-current .fn-dot i { animation: fn-blink 2.4s ease-in-out infinite; }
+}
 .tl-cancel .tl-dot { background: var(--text-3); }
 .btn-cancel-review { color: var(--warn); }
 
@@ -867,20 +873,23 @@ select.input { padding-right: 28px; }
 .how-node { padding: 3px 9px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; color: var(--text-2); }
 .how-arrow { color: var(--line-strong); }
 .policy-acc-title { display: flex; align-items: center; gap: 10px; }
-.live { display: inline-flex; align-items: center; gap: 8px; padding: 3px 11px 3px 9px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: .01em; color: var(--text-3); background: var(--surface-2); }
-.live i { position: relative; width: 9px; height: 9px; border-radius: 50%; background: var(--line-strong); flex: none; }
-.live-idle { color: var(--warn); background: var(--warn-50); border-color: #e4d4ad; }
-.live-idle i { background: var(--sbs-orange); }
-.live-on { color: var(--ok); background: var(--ok-50); border-color: #bcdccd; }
-.live-on i { background: var(--ok); animation: live-beat 1.3s ease-in-out infinite; }
-/* 레이더처럼 퍼지는 두 겹의 링 */
-.live-on i::before, .live-on i::after { content: ""; position: absolute; inset: -1px; border-radius: 50%; border: 2px solid var(--ok); opacity: 0; animation: live-ping 2.2s cubic-bezier(.2, .6, .3, 1) infinite; }
-.live-on i::after { animation-delay: 1.1s; }
-/* 감시 중인 카드: 윗선을 빛이 훑고, 테두리가 숨 쉰다 */
-.card.is-live { position: relative; overflow: hidden; border-color: #bcdccd; animation: live-breathe 2.8s ease-in-out infinite; }
-.card.is-live::before { content: ""; position: absolute; left: 0; top: 0; height: 3px; width: 100%; background: linear-gradient(90deg, transparent 0, var(--ok) 50%, transparent 100%); background-size: 45% 100%; background-repeat: no-repeat; animation: live-scan 2.2s linear infinite; }
+.live { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .01em; color: var(--text-3); }
+.live i { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); flex: none; }
+.live-on { color: var(--ok); }
+.live-on i { background: var(--ok); }
+.live-on i::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--ok); animation: live-ping 1.8s ease-out infinite; }
+.live-idle { color: var(--warn); }
+.live-idle i { background: var(--warn); opacity: .6; }
+/* 감시 중인 카드 윗선을 훑는 빛 — 지금 AI 가 지켜보고 있다는 신호 */
+.card.is-live { position: relative; overflow: hidden; }
+.card.is-live::before { content: ""; position: absolute; left: 0; top: 0; height: 2px; width: 100%; background: linear-gradient(90deg, transparent 0, var(--ok) 50%, transparent 100%); background-size: 40% 100%; background-repeat: no-repeat; animation: live-scan 2.6s ease-in-out infinite; }
 .policy-master.is-live { border-left-color: var(--ok); }
-@keyframes live-beat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.3); } }
-@keyframes live-ping { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(3.4); opacity: 0; } }
-@keyframes live-scan { 0% { background-position: -45% 0; } 100% { background-position: 145% 0; } }
-@keyframes live-breathe { 0%, 100% { box-shadow: 0 0 0 0 rgba(14, 115, 80, 0); } 50% { box-shadow: 0 0 0 4px rgba(14, 115, 80, .10); } }
+@keyframes live-ping { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(2.6); opacity: 0; } }
+@keyframes live-scan { 0% { background-position: -40% 0; } 100% { background-position: 140% 0; } }
+@keyframes live-blink { 50% { opacity: .35; } }
+/* '동작 줄이기' 환경: 움직임은 빼고 천천히 깜빡이기만 한다 */
+@media (prefers-reduced-motion: reduce) {
+  .live-on i::after { animation: none; opacity: 0; }
+  .live-on i { animation: live-blink 2.4s ease-in-out infinite; }
+  .card.is-live::before { animation: live-blink 2.4s ease-in-out infinite; background-size: 100% 100%; background-position: 0 0; }
+}
