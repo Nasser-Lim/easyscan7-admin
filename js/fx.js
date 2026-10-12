@@ -1,7 +1,7 @@
 // 환율 — 백엔드 GET /fx(원화 기준 KRW per 1 단위)를 한 번 받아 두고, 합계를 지국 통화로 환산해 표시한다.
 // 표시용 합산이다. 증빙별 적격/비적격 배분은 서버가 같은 통화 증빙만으로 계산한다.
-import { api } from "./api.js";
-import { h } from "./ui.js";
+import { api } from "./api.js?v=3c1dbf2";
+import { h } from "./ui.js?v=3c1dbf2";
 
 const TTL = 10 * 60 * 1000;
 let cache = null;
