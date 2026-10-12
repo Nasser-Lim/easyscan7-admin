@@ -1,12 +1,12 @@
 // 본사 홈 — 전 지국의 분기 한도 소진 현황을 지국 카드로 한눈에 본다(보도IMC팀·보도국장·재무팀·관리자).
 // 지금은 뉴욕만 실데이터이고, 나머지 지국은 화면 설계를 보여 주는 예시(mock) 데이터다 — 카드에 '예시'로 표시한다.
 // 지국을 실제로 열 때는 LIVE_BRANCHES 에 ID 를 추가하면 그 지국은 GET /limits 실데이터로 바뀐다(mock 은 무시).
-import { api } from "../api.js?v=3b03bfb";
-import { branchIcon } from "../branchicons.js?v=3b03bfb";
-import { compact, gauge, limitBar, toneOfPct } from "../charts.js?v=3b03bfb";
-import { getPeriod, periodSwitch } from "../period.js?v=3b03bfb";
-import { ACCOUNTS, BRANCH, clear, errorText, h, icon, money, quarterLabel, spinner } from "../ui.js?v=3b03bfb";
-import { pageHeader } from "./shell.js?v=3b03bfb";
+import { api } from "../api.js?v=783c662";
+import { branchIcon } from "../branchicons.js?v=783c662";
+import { compact, gauge, limitBar, toneOfPct } from "../charts.js?v=783c662";
+import { getPeriod, periodSwitch } from "../period.js?v=783c662";
+import { ACCOUNTS, BRANCH, clear, errorText, h, icon, money, quarterLabel, spinner } from "../ui.js?v=783c662";
+import { pageHeader } from "./shell.js?v=783c662";
 
 export const LIVE_BRANCHES = ["newyork"];
 

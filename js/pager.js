@@ -1,16 +1,16 @@
 // 목록 페이지 나누기 — 한 페이지에 몇 건 보일지 프리셋(10·20·50·100)과 쪽 이동.
 // 화면마다 하나씩 만들고(key 로 구분), 선택한 건수는 브라우저에 기억한다(실패해도 무시).
-import { h } from "./ui.js?v=3b03bfb";
+import { h } from "./ui.js?v=783c662";
 
 export const PAGE_SIZES = [10, 20, 50, 100];
 const DEFAULT_SIZE = 20;
 
-export function createPager(key, onChange) {
+export function createPager(key, onChange, { sizes = PAGE_SIZES, def = DEFAULT_SIZE, unit = "건" } = {}) {
   const store = `pager:${key}`;
-  let size = DEFAULT_SIZE;
+  let size = def;
   try {
     const v = Number(localStorage.getItem(store));
-    if (PAGE_SIZES.includes(v)) size = v;
+    if (sizes.includes(v)) size = v;
   } catch {
     /* 저장소를 못 쓰면 기본값 */
   }
@@ -57,7 +57,7 @@ export function createPager(key, onChange) {
       const sizeSeg = h(
         "div",
         { class: "pg-size", role: "group", "aria-label": "한 페이지에 보일 건수" },
-        PAGE_SIZES.map((n) =>
+        sizes.map((n) =>
           h(
             "button",
             {
@@ -78,13 +78,13 @@ export function createPager(key, onChange) {
             String(n),
           ),
         ),
-        h("span", { class: "pg-size-unit" }, "건씩"),
+        h("span", { class: "pg-size-unit" }, `${unit}씩`),
       );
 
       return h(
         "div",
         { class: "pager" },
-        h("div", { class: "pg-range" }, total ? h("span", {}, h("b", {}, `${from.toLocaleString()}–${to.toLocaleString()}`), ` / ${total.toLocaleString()}건`) : "0건"),
+        h("div", { class: "pg-range" }, total ? h("span", {}, h("b", {}, `${from.toLocaleString()}–${to.toLocaleString()}`), ` / ${total.toLocaleString()}${unit}`) : `0${unit}`),
         last > 1
           ? h("nav", { class: "pg-nav", "aria-label": "페이지 이동" }, btn("‹", page - 1, { disabled: page === 1, title: "이전 쪽" }), nums, btn("›", page + 1, { disabled: page === last, title: "다음 쪽" }))
           : h("span"),

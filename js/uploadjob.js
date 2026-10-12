@@ -1,16 +1,15 @@
 // 증빙 업로드 작업 — 화면(뷰)과 분리해 두어, 업로드 중·처리 후에 다른 메뉴로 갔다 와도 상태가 남는다.
 //  · 진행 중: 모달 프로그레스 바(파일 전송 → AI 인식 → 정리). 메뉴를 이동해도 모달과 처리는 계속된다.
-//  · 처리 결과: '확인 대기' 큐에 쌓이고 [확인 완료]를 누를 때까지 남는다(같은 탭이면 새로고침해도 유지).
-// 증빙 자체는 서버가 업로드 즉시 '작성중'으로 저장한다 — 큐는 결과를 확인하기 위한 목록이지 데이터 보관소가 아니다.
-import { api } from "./api.js?v=3b03bfb";
-import { bytes, errorText, h, icon, toast } from "./ui.js?v=3b03bfb";
-import { setNavBadge } from "./views/shell.js?v=3b03bfb";
+//  · 처리 결과: 업로드마다 '처리 결과' 기록으로 남는다(확인 절차 없음). 이 브라우저에 계정별로 보관하며 최근 100회까지.
+// 증빙 자체는 서버가 업로드 즉시 '작성중'으로 저장한다 — 기록은 그 처리 결과를 다시 볼 수 있게 한 것이지 데이터 보관소가 아니다.
+import { api } from "./api.js?v=783c662";
+import { bytes, errorText, h, icon, toast } from "./ui.js?v=783c662";
 
-const KEY = "es7.upload-queue";
-const MAX_QUEUE = 20;
+const KEY = "es7.upload-history";
+const MAX_QUEUE = 100;
 const listeners = new Set();
 
-let owner = null; // 큐 소유자(로그인 이메일) — 같은 탭에서 계정을 바꿔도 남의 결과가 보이지 않게
+let owner = null; // 기록 소유자(로그인 이메일) — 같은 브라우저에서 계정을 바꿔도 남의 결과가 보이지 않게
 let queue = [];
 let job = null; // 진행 중인 업로드
 
@@ -18,7 +17,7 @@ const storageKey = () => `${KEY}.${owner}`;
 
 function load() {
   try {
-    const v = JSON.parse(sessionStorage.getItem(storageKey()) || "[]");
+    const v = JSON.parse(localStorage.getItem(storageKey()) || "[]");
     return Array.isArray(v) ? v : [];
   } catch {
     return [];
@@ -27,32 +26,23 @@ function load() {
 function save() {
   if (!owner) return;
   try {
-    if (queue.length) sessionStorage.setItem(storageKey(), JSON.stringify(queue));
-    else sessionStorage.removeItem(storageKey());
+    if (queue.length) localStorage.setItem(storageKey(), JSON.stringify(queue));
+    else localStorage.removeItem(storageKey());
   } catch {
     /* 저장소를 못 쓰는 환경에서는 메모리에서만 유지 */
   }
 }
 function emit(event) {
   save();
-  setNavBadge("upload", queue.length);
   listeners.forEach((fn) => fn(event));
 }
 
 export function initUploadQueue(me) {
   owner = me.email || me.uid || "me";
   queue = load();
-  setNavBadge("upload", queue.length);
 }
-// 로그아웃 시 — 다음 사용자를 위해 이 탭에 남은 결과를 지운다.
+// 로그아웃 시 — 메모리의 기록만 비운다(저장된 기록은 계정별로 남아, 다시 로그인하면 보인다).
 export function resetUploadQueue() {
-  if (owner) {
-    try {
-      sessionStorage.removeItem(storageKey());
-    } catch {
-      /* 무시 */
-    }
-  }
   owner = null;
   queue = [];
 }
@@ -61,14 +51,6 @@ export const isBusy = () => !!job;
 export function subscribe(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
-}
-export function dismiss(id) {
-  queue = queue.filter((b) => b.id !== id);
-  emit("dismiss");
-}
-export function dismissAll() {
-  queue = [];
-  emit("dismiss");
 }
 
 // 큐에는 결과 화면에 필요한 값만 둔다(저장 용량·노출 최소화).
@@ -197,7 +179,7 @@ export async function startUpload(files, account) {
     queue = [{ id: `${Date.now()}`, at: Date.now(), account, fileCount: files.length, result: slim(r) }, ...queue].slice(0, MAX_QUEUE);
     modal.close();
     const n = (r.entries || []).length;
-    toast(n ? `증빙 ${n}건을 등록했습니다 — 처리 결과를 확인하세요` : "새로 등록된 증빙이 없습니다", n ? "ok" : "info");
+    toast(n ? `증빙 ${n}건을 등록했습니다 — 처리 결과는 아래 기록에 남았습니다` : "새로 등록된 증빙이 없습니다", n ? "ok" : "info");
     emit("done");
     return true;
   } catch (e) {
