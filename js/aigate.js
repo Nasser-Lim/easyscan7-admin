@@ -1,6 +1,6 @@
 // AI 1차 적격 검증(gate) 표시 — 증빙 상세 패널, 목록용 작은 표식.
 // 판정은 서버(services/ai_gate.py)가 한다: 업로드 직후 사전 판정, 제출할 때 최종 판정(위반이면 자동 반려, 소명하면 사람 결재로).
-import { AI_VERDICT, aiKey, chip, dateTime, h, icon, policyVer } from "./ui.js?v=a3e2aca";
+import { AI_VERDICT, aiKey, chip, dateTime, h, icon, policyVer } from "./ui.js?v=60a3df0";
 
 // 목록 상태 칸 아래 한 줄 — 통과·정책 없음은 조용히, 확인이 필요한 판정만 보인다
 export function aiGateMark(gate) {

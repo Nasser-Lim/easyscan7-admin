@@ -1,6 +1,6 @@
 // 목록 페이지 나누기 — 한 페이지에 몇 건 보일지 프리셋(10·20·50·100)과 쪽 이동.
 // 화면마다 하나씩 만들고(key 로 구분), 선택한 건수는 브라우저에 기억한다(실패해도 무시).
-import { h } from "./ui.js?v=a3e2aca";
+import { h } from "./ui.js?v=60a3df0";
 
 export const PAGE_SIZES = [10, 20, 50, 100];
 const DEFAULT_SIZE = 20;

@@ -1,11 +1,11 @@
 // 홈 — 고른 정산 분기(현분기·전분기)의 요약 지표, 한도 현황, 최근 증빙, 바로가기.
-import { api } from "../api.js?v=a3e2aca";
-import { BRANCH, clear, dateText, empty, errorText, h, icon, money, quarterLabel, spinner, statusChip } from "../ui.js?v=a3e2aca";
-import { loadFx, sumIn } from "../fx.js?v=a3e2aca";
-import { getPeriod, periodSwitch } from "../period.js?v=a3e2aca";
-import { limitsCard } from "./limits.js?v=a3e2aca";
-import { renderDashboard } from "./dashboard.js?v=a3e2aca";
-import { pageHeader } from "./shell.js?v=a3e2aca";
+import { api } from "../api.js?v=60a3df0";
+import { BRANCH, clear, dateText, empty, errorText, h, icon, money, quarterLabel, spinner, statusChip } from "../ui.js?v=60a3df0";
+import { loadFx, sumIn } from "../fx.js?v=60a3df0";
+import { getPeriod, periodSwitch } from "../period.js?v=60a3df0";
+import { limitsCard } from "./limits.js?v=60a3df0";
+import { renderDashboard } from "./dashboard.js?v=60a3df0";
+import { pageHeader } from "./shell.js?v=60a3df0";
 
 export function renderHome(el, ctx) {
   if (ctx.me.role !== "staff") return renderDashboard(el, ctx); // 본사(보도IMC팀·보도국장·재무팀): 전 지국 대시보드

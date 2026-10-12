@@ -1,6 +1,6 @@
 // 대시보드용 작은 차트 모음 — 외부 라이브러리 없이 SVG/CSS 로 그린다.
 // 색은 CSS 클래스(style.css 의 .tone-* / .seg-*)로 입히고, 값만 코드에서 정한다(CSP 상 인라인 스타일 속성은 쓰지 않는다).
-import { h } from "./ui.js?v=a3e2aca";
+import { h } from "./ui.js?v=60a3df0";
 
 const NS = "http://www.w3.org/2000/svg";
 export function s(tag, attrs = {}, ...children) {

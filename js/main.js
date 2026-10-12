@@ -1,18 +1,18 @@
 // 관리웹 진입점 — 세션 확인 → 로그인 화면 또는 앱 셸 + 해시 라우터.
-import { api, hasSession, logout, onSignedOut } from "./api.js?v=a3e2aca";
-import { clear, h, spinner, toast, errorText } from "./ui.js?v=a3e2aca";
-import { renderLogin } from "./views/login.js?v=a3e2aca";
-import { renderShell, setActiveNav } from "./views/shell.js?v=a3e2aca";
-import { renderHome } from "./views/home.js?v=a3e2aca";
-import { renderUpload } from "./views/upload.js?v=a3e2aca";
-import { renderEntries } from "./views/entries.js?v=a3e2aca";
-import { renderAccount } from "./views/account.js?v=a3e2aca";
-import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=a3e2aca";
-import { renderHelp } from "./views/help.js?v=a3e2aca";
-import { renderLimitSettings } from "./views/limitcfg.js?v=a3e2aca";
-import { renderPolicy } from "./views/policy.js?v=a3e2aca";
-import { renderSettle } from "./views/settle.js?v=a3e2aca";
-import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=a3e2aca";
+import { api, hasSession, logout, onSignedOut } from "./api.js?v=60a3df0";
+import { clear, h, spinner, toast, errorText } from "./ui.js?v=60a3df0";
+import { renderLogin } from "./views/login.js?v=60a3df0";
+import { renderShell, setActiveNav } from "./views/shell.js?v=60a3df0";
+import { renderHome } from "./views/home.js?v=60a3df0";
+import { renderUpload } from "./views/upload.js?v=60a3df0";
+import { renderEntries } from "./views/entries.js?v=60a3df0";
+import { renderAccount } from "./views/account.js?v=60a3df0";
+import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=60a3df0";
+import { renderHelp } from "./views/help.js?v=60a3df0";
+import { renderLimitSettings } from "./views/limitcfg.js?v=60a3df0";
+import { renderPolicy } from "./views/policy.js?v=60a3df0";
+import { renderSettle } from "./views/settle.js?v=60a3df0";
+import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=60a3df0";
 
 const app = document.getElementById("app");
 let me = null;
@@ -26,8 +26,8 @@ const REVIEWER_NAV = [
   { route: "entries", label: "전체 증빙", icon: "list" },
 ];
 // 분기 한도 설정 — 서버 권한(deps.require_limit_admin)과 같은 역할: 보도IMC팀·재무팀·관리자
-// 정산출력 — 서버 권한(settlements.require_export)과 같은 역할: 지국 담당자·보도IMC팀·재무팀·관리자
-const SETTLE_NAV = { route: "settle", label: "정산출력", icon: "file" };
+// 정산 출력 — 서버 권한(settlements.require_export)과 같은 역할: 지국 담당자·보도IMC팀·재무팀·관리자
+const SETTLE_NAV = { route: "settle", label: "정산 출력", icon: "file" };
 const LIMIT_NAV = { route: "limits", label: "분기 한도 설정", icon: "sliders" };
 // AI 적격 정책 — 서버 권한(deps.require_policy_admin)과 같은 역할: 보도IMC팀·재무팀·관리자 공용
 const POLICY_NAV = { route: "policy", label: "AI 적격 정책", icon: "shield" };
