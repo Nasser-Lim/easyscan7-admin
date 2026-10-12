@@ -845,7 +845,8 @@ select.input { padding-right: 28px; }
 .fn-dot .ic { width: 12px; height: 12px; }
 .fn-dot .ic svg { stroke-width: 3; }
 .fn-done .fn-dot { background: var(--sbs-blue); border-color: var(--sbs-blue); }
-.fn-current .fn-dot { border-color: var(--sbs-blue); box-shadow: 0 0 0 4px rgba(0, 133, 205, .18); }
+.fn-current .fn-dot { border-color: var(--sbs-blue); }
+.fn-current .fn-dot::after { content: ""; position: absolute; inset: -2px; border-radius: 50%; border: 2px solid var(--sbs-sky); opacity: 0; animation: fn-ripple 2s ease-out infinite; }
 .fn-current .fn-dot i { width: 8px; height: 8px; border-radius: 50%; background: var(--sbs-blue); animation: fn-pulse 1.8s ease-in-out infinite; }
 .fn-bad .fn-dot { background: var(--bad); border-color: var(--bad); }
 .fn-skip .fn-dot { border-style: dashed; color: var(--text-3); background: var(--surface-2); }
@@ -856,7 +857,8 @@ select.input { padding-right: 28px; }
 .fn-note { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .fn-current .fn-note { color: var(--sbs-blue); font-weight: 600; }
 .fn-bad .fn-note { color: var(--bad); font-weight: 600; }
-@keyframes fn-pulse { 50% { opacity: .35; } }
-@media (prefers-reduced-motion: reduce) { .fn-current .fn-dot i { animation: none; } }
+@keyframes fn-pulse { 50% { transform: scale(.55); opacity: .5; } }
+@keyframes fn-ripple { 0% { transform: scale(1); opacity: .65; } 100% { transform: scale(2.3); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .fn-current .fn-dot i, .fn-current .fn-dot::after { animation: none; } .fn-current .fn-dot { box-shadow: 0 0 0 4px rgba(0, 133, 205, .18); } }
 .tl-cancel .tl-dot { background: var(--text-3); }
 .btn-cancel-review { color: var(--warn); }
