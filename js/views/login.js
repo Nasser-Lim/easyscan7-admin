@@ -1,6 +1,6 @@
 // 로그인 화면 — 왼쪽 브랜드 패널(SBS 흰색 로고, 네이비), 오른쪽 폼.
-import { health, login } from "../api.js?v=25c4b60";
-import { h, icon, spinner } from "../ui.js?v=25c4b60";
+import { health, login } from "../api.js?v=b74f178";
+import { h, icon, spinner } from "../ui.js?v=b74f178";
 
 export function renderLogin(root, onSuccess) {
   const err = h("div", { class: "form-error", role: "alert" });
