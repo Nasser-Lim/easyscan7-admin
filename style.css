@@ -825,3 +825,38 @@ select.input { padding-right: 28px; }
 .dg-legend .lg.ai { color: #b87500; } .dg-legend .lg.ai::before { border-color: var(--sbs-orange); border-top-style: dashed; }
 .dg-notes li.dg-note-ai { padding: 8px 10px 8px 26px; background: var(--warn-50); border: 1px solid #ecd9ae; border-radius: var(--radius-sm); color: var(--text); }
 .dg-notes li.dg-note-ai::before { left: 10px; top: 8px; }
+
+/* ── 결재 흐름 도식 (증빙 상세 상단) ── */
+.flow { margin: 0 0 16px; padding: 14px 14px 12px; border: 1px solid var(--line); border-top: 2px solid var(--ink); background: var(--surface); }
+.flow-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
+.flow-now { font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--text); }
+.flow-hint { font-size: 12px; color: var(--text-3); }
+.flow-info .flow-now { color: var(--sbs-blue); }
+.flow-ok .flow-now { color: var(--ok); }
+.flow-bad .flow-now { color: var(--bad); }
+.flow-warn .flow-now { color: var(--warn); }
+.flow-track { list-style: none; margin: 0; padding: 0; display: flex; }
+.fn { position: relative; flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
+.fn::before { content: ""; position: absolute; top: 10px; right: 50%; width: 100%; height: 2px; background: var(--line-strong); }
+.fn:first-child::before { display: none; }
+.fn-done::before, .fn-current::before, .fn-bad::before { background: var(--sbs-blue); }
+.fn-skip::before { background: repeating-linear-gradient(90deg, var(--line-strong) 0 4px, transparent 4px 8px); }
+.fn-dot { position: relative; z-index: 1; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); border: 2px solid var(--line-strong); color: #fff; font-size: 12px; line-height: 1; box-sizing: border-box; }
+.fn-dot .ic { width: 12px; height: 12px; }
+.fn-dot .ic svg { stroke-width: 3; }
+.fn-done .fn-dot { background: var(--sbs-blue); border-color: var(--sbs-blue); }
+.fn-current .fn-dot { border-color: var(--sbs-blue); box-shadow: 0 0 0 4px rgba(0, 133, 205, .18); }
+.fn-current .fn-dot i { width: 8px; height: 8px; border-radius: 50%; background: var(--sbs-blue); animation: fn-pulse 1.8s ease-in-out infinite; }
+.fn-bad .fn-dot { background: var(--bad); border-color: var(--bad); }
+.fn-skip .fn-dot { border-style: dashed; color: var(--text-3); background: var(--surface-2); }
+.flow-ok .fn-done:last-child .fn-dot { background: var(--ok); border-color: var(--ok); }
+.fn-label { font-size: 12.5px; font-weight: 600; color: var(--text); line-height: 1.25; }
+.fn-label small { display: block; font-size: 11px; font-weight: 500; color: var(--text-3); }
+.fn-todo .fn-label, .fn-skip .fn-label { color: var(--text-3); }
+.fn-note { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.fn-current .fn-note { color: var(--sbs-blue); font-weight: 600; }
+.fn-bad .fn-note { color: var(--bad); font-weight: 600; }
+@keyframes fn-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .fn-current .fn-dot i { animation: none; } }
+.tl-cancel .tl-dot { background: var(--text-3); }
+.btn-cancel-review { color: var(--warn); }

@@ -7,6 +7,7 @@ import {
   QUARTER_SOURCE, quarterBadge, quarterLabel, quarterOf, quarterOptions, select, spinner, statusChip, toast,
 } from "../ui.js";
 import { aiGateMark, aiGatePanel } from "../aigate.js";
+import { flowDiagram } from "../flow.js";
 import { fxStrip, loadFx, sumIn } from "../fx.js";
 import { refreshInboxBadge } from "./inbox.js";
 import { pageHeader } from "./shell.js";
@@ -494,6 +495,7 @@ function detailForm(e, me) {
   const node = h(
     "div",
     { class: "detail-form" },
+    flowDiagram(e),
     aiGatePanel(e.aiGate, me.role === "staff" ? "staff" : "reviewer"),
     banners.length ? h("div", { class: "banners" }, banners) : null,
     h("div", { class: "section-label" }, "증빙 정보"),
@@ -702,8 +704,37 @@ function withdrawFooter(e, { close, onChanged }) {
   return [h("span", { class: "muted small" }, "보도IMC팀 결재 대기 중 — 취소하면 다시 수정할 수 있습니다"), h("div", { class: "foot-right" }, h("button", { class: "btn btn-ghost", type: "button", onclick: () => close() }, "닫기"), btn)];
 }
 
+const CANCEL_LABEL = { submitted: "보도IMC팀 분류", chief_review: "보도국장 전결", finance_review: "재무팀 최종 결재" };
+function cancelReviewFooter(e, { close, onChanged }) {
+  const from = e.approvals[e.approvals.length - 1].from;
+  const btn = h("button", { class: "btn btn-ghost btn-cancel-review", type: "button" }, icon("refresh"), h("span", {}, "내 결재 취소"));
+  btn.addEventListener("click", async () => {
+    const comment = await promptDialog({
+      title: "결재 취소",
+      message: h("div", {}, h("p", {}, `${CANCEL_LABEL[from]} 결재를 취소하고 '${STATUS[from]?.label || from}' 상태로 되돌립니다.`),
+        h("p", { class: "muted small" }, "다음 단계 담당자가 이미 처리했다면 취소되지 않습니다. 취소 내역은 결재 이력에 남습니다.")),
+      placeholder: "취소 사유 (선택)",
+      confirm: "결재 취소",
+      required: false,
+    });
+    if (comment === null) return;
+    btn.disabled = true;
+    try {
+      const r = await api.post(`/entries/${e.id}/cancel-review`, { comment: comment || undefined });
+      toast(`결재를 취소했습니다 — ${STATUS[r.status]?.label || r.status}`, "ok");
+      onChanged();
+      close(true);
+    } catch (ex) {
+      toast(errorText(ex), "bad", 6000);
+      btn.disabled = false;
+    }
+  });
+  return [h("span", { class: "muted small" }, "내 팀이 마지막으로 결재했습니다 — 다음 단계가 처리하기 전에는 취소할 수 있습니다"), h("div", { class: "foot-right" }, h("button", { class: "btn btn-ghost", type: "button", onclick: () => close() }, "닫기"), btn)];
+}
+
 function footer(e, form, { me, close, onChanged, reopen }) {
   if (!form.editable) {
+    if (e.canCancel) return cancelReviewFooter(e, { close, onChanged });
     // 보도IMC팀이 아직 분류하지 않은 증빙은 지국 담당자가 제출을 취소하고 다시 고칠 수 있다
     if (e.status === "submitted" && me.role === "staff") return withdrawFooter(e, { close, onChanged });
     return [h("span", { class: "muted small" }, "읽기 전용"), h("button", { class: "btn btn-ghost", type: "button", onclick: () => close() }, "닫기")];
