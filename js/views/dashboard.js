@@ -1,12 +1,12 @@
 // 본사 홈 — 전 지국의 분기 한도 소진 현황을 지국 카드로 한눈에 본다(보도IMC팀·보도국장·재무팀·관리자).
 // 지금은 뉴욕만 실데이터이고, 나머지 지국은 화면 설계를 보여 주는 예시(mock) 데이터다 — 카드에 '예시'로 표시한다.
 // 지국을 실제로 열 때는 LIVE_BRANCHES 에 ID 를 추가하면 그 지국은 GET /limits 실데이터로 바뀐다(mock 은 무시).
-import { api } from "../api.js?v=653273d";
-import { branchIcon } from "../branchicons.js?v=653273d";
-import { compact, gauge, limitBar, toneOfPct } from "../charts.js?v=653273d";
-import { getPeriod, periodSwitch } from "../period.js?v=653273d";
-import { ACCOUNTS, BRANCH, clear, errorText, h, icon, money, quarterLabel, spinner } from "../ui.js?v=653273d";
-import { pageHeader } from "./shell.js?v=653273d";
+import { api } from "../api.js?v=2cd17b8";
+import { branchIcon } from "../branchicons.js?v=2cd17b8";
+import { compact, gauge, limitBar, toneOfPct } from "../charts.js?v=2cd17b8";
+import { getMode, getPeriod, periodSwitch } from "../period.js?v=2cd17b8";
+import { ACCOUNTS, BRANCH, clear, errorText, h, icon, money, quarterLabel, spinner } from "../ui.js?v=2cd17b8";
+import { pageHeader } from "./shell.js?v=2cd17b8";
 
 export const LIVE_BRANCHES = ["newyork"];
 
@@ -18,6 +18,13 @@ const MOCK = {
   tokyo: { currency: "JPY", accounts: { 취재비: { used: 412000, limit: 600000, ineligible: 0, count: 11 }, 경상비: { used: 188000, limit: 240000, ineligible: 0, count: 16 }, 차량유지비: { used: 96000, limit: 120000, ineligible: 0, count: 7 } } },
 };
 const COUNTRY = { newyork: "미국", washington: "미국", paris: "프랑스", beijing: "중국", tokyo: "일본" };
+// 예시 값은 분기 기준 — 월별 정산이면 산술 비례(÷ 3)로 맞춘다
+function scaleMock(m) {
+  if (getMode() !== "month") return m;
+  const k = 1 / 3;
+  const r = (n) => Math.round(n * k * 100) / 100;
+  return { ...m, accounts: Object.fromEntries(Object.entries(m.accounts).map(([a, v]) => [a, { ...v, used: r(v.used), limit: r(v.limit), ineligible: r(v.ineligible), count: Math.max(1, Math.round(v.count * k)) }])) };
+}
 const ACC_CLS = { 취재비: "seg-a", 경상비: "seg-b", 차량유지비: "seg-c" };
 
 export function renderDashboard(el, ctx, live = LIVE_BRANCHES) {
@@ -33,7 +40,7 @@ function draw(el, ctx, live) {
     pageHeader({
       crumbs: ["본사"],
       title: "홈",
-      desc: `${quarterLabel(quarter)} 지국별 분기 한도 소진 현황`,
+      desc: `${quarterLabel(quarter)} 지국별 한도 소진`,
       actions: [periodSwitch(again), h("button", { class: "btn btn-ghost", type: "button", onclick: again }, icon("refresh"), h("span", {}, "새로고침"))],
     }),
     grid,
@@ -42,9 +49,9 @@ function draw(el, ctx, live) {
   // 실데이터 지국은 병렬로 받고, 나머지는 예시로 채운다. 순서는 BRANCH(뉴욕·워싱턴·파리·베이징·도쿄) 그대로.
   Promise.all(
     Object.keys(BRANCH).map(async (id) => {
-      if (!live.includes(id)) return { id, name: BRANCH[id], mock: true, ...MOCK[id] };
+      if (!live.includes(id)) return { id, name: BRANCH[id], mock: true, ...scaleMock(MOCK[id]) };
       try {
-        const u = await api.get(`/limits?quarter=${encodeURIComponent(quarter)}&branch=${id}`);
+        const u = await api.get(`/limits?period=${encodeURIComponent(quarter)}&branch=${id}`);
         return { id, name: BRANCH[id], mock: false, currency: u.currency, accounts: u.accounts || {} };
       } catch (e) {
         return { id, name: BRANCH[id], mock: false, error: errorText(e) };

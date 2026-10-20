@@ -1,24 +1,24 @@
 // 증빙 조회 — 필터·정렬 목록, 일괄 제출, 상세 서랍(원본 증빙 대조 + 수정·제출·삭제 / 결재).
 // 지국 담당자: 자기 지국 · 본사 결재자: 전 지국(지국 필터), 결재는 결재함 또는 이 화면의 상세 서랍에서.
-import { api } from "../api.js?v=653273d";
+import { api } from "../api.js?v=2cd17b8";
 import {
   ACCOUNTS, ACTION_LABEL, BRANCH, DOC_TYPE, ELIGIBILITY, FINAL, IN_REVIEW, ROLE, STAFF_EDITABLE, STATUS, chip, clear,
   confirmDialog, promptDialog, dateText, dateTime, empty, errorText, field, h, icon, money, noticeParts,
-  QUARTER_SOURCE, quarterBadge, quarterLabel, quarterOf, quarterOptions, select, spinner, statusChip, toast,
-} from "../ui.js?v=653273d";
-import { aiGateMark, aiGatePanel } from "../aigate.js?v=653273d";
-import { createPager } from "../pager.js?v=653273d";
-import { flowDiagram } from "../flow.js?v=653273d";
-import { fxStrip, loadFx, sumIn } from "../fx.js?v=653273d";
-import { refreshInboxBadge } from "./inbox.js?v=653273d";
-import { pageHeader } from "./shell.js?v=653273d";
+  ALL_ACCOUNTS, accountSelect, isCoreAccount, periodBadge, quarterLabel, quarterOf, select, spinner, statusChip, tip, toast,
+} from "../ui.js?v=2cd17b8";
+import { currentPeriod, getMode, periodOfEntry, periodOptions, periodSelect, unitName } from "../period.js?v=2cd17b8";
+import { aiGateMark, aiGatePanel } from "../aigate.js?v=2cd17b8";
+import { createPager } from "../pager.js?v=2cd17b8";
+import { flowDiagram } from "../flow.js?v=2cd17b8";
+import { fxStrip, loadFx, sumIn } from "../fx.js?v=2cd17b8";
+import { refreshInboxBadge } from "./inbox.js?v=2cd17b8";
+import { pageHeader } from "./shell.js?v=2cd17b8";
 
 const EDITABLE_STATUS = STAFF_EDITABLE; // 지국 담당자가 고치고 제출할 수 있는 상태
 // 화면을 옮겨 다녀도 필터는 유지(세션 동안)
-// 분기는 영수증 날짜로 자동 지정되므로 방금 올린 증빙이 이번 분기가 아닐 수 있다 — 기본은 전체 분기("")
-// 분기 선택지: 오늘이 속한 분기부터 과거로 4개. (이미 그 밖의 분기에 있는 증빙은 '전체'로 조회하고, 상세에서는 자기 분기가 함께 보인다)
-const QUARTER_CHOICES = 4;
-const state = { quarter: "", account: "", status: "", q: "", sort: "txnDate", dir: -1, branch: "all" };
+// 정산 기간(월/분기)은 영수증 날짜로 자동 지정되므로 방금 올린 증빙이 이번 기간이 아닐 수 있다 — 기본은 전체("")
+// 기간 선택지: 정산 방식에 따라 최근 12개월 또는 최근 4분기
+const state = { period: "", account: "", status: "", q: "", sort: "txnDate", dir: -1, branch: "all" };
 
 export function renderEntries(el, { me, params }) {
   const isStaff = me.role === "staff";
@@ -26,8 +26,9 @@ export function renderEntries(el, { me, params }) {
   let rows = [];
   const selected = new Set();
 
-  const quarter = select([["", "전체"], ...quarterOptions(QUARTER_CHOICES).map((q) => [q, quarterLabel(q)])], state.quarter, { class: "input input-sm" });
-  const account = select([["", "전체 계정"], ...ACCOUNTS.map((a) => [a, a])], state.account, { class: "input input-sm" });
+  if (state.period && !periodOptions().includes(state.period)) state.period = ""; // 정산 방식이 바뀌었으면 초기화
+  const quarter = periodSelect(state.period);
+  const account = accountSelect(state.account, { class: "input input-sm" }, { blank: "전체 계정" });
   const status = select([["", "전체 상태"], ...Object.keys(STATUS).filter((s) => s !== "deleted").map((s) => [s, STATUS[s].label])], state.status, { class: "input input-sm" });
   const branchSel = isStaff ? null : select([["all", "전체 지국"], ...Object.entries(BRANCH).map(([id, n]) => [id, `${n}지국`])], state.branch, { class: "input input-sm" });
   branchSel?.addEventListener("change", () => ((state.branch = branchSel.value), pager.reset(), load()));
@@ -41,7 +42,7 @@ export function renderEntries(el, { me, params }) {
   const pagerBox = h("div", {});
   const refreshBtn = h("button", { class: "btn btn-ghost", type: "button", onclick: () => load() }, icon("refresh"), h("span", {}, "새로고침"));
 
-  quarter.addEventListener("change", () => ((state.quarter = quarter.value), pager.reset(), load()));
+  quarter.addEventListener("change", () => ((state.period = quarter.value), pager.reset(), load()));
   account.addEventListener("change", () => ((state.account = account.value), pager.reset(), paint()));
   status.addEventListener("change", () => ((state.status = status.value), pager.reset(), paint()));
   search.addEventListener("input", () => ((state.q = search.value), pager.reset(), paint()));
@@ -50,7 +51,9 @@ export function renderEntries(el, { me, params }) {
     pageHeader({
       crumbs: [branch, "업무"],
       title: isStaff ? "증빙 조회" : "전체 증빙",
-      desc: isStaff ? "AI 가 읽은 증빙 정보를 원본과 대조해 수정하고 제출합니다." : "전 지국 증빙과 결재 진행 상황입니다. 결재할 증빙은 결재함에 모입니다.",
+      help: isStaff
+        ? "AI 가 읽은 내용을 원본과 대조해 고치고 제출합니다.\n결재 대상(세 계정)은 결재선으로, 기타 계정은 '보관'으로 제출됩니다.\n여기서 '결재'는 이 시스템 안의 결재이며 ERP 전표 결재와 별개입니다."
+        : "전 지국 증빙과 결재 진행 상황입니다. 내 차례인 증빙은 결재함에 모입니다.\n여기서 '결재'는 이 시스템 안의 결재이며 ERP 전표 결재와 별개입니다.",
       actions: isStaff ? [refreshBtn, h("a", { class: "btn btn-primary", href: "#/upload" }, icon("upload"), h("span", {}, "증빙 업로드"))] : [refreshBtn],
     }),
     fxBar.node,
@@ -70,7 +73,7 @@ export function renderEntries(el, { me, params }) {
     selected.clear();
     try {
       const params = new URLSearchParams();
-      if (state.quarter) params.set("quarter", state.quarter);
+      if (state.period) params.set("period", state.period);
       if (!isStaff) params.set("branch", state.branch);
       [rows, fx] = await Promise.all([api.get(`/entries${params.size ? `?${params}` : ""}`).then((r) => r.entries), loadFx()]);
       paint();
@@ -126,7 +129,7 @@ export function renderEntries(el, { me, params }) {
     paintBulk();
     clear(pagerBox);
     if (!list.length) {
-      clear(tableWrap).append(rows.length ? empty("조건에 맞는 증빙이 없습니다", "필터를 바꿔 보세요.") : empty(`${state.quarter ? quarterLabel(state.quarter) : "등록된"} 증빙이 없습니다`, "증빙을 업로드하면 AI 가 읽어 여기에 등록합니다."));
+      clear(tableWrap).append(rows.length ? empty("조건에 맞는 증빙이 없습니다", "필터를 바꿔 보세요.") : empty(`${state.period ? quarterLabel(state.period) : "등록된"} 증빙이 없습니다`, "증빙을 업로드하면 AI 가 읽어 여기에 등록합니다."));
       return;
     }
     const pageRows = pager.slice(list); // 선택은 쪽을 넘어서도 유지하고, '전체 선택'은 지금 보이는 쪽만
@@ -180,7 +183,7 @@ export function renderEntries(el, { me, params }) {
               "tr",
               { class: `row-link${selected.has(e.id) ? " selected" : ""}`, onclick: () => openDrawer(e.id, me, onChanged) },
               isStaff ? h("td", { class: "cell-check" }, cb) : h("td", {}, BRANCH[e.branchId] || e.branchId),
-              h("td", { class: "mono" }, dateText(e.txnDate), h("div", { class: "q-line" }, quarterBadge(e.quarter))),
+              h("td", { class: "mono" }, dateText(e.txnDate), h("div", { class: "q-line" }, periodBadge(periodOfEntry(e), currentPeriod()))),
               h(
                 "td",
                 { class: "cell-merchant" },
@@ -277,23 +280,29 @@ export function renderEntries(el, { me, params }) {
     const flagged = picked.filter((e) => e.status === "flagged").length;
     const ok = await confirmDialog({
       title: `증빙 ${picked.length}건 제출`,
-      message: h("div", {}, h("p", {}, "제출한 증빙은 보도IMC팀 분류부터 결재선으로 넘어가며, 반려되기 전에는 수정할 수 없습니다."), flagged ? h("p", { class: "text-warn" }, `검토 필요 증빙 ${flagged}건이 포함되어 있습니다. 원본과 대조했는지 확인하세요.`) : null),
+      message: h("div", {},
+        submitCheck(picked.slice(0, 6).map((e) => ({ amount: money(e.amount, e.currency), merchant: e.merchantKo || e.merchant, date: e.txnDate, account: e.account }))),
+        picked.length > 6 ? h("p", { class: "muted small" }, `외 ${picked.length - 6}건`) : null,
+        flagged ? h("p", { class: "text-warn" }, `검토 필요 ${flagged}건 포함`) : null),
       confirm: "제출",
     });
     if (!ok) return;
     let done = 0;
+    let filed = 0;
     let aiReturned = 0;
     const failed = [];
     for (const e of picked) {
       try {
         const r = await api.post(`/entries/${e.id}/submit`, {});
         if (r.status === "returned") aiReturned++;
+        else if (r.status === "filed") filed++;
         else done++;
       } catch (ex) {
         failed.push(`${e.merchant || e.id}: ${errorText(ex)}`);
       }
     }
     const parts = [`${done}건 제출`];
+    if (filed) parts.push(`${filed}건 보관(기타 계정)`);
     if (aiReturned) parts.push(`${aiReturned}건은 AI 1차 검증에서 정책 위반으로 자동 반려(증빙을 열어 사유 확인 · 소명 후 재제출 가능)`);
     if (failed.length) parts.push(`${failed.length}건 실패 — ${failed[0]}`);
     toast(parts.join(" · "), failed.length ? "bad" : aiReturned ? "warn" : "ok", aiReturned || failed.length ? 7000 : undefined);
@@ -309,6 +318,15 @@ export function renderEntries(el, { me, params }) {
     history.replaceState(null, "", "#/entries");
     openDrawer(params[0], me, onChanged);
   }
+}
+
+// 제출 전 확인(G1) — 인식 오류를 놓치지 않게 금액·사용일·가맹점을 크게 보여 주고 1차 책임을 알린다
+export function submitCheck(rows) {
+  return h("div", { class: "submit-check" },
+    rows.map((r) => h("div", { class: "sc-row" },
+      h("div", { class: "sc-amount" }, r.amount),
+      h("div", { class: "sc-meta" }, h("b", {}, r.merchant || "가맹점 미입력"), h("span", {}, r.date || "사용일 미입력"), r.account ? h("span", {}, r.account) : null))),
+    h("p", { class: "sc-note" }, icon("alert"), h("span", {}, "원본과 금액·날짜·가맹점이 맞는지 확인하세요. 제출 내용의 1차 책임은 작성자에게 있습니다.")));
 }
 
 function mini(label, value, sub, tone) {
@@ -357,7 +375,7 @@ export function openDrawer(id, me, onChanged) {
     .get(`/entries/${id}`)
     .then((e) => {
       clear(titleEl).append(e.merchantKo || e.merchant || "증빙 상세", " ", statusChip(e.status));
-      subEl.textContent = [e.account, quarterLabel(e.quarter), e.orderNumber ? `주문 #${e.orderNumber}` : null, `ID ${e.id}`].filter(Boolean).join(" · ");
+      subEl.textContent = [e.account, quarterLabel(periodOfEntry(e)), e.orderNumber ? `주문 #${e.orderNumber}` : null, `ID ${e.id}`].filter(Boolean).join(" · ");
       const form = detailForm(e, me);
       const review = e.stage?.canAct ? reviewPanel(e, me) : null;
       if (review) form.node.prepend(review.node);
@@ -438,29 +456,32 @@ function detailForm(e, me) {
   const lowConf = (k) => CONF[k] && typeof confOf(k) === "number" && confOf(k) < CONF[k][1];
 
   const inputs = {
-    account: select(ACCOUNTS.map((a) => [a, a]), e.account, { disabled: !editable }),
+    account: accountSelect(e.account, { disabled: !editable }),
     txnDate: h("input", { class: "input", type: "date", value: e.txnDate || "", disabled: !editable }),
     amount: h("input", { class: "input num", type: "number", step: "0.01", min: "0", value: e.amount != null ? Number(e.amount).toFixed(2) : "", disabled: !editable }),
     merchant: h("input", { class: "input", type: "text", value: e.merchant || "", disabled: !editable }),
     merchantKo: h("input", { class: "input", type: "text", value: e.merchantKo || "", disabled: !editable }),
     memo: h("textarea", { class: "input", rows: "2", disabled: !editable, placeholder: "취재 건명·동석자 등" }, e.memo || ""),
+    // 정산 기간 — 정산 방식에 따라 월('2026-10') 또는 분기('2026Q4'). 서버에는 month 또는 quarter 로 보낸다
     quarter: select(
-      [...new Set([...quarterOptions(QUARTER_CHOICES), e.quarter].filter(Boolean))].sort().reverse().map((q) => [q, quarterLabel(q)]),
-      e.quarter,
+      [...new Set([...periodOptions(), periodOfEntry(e)].filter(Boolean))].sort().reverse().map((q) => [q, quarterLabel(q)]),
+      periodOfEntry(e),
       { disabled: !editable },
     ),
   };
-  // 분기를 직접 고르지 않았으면 사용일을 따라간다(서버도 같은 규칙). 고르면 고정
+  const isMonth = getMode() === "month";
+  const periodOfDate = (d) => (isMonth ? (/^\d{4}-\d{2}/.test(d || "") ? d.slice(0, 7) : null) : quarterOf(d));
+  // 기간을 직접 고르지 않았으면 사용일을 따라간다(서버도 같은 규칙). 고르면 고정
   let quarterTouched = false;
-  const quarterHint = h("span", { class: "field-hint" }, QUARTER_SOURCE[e.quarterSource] || "");
+  const quarterHint = h("span", { class: "field-hint" });
   const syncQuarterHint = () => {
-    const off = inputs.txnDate.value && quarterOf(inputs.txnDate.value) !== inputs.quarter.value;
-    quarterHint.textContent = quarterTouched ? "직접 지정" : QUARTER_SOURCE[e.quarterSource === "manual" ? "manual" : "date"];
-    if (off) quarterHint.textContent += " · 사용일과 다른 분기";
+    const off = inputs.txnDate.value && periodOfDate(inputs.txnDate.value) !== inputs.quarter.value;
+    quarterHint.textContent = quarterTouched || e.quarterSource === "manual" ? "직접 지정" : "사용일 기준";
+    if (off) quarterHint.textContent += ` · 사용일과 다른 ${unitName()}`;
     quarterHint.classList.toggle("text-warn", !!off);
   };
   inputs.txnDate.addEventListener("input", () => {
-    if (!quarterTouched && e.quarterSource !== "manual") inputs.quarter.value = quarterOf(inputs.txnDate.value) || inputs.quarter.value;
+    if (!quarterTouched && e.quarterSource !== "manual") inputs.quarter.value = periodOfDate(inputs.txnDate.value) || inputs.quarter.value;
     syncQuarterHint();
   });
   inputs.quarter.addEventListener("change", () => ((quarterTouched = true), syncQuarterHint()));
@@ -513,7 +534,7 @@ function detailForm(e, me) {
       field("계정", inputs.account),
       field("사용일", mark("txnDate", inputs.txnDate)),
       field(`금액 (${cur})`, mark("amount", inputs.amount)),
-      h("label", { class: "field" }, h("span", { class: "field-label" }, "정산 분기"), inputs.quarter, quarterHint),
+      h("label", { class: "field" }, h("span", { class: "field-label" }, `정산 ${unitName()}`), inputs.quarter, quarterHint),
       field("가맹점 (원문)", mark("merchant", inputs.merchant)),
       field("가맹점 (한글)", inputs.merchantKo),
       h("label", { class: "field span-2" }, h("span", { class: "field-label field-label-memo" }, "적요", memoTip), inputs.memo, memoHint),
@@ -556,7 +577,11 @@ function detailForm(e, me) {
     const out = {};
     for (const [k, el] of Object.entries(inputs)) {
       if (el.value === original[k]) continue;
-      if (k === "quarter" && !quarterTouched) continue; // 사용일 따라 바뀐 분기는 서버가 다시 정한다
+      if (k === "quarter" && !quarterTouched) continue; // 사용일 따라 바뀐 기간은 서버가 다시 정한다
+      if (k === "quarter") {
+        out[isMonth ? "month" : "quarter"] = el.value;
+        continue;
+      }
       if (k === "amount") {
         if (el.value === "") continue;
         out.amount = Math.round(Number(el.value) * 100) / 100;
@@ -744,12 +769,15 @@ function footer(e, form, { me, close, onChanged, reopen }) {
   if (!form.editable) {
     if (e.canCancel) return cancelReviewFooter(e, { close, onChanged });
     // 보도IMC팀이 아직 분류하지 않은 증빙은 지국 담당자가 제출을 취소하고 다시 고칠 수 있다
-    if (e.status === "submitted" && me.role === "staff") return withdrawFooter(e, { close, onChanged });
+    if ((e.status === "submitted" || e.status === "filed") && me.role === "staff") return withdrawFooter(e, { close, onChanged });
     return [h("span", { class: "muted small" }, "읽기 전용"), h("button", { class: "btn btn-ghost", type: "button", onclick: () => close() }, "닫기")];
   }
 
   const saveBtn = h("button", { class: "btn btn-ghost", type: "button" }, icon("check"), h("span", {}, "저장"));
-  const submitBtn = h("button", { class: "btn btn-primary", type: "button" }, icon("send"), h("span", {}, "IMC팀에 제출"));
+  const core = () => isCoreAccount(form.inputs.account.value);
+  const submitLabel = h("span", {}, core() ? "IMC팀에 제출" : "제출(보관)");
+  const submitBtn = h("button", { class: "btn btn-primary", type: "button", title: "기타 계정은 결재 없이 보관됩니다" }, icon("send"), submitLabel);
+  form.inputs.account.addEventListener("change", () => (submitLabel.textContent = core() ? "IMC팀에 제출" : "제출(보관)"));
   const delBtn = h("button", { class: "btn btn-danger-ghost", type: "button" }, icon("trash"), h("span", {}, "삭제"));
   const lock = (v) => [saveBtn, submitBtn, delBtn].forEach((b) => (b.disabled = v));
 
@@ -786,16 +814,18 @@ function footer(e, form, { me, close, onChanged, reopen }) {
       return;
     }
     const ok = await confirmDialog({
-      title: "보도IMC팀에 제출",
-      message: h("div", {}, h("p", {}, "원본 증빙과 대조를 마쳤나요? 수정한 내용을 저장하고 보도IMC팀에 제출합니다. 제출하면 결재선으로 넘어가며, 보도IMC팀이 분류하기 전에는 [제출 취소]로, 그 뒤에는 반려되어야 수정할 수 있습니다."), e.status === "flagged" ? h("p", { class: "text-warn" }, "검토 필요 항목이 남아 있습니다.") : null),
-      confirm: "IMC팀에 제출",
+      title: core() ? "보도IMC팀에 제출" : "제출(보관)",
+      message: h("div", {},
+        submitCheck([{ amount: money(form.inputs.amount.value === "" ? null : Number(form.inputs.amount.value), e.currency), merchant: form.inputs.merchantKo.value || form.inputs.merchant.value, date: form.inputs.txnDate.value, account: form.inputs.account.value }]),
+        e.status === "flagged" ? h("p", { class: "text-warn" }, "검토 필요 항목이 남아 있습니다.") : null),
+      confirm: core() ? "IMC팀에 제출" : "제출",
     });
     if (!ok) return;
     // AI 가 이미 정책 위반으로 판정했고 판정에 쓰인 내용을 고치지 않았다면, 소명 없이는 자동 반려된다 → 미리 소명을 받는다
     const GATE_INPUTS = ["account", "merchant", "merchantKo", "memo", "amount", "txnDate"];
     const touched = Object.keys(form.diff()).some((k) => GATE_INPUTS.includes(k));
     let justification = null;
-    if (e.aiGate?.verdict === "fail" && !e.aiGate.stale && !touched) { // 반려 후 다시 낼 때도 새 소명이 필요하다
+    if (core() && e.aiGate?.verdict === "fail" && !e.aiGate.stale && !touched) { // 반려 후 다시 낼 때도 새 소명이 필요하다
       justification = await promptDialog({
         title: "AI 1차 검증 — 소명 후 제출",
         message: h("div", {}, h("p", {}, "AI 가 이 증빙을 정책 위반으로 판단했습니다. 소명 없이 제출하면 자동 반려됩니다."),
@@ -817,7 +847,7 @@ function footer(e, form, { me, close, onChanged, reopen }) {
         reopen(); // 반려 사유와 AI 판정을 바로 보여 준다
         return;
       }
-      toast(justification ? "소명과 함께 보도IMC팀에 제출했습니다" : "보도IMC팀에 제출했습니다", "ok");
+      toast(r.status === "filed" ? "보관으로 제출했습니다" : justification ? "소명과 함께 보도IMC팀에 제출했습니다" : "보도IMC팀에 제출했습니다", "ok");
       onChanged();
       close(true);
     } catch (ex) {

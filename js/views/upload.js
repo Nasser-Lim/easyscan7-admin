@@ -1,15 +1,15 @@
 // 증빙 업로드 — PDF·스크린샷 여러 개를 한 번에 올리면 AI 가 증빙으로 나눈다(POST /intake).
-// 정산 분기는 항상 영수증 날짜 기준(자동). 업로드 진행·처리 결과 보관은 uploadjob.js 가 맡는다.
+// 정산 기간(월/분기)은 항상 영수증 날짜 기준(자동). 업로드 진행·처리 결과 보관은 uploadjob.js 가 맡는다.
 import {
-  ACCOUNTS, BRANCH, DOC_TYPE, bytes, chip, clear, currentQuarter, field, h, icon, money, noticeParts,
-  quarterLabel, select, statusChip, toast,
-} from "../ui.js?v=653273d";
-import { aiGateMark } from "../aigate.js?v=653273d";
-import { api } from "../api.js?v=653273d";
-import { getPeriod, periodSwitch } from "../period.js?v=653273d";
-import { dismiss, dismissAll, getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js?v=653273d";
-import { limitsCard } from "./limits.js?v=653273d";
-import { pageHeader } from "./shell.js?v=653273d";
+  ACCOUNTS, BRANCH, DOC_TYPE, accountSelect, bytes, chip, clear, field, h, icon, money, noticeParts,
+  quarterLabel, statusChip, tip, toast,
+} from "../ui.js?v=2cd17b8";
+import { aiGateMark } from "../aigate.js?v=2cd17b8";
+import { api } from "../api.js?v=2cd17b8";
+import { currentPeriod, getPeriod, periodOfEntry, periodSwitch, unitName } from "../period.js?v=2cd17b8";
+import { dismiss, dismissAll, getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js?v=2cd17b8";
+import { limitsCard } from "./limits.js?v=2cd17b8";
+import { pageHeader } from "./shell.js?v=2cd17b8";
 
 const MAX_FILES = 20;
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -20,7 +20,7 @@ export function renderUpload(el, { me, go }) {
   let files = [];
   const branch = `${BRANCH[me.branchId] || me.branchId}지국`;
 
-  const account = select(ACCOUNTS.map((a) => [a, a]), ACCOUNTS[0]);
+  const account = accountSelect(ACCOUNTS[0]);
   const input = h("input", { type: "file", multiple: true, accept: ".pdf,.jpg,.jpeg,.png,.webp,.heic,application/pdf,image/*", class: "sr-only" });
   const list = h("div", { class: "file-list" });
   const submit = h("button", { class: "btn btn-primary btn-lg", type: "button", disabled: true }, icon("upload"), h("span", {}, "업로드하고 자동 인식"));
@@ -149,7 +149,8 @@ export function renderUpload(el, { me, go }) {
     pageHeader({
       crumbs: [branch, "업무"],
       title: "증빙 업로드",
-      desc: "PDF·스크린샷 증빙을 올리면 AI 가 영수증 단위로 나눠 증빙으로 등록합니다. 촬영 영수증은 촬영앱을 이용하세요.",
+      desc: "PDF·스크린샷을 올리면 AI 가 영수증별로 나눠 등록합니다.",
+      help: "촬영 영수증은 촬영앱을 쓰세요.\n세 계정(취재비·경상비·차량유지비) 밖의 영수증도 모두 올립니다 — 결재 없이 '보관'되고 정산서에 계정별로 합산됩니다.",
       // 오른쪽 분기 한도 현황을 볼 분기. 증빙의 정산 분기는 이와 무관하게 영수증 날짜로 정해진다
       actions: [periodSwitch((q) => clear(limitsSlot).append(limitsCard(q)))],
     }),
@@ -163,7 +164,9 @@ export function renderUpload(el, { me, go }) {
           "section",
           { class: "card" },
           h("div", { class: "card-head" }, h("div", { class: "card-title" }, "1. 정산 구분")),
-          h("div", { class: "field-narrow" }, field("계정", account, "이번에 올리는 증빙 전체에 적용됩니다. 정산 분기는 영수증 날짜를 기준으로 자동 지정됩니다.")),
+          h("div", { class: "field-narrow" }, field(h("span", {}, "계정", tip(`이번에 올리는 증빙 전체에 적용됩니다.
+정산 ${unitName()}은 영수증 날짜로 자동 지정됩니다.
+기타 계정은 결재 없이 보관됩니다.`)), account)),
         ),
         h(
           "section",
@@ -185,6 +188,7 @@ export function renderUpload(el, { me, go }) {
 }
 
 function tipsCard() {
+  const li = (text, help) => h("li", {}, text, help ? tip(help) : null);
   return h(
     "section",
     { class: "card" },
@@ -192,12 +196,11 @@ function tipsCard() {
     h(
       "ul",
       { class: "tips" },
-      h("li", {}, "주문 내역·결제 확인·배송 안내처럼 같은 주문의 여러 장 증빙은 한 번에 올리면 1건으로 합쳐집니다."),
-      h("li", {}, "이미 등록된 증빙(주문번호·금액 동일)을 다시 올리면 새 증빙 없이 기존 증빙에 합쳐지고 알려 드립니다."),
-      h("li", {}, "광고·약관 같은 증빙이 아닌 입력은 자동으로 제외됩니다."),
-      h("li", {}, "올린 증빙은 바로 '지국 작성중'으로 저장됩니다. 원본과 대조해 고친 뒤 직접 제출해야 결재가 시작됩니다."),
-      h("li", {}, "분기 한도를 넘는 금액은 비적격 처리되며, 제출은 막지 않습니다. 원화처럼 지국 통화와 다른 영수증은 한도 판정에 들어가지 않습니다."),
-      h("li", {}, h("b", {}, "AI 가 재무팀·보도IMC팀이 정한 정책으로 적격 여부를 먼저 검증합니다."), " 위반이면 검토 필요로 표시되고, 그대로 제출하면 자동 반려됩니다. 정당한 사유가 있으면 제출할 때 소명을 적어 주세요."),
+      li("같은 주문의 여러 장은 한 번에 올리면 1건", "주문 내역·결제 확인·배송 안내 등"),
+      li("이미 등록된 증빙은 자동으로 합쳐짐", "주문번호·금액이 같으면 새 증빙 없이 기존 증빙에 합치고 알려 드립니다."),
+      li("올린 증빙은 '지국 작성중'으로 저장 — 확인 후 직접 제출"),
+      li("한도 초과분은 비적격(제출은 가능)", "원화처럼 지국 통화와 다른 영수증은 한도 판정에서 제외됩니다."),
+      li("AI 정책 위반이면 소명을 적어 제출", "재무팀·보도IMC팀 정책으로 AI 가 먼저 검증합니다. 소명 없이 제출하면 자동 반려됩니다."),
     ),
   );
 }
@@ -232,7 +235,7 @@ function batchView(b, go, live) {
         h(
           "table",
           { class: "table" },
-          h("thead", {}, h("tr", {}, h("th", {}, "사용일"), h("th", {}, "분기"), h("th", {}, "가맹점"), h("th", {}, "증빙"), h("th", { class: "num" }, "금액"), h("th", {}, "상태"), h("th", {}))),
+          h("thead", {}, h("tr", {}, h("th", {}, "사용일"), h("th", {}, unitName()), h("th", {}, "가맹점"), h("th", {}, "증빙"), h("th", { class: "num" }, "금액"), h("th", {}, "상태"), h("th", {}))),
           h(
             "tbody",
             {},
@@ -245,7 +248,7 @@ function batchView(b, go, live) {
                 "tr",
                 { class: gone ? "" : "row-link", onclick: gone ? null : () => go(`entries/${e.entryId}`) },
                 h("td", { class: "mono" }, e.txnDate || "—"),
-                h("td", { class: "cell-sub" }, quarterLabel(e.quarter)),
+                h("td", { class: "cell-sub" }, quarterLabel(periodOfEntry(e))),
                 h("td", {}, h("div", { class: "cell-main" }, e.merchantKo || e.merchant || "—"), h("div", { class: "cell-sub" }, DOC_TYPE[e.docType] || e.docType || "")),
                 h("td", { class: "cell-sub" }, e.fileNames.join(", ")),
                 h(
@@ -265,9 +268,9 @@ function batchView(b, go, live) {
   }
 
   const notes = [];
-  const qs = [...new Set(r.entries.map((e) => e.quarter))].sort();
-  if (qs.length > 1 || (qs.length === 1 && qs[0] !== currentQuarter()))
-    notes.push(note("info", "정산 분기", `영수증 날짜에 따라 ${qs.map((q) => `${quarterLabel(q)} ${r.entries.filter((e) => e.quarter === q).length}건`).join(", ")}으로 나뉘었습니다. 증빙 조회(기본: 전체 분기)에서 확인하세요.`));
+  const qs = [...new Set(r.entries.map((e) => periodOfEntry(e)))].filter(Boolean).sort();
+  if (qs.length > 1 || (qs.length === 1 && qs[0] !== currentPeriod()))
+    notes.push(note("info", `정산 ${unitName()}`, `영수증 날짜에 따라 ${qs.map((q) => `${quarterLabel(q)} ${r.entries.filter((e) => periodOfEntry(e) === q).length}건`).join(", ")}`));
   for (const m of r.merged)
     notes.push(note("info", "중복 병합", `${m.merchant || "기존 증빙"} ${money(m.amount, cur)} (주문 ${m.orderNumber}) — ${m.fileNames.join(", ")}`, () => go(`entries/${m.entryId}`)));
   for (const s of r.skippedFiles) notes.push(note("warn", SKIP_REASON[s.reason] || "건너뜀", `${s.fileName} — ${s.message}`));

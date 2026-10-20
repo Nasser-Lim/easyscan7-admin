@@ -1,6 +1,6 @@
 // 결재 흐름 도식 — 증빙 상세 상단에 '지금 어디까지 왔는지'를 한눈에 보여 준다.
 // 지국 제출 → AI 1차 검증 → 보도IMC팀 분류 → 보도국장 전결(비적격일 때) → 재무팀 최종 결재
-import { h, icon } from "./ui.js?v=653273d";
+import { h, icon, isCoreAccount } from "./ui.js?v=2cd17b8";
 
 const NODES = [
   { key: "staff", label: "지국", sub: "작성 · 제출" },
@@ -16,6 +16,7 @@ const lastAt = (list, from) => [...list].reverse().find((a) => a.from === from &
 
 /** 증빙 한 건의 흐름 상태 → 노드별 상태·메모와 한 줄 요약 */
 export function flowState(e) {
+  if (e.account && !isCoreAccount(e.account)) return otherFlow(e);
   const list = e.approvals || [];
   const st = e.status;
   const chiefNeeded = e.eligibility === "ineligible" || (e.ineligibleAmount || 0) > 0;
@@ -77,6 +78,19 @@ export function flowState(e) {
       rejected: ["불승인", "보도국장이 불승인해 지급하지 않습니다", "bad"],
     }[st] || [st, "", "muted"];
   return { nodes, summary };
+}
+
+// 기타 계정(결재 대상 아님) — 지국 작성 → 보관 두 단계
+function otherFlow(e) {
+  const filed = e.status === "filed";
+  const sub = [...(e.approvals || [])].reverse().find((a) => a.action === "submit");
+  return {
+    nodes: [
+      { key: "staff", label: "지국", sub: "작성 · 제출", state: filed ? "done" : "current", note: filed ? shortDate(sub?.at) : "작성중" },
+      { key: "file", label: "보관", sub: "정산서 합산", state: filed ? "done" : "todo", note: filed ? "완료" : "" },
+    ],
+    summary: filed ? ["제출 완료(보관)", "결재 없이 보관되어 정산서에 계정별로 합산됩니다", "ok"] : ["작성중", "기타 계정 — 제출하면 결재 없이 보관됩니다", "muted"],
+  };
 }
 
 export function flowDiagram(e) {

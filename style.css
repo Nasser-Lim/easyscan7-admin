@@ -974,3 +974,40 @@ select.input { padding-right: 28px; }
 .table-entries .cell-merchant > div { max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
 .status-sub { display: flex; align-items: center; gap: 8px; margin-top: 2px; white-space: nowrap; }
 .status-sub .ai-mark { margin: 0; }
+
+/* ── 도움말 툴팁(ⓘ) — 긴 설명 문구 대신 ── */
+.tip { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-left: 6px; vertical-align: middle; color: var(--text-3); cursor: help; border-radius: 50%; outline: none; }
+.tip .ic { width: 15px; height: 15px; }
+.tip:hover, .tip:focus { color: var(--sbs-blue); }
+.tip::after { content: attr(data-tip); position: absolute; z-index: 60; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: max-content; max-width: 320px; padding: 9px 11px; border-radius: var(--radius-sm); background: var(--ink); color: #fff; font-size: 12px; font-weight: 500; line-height: 1.55; letter-spacing: 0; text-align: left; white-space: pre-line; box-shadow: var(--shadow-2); display: none; pointer-events: none; }
+.tip:hover::after, .tip:focus::after { display: block; }
+/* 오른쪽 칸(사이드 카드·표 끝)의 툴팁은 왼쪽으로 펼친다 */
+.grid-main > .stack:last-child .tip::after, .card-meta .tip::after { left: auto; right: -8px; transform: none; }
+.page-title .tip::after { left: 0; transform: none; }
+
+/* 제출 전 확인 카드 */
+.submit-check { display: grid; gap: 8px; }
+.sc-row { display: flex; align-items: center; gap: 16px; padding: 12px 14px; border: 1px solid var(--line); border-left: 3px solid var(--sbs-blue); background: var(--surface-2); }
+.sc-amount { font-size: 22px; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; }
+.sc-meta { display: grid; gap: 1px; font-size: 12.5px; color: var(--text-2); min-width: 0; }
+.sc-meta b { font-size: 14px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-note { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0 0; font-size: 12.5px; color: var(--warn); font-weight: 600; }
+.sc-note .ic { flex: none; width: 15px; height: 15px; margin-top: 1px; }
+.limit-alt { margin-top: 3px; text-align: right; white-space: nowrap; }
+
+/* 결재함 사유 열 */
+.table-entries td.cell-reason { white-space: normal; min-width: 220px; max-width: 360px; }
+.reason { display: grid; gap: 3px; }
+.reason-line { display: flex; gap: 6px; align-items: baseline; font-size: 12px; color: var(--text-2); overflow: hidden; }
+.reason-line > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reason-tag { flex: none; padding: 0 5px; border-radius: 2px; font-size: 10.5px; font-weight: 700; line-height: 16px; border: 1px solid var(--line-strong); color: var(--text-2); background: var(--surface-2); }
+.rt-imc { color: var(--bad); border-color: #e3b3ae; background: var(--bad-50); }
+.rt-just { color: var(--sbs-blue); border-color: #cfdce7; background: var(--sbs-sky-50); }
+.rt-ai { color: var(--warn); border-color: #e4d4ad; background: var(--warn-50); }
+.reason-list { margin: 8px 0 0; padding-left: 18px; font-size: 12.5px; display: grid; gap: 4px; max-height: 240px; overflow: auto; }
+
+/* 정산 출력 */
+.ledger .tr-group td { padding-top: 10px; padding-bottom: 6px; font-size: 11.5px; font-weight: 700; color: var(--text-3); background: var(--surface-2); letter-spacing: .02em; }
+.notes-inline { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.notes-inline .note { padding: 0; border: 0; background: none; font-size: 12px; }
+.mode-card .period-switch { margin-top: 2px; }

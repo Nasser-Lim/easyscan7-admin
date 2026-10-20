@@ -61,7 +61,22 @@ export function icon(name, cls = "ic") {
 
 // ── 업무 상수 ──
 export const BRANCH = { newyork: "뉴욕", washington: "워싱턴", paris: "파리", beijing: "베이징", tokyo: "도쿄" };
-export const ACCOUNTS = ["경상비", "취재비", "차량유지비"];
+export const ACCOUNTS = ["경상비", "취재비", "차량유지비"]; // 한도·AI 검증·결재 대상(세 계정)
+// 그 밖의 계정 — 결재 없이 '보관'으로 제출되고 정산서 시트에 계정별로 합산된다(백엔드 accounts.py 와 같은 목록)
+export const OTHER_ACCOUNTS = [
+  "체재비", "사무실 임차료", "건강보험료", "통신비", "통신수신비", "차량관련비(주차료)", "차량관련비(통행료 및 수리비)",
+  "현지채용인 급여.시간외수당.상여", "현지채용인 의료비지원", "현지채용인 교통비지원", "급여조정표", "소방서 연납 비용",
+];
+export const ALL_ACCOUNTS = [...ACCOUNTS, ...OTHER_ACCOUNTS];
+export const isCoreAccount = (a) => ACCOUNTS.includes(a);
+// 계정 선택 상자 — 세 계정 먼저, 그 밖은 '기타 계정(보관)' 묶음
+export function accountSelect(value, attrs = {}, { blank } = {}) {
+  const opt = (a) => h("option", { value: a, selected: a === value }, a);
+  return h("select", { class: "input", ...attrs },
+    blank ? h("option", { value: "" }, blank) : null,
+    h("optgroup", { label: "결재 대상" }, ACCOUNTS.map(opt)),
+    h("optgroup", { label: "기타 계정 · 보관" }, OTHER_ACCOUNTS.map(opt)));
+}
 export const STATUS = {
   // 이름 규칙: 「지금 처리해야 하는 주체 + 행위」 — 누구 차례인지 바로 보이게
   draft: { label: "지국 작성중", cls: "chip-neutral" },
@@ -72,6 +87,7 @@ export const STATUS = {
   finance_review: { label: "재무팀 결재중", cls: "chip-info" },
   approved: { label: "결재 완료", cls: "chip-ok" },
   rejected: { label: "보도국장 불승인", cls: "chip-bad" },
+  filed: { label: "제출 완료(보관)", cls: "chip-ok" },
   deleted: { label: "삭제됨", cls: "chip-muted" },
 };
 // 상태 묶음 — 백엔드 services/workflow.py 와 같은 규칙
@@ -176,9 +192,24 @@ export function quarterBadge(q) {
   if (!m) return null;
   return h("span", { class: `q-badge${q === currentQuarter() ? " cur" : ""}`, title: quarterLabel(q) }, `${m[1]} Q${m[2]}`);
 }
+// 정산 기간 표기 — 분기 '2026Q4' → '2026년 4분기', 월 '2026-10' → '2026년 10월'
 export function quarterLabel(q) {
   const m = /^(\d{4})Q([1-4])$/.exec(q || "");
-  return m ? `${m[1]}년 ${m[2]}분기` : q || "—";
+  if (m) return `${m[1]}년 ${m[2]}분기`;
+  const mm = /^(\d{4})-(\d{2})$/.exec(q || "");
+  return mm ? `${mm[1]}년 ${Number(mm[2])}월` : q || "—";
+}
+export const periodLabel = quarterLabel;
+// 기간 배지 — 분기 '2026 Q4', 월 '2026.10'. 지금 기간은 파란 톤
+export function periodBadge(p, current) {
+  const q = /^(\d{4})Q([1-4])$/.exec(p || "");
+  const m = /^(\d{4})-(\d{2})$/.exec(p || "");
+  if (!q && !m) return null;
+  return h("span", { class: `q-badge${p === current ? " cur" : ""}`, title: quarterLabel(p) }, q ? `${q[1]} Q${q[2]}` : `${m[1]}.${m[2]}`);
+}
+// 도움말 아이콘 — 설명 문구 대신 마우스를 올리거나 눌러서 보는 짧은 안내
+export function tip(text, label = "도움말") {
+  return h("span", { class: "tip", tabindex: "0", role: "note", "aria-label": `${label}: ${text}`, "data-tip": text }, icon("info"));
 }
 export function bytes(n) {
   if (n < 1024) return `${n} B`;

@@ -1,21 +1,21 @@
-// 분기 한도 현황 카드 — 계정별 사용액·한도·사용률을 원장(ledger) 표로. 한도 초과분은 비적격.
-import { api } from "../api.js?v=653273d";
-import { fxStrip, loadFx } from "../fx.js?v=653273d";
-import { clear, h, money, quarterLabel, spinner } from "../ui.js?v=653273d";
+// 한도 현황 카드 — 계정별 사용액·한도·사용률을 원장(ledger) 표로. 기간은 정산 방식에 따라 월 또는 분기(월 한도 = 분기 ÷ 3).
+import { api } from "../api.js?v=2cd17b8";
+import { fxStrip, loadFx } from "../fx.js?v=2cd17b8";
+import { clear, h, money, quarterLabel, spinner, tip } from "../ui.js?v=2cd17b8";
+import { unitName } from "../period.js?v=2cd17b8";
 
-export function limitsCard(quarter, { compact = false } = {}) {
+export function limitsCard(period, { compact = false } = {}) {
   const body = h("div", { class: "card-body-flush" }, h("div", { class: "card-loading" }, spinner(true)));
   const fxBar = fxStrip();
   fxBar.node.classList.add("fx-strip-card");
   const card = h(
     "section",
     { class: "card" },
-    h("div", { class: "card-head" }, h("div", { class: "card-title" }, "분기 한도 현황"), h("div", { class: "card-meta" }, quarterLabel(quarter))),
+    h("div", { class: "card-head" }, h("div", { class: "card-title" }, `${unitName()} 한도 현황`, tip(`한도를 넘는 금액은 제출은 되지만 비적격입니다(사용일 순 누적).${unitName() === "월" ? "\n월 한도 = 분기 한도 ÷ 3" : ""}`)),h("div", { class: "card-meta" }, quarterLabel(period))),
     fxBar.node,
     body,
-    compact ? null : h("p", { class: "card-note" }, "한도를 넘는 금액은 제출은 되지만 비적격으로 처리됩니다(사용일 순 누적)."),
   );
-  load(body, quarter, fxBar);
+  load(body, period, fxBar);
   return card;
 }
 
@@ -28,9 +28,9 @@ function usage(pct) {
   return [h("span", { class: `pct pct-${toneOf(pct)}` }, `${pct.toFixed(0)}%`), h("span", { class: "meter", "aria-hidden": "true" }, fill)];
 }
 
-async function load(body, quarter, fxBar) {
+async function load(body, period, fxBar) {
   try {
-    const [u, fx] = await Promise.all([api.get(`/limits?quarter=${encodeURIComponent(quarter)}`), loadFx()]);
+    const [u, fx] = await Promise.all([api.get(`/limits?period=${encodeURIComponent(period)}`), loadFx()]);
     clear(body);
     const rows = Object.entries(u.accounts || {});
     const cur = u.currency;
@@ -38,7 +38,7 @@ async function load(body, quarter, fxBar) {
     // 지국 통화의 환율(뉴욕=원/달러, 베이징=원/위안…)과 합산 기준
     fxBar.paint(fx, [cur], fxSkipped ? `환율 미확인 ${fxSkipped}건 제외` : "");
     if (!rows.length) {
-      body.append(h("p", { class: "card-pad muted small" }, "이 지국에는 설정된 분기 한도가 없습니다."));
+      body.append(h("p", { class: "card-pad muted small" }, "설정된 한도가 없습니다."));
       return;
     }
     const sum = (k) => rows.reduce((a, [, s]) => a + (Number(s[k]) || 0), 0);

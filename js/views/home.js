@@ -1,11 +1,11 @@
 // 홈 — 고른 정산 분기(현분기·전분기)의 요약 지표, 한도 현황, 최근 증빙, 바로가기.
-import { api } from "../api.js?v=653273d";
-import { BRANCH, clear, dateText, empty, errorText, h, icon, money, quarterLabel, spinner, statusChip } from "../ui.js?v=653273d";
-import { loadFx, sumIn } from "../fx.js?v=653273d";
-import { getPeriod, periodSwitch } from "../period.js?v=653273d";
-import { limitsCard } from "./limits.js?v=653273d";
-import { renderDashboard } from "./dashboard.js?v=653273d";
-import { pageHeader } from "./shell.js?v=653273d";
+import { api } from "../api.js?v=2cd17b8";
+import { BRANCH, clear, dateText, empty, errorText, h, icon, money, quarterLabel, spinner, statusChip } from "../ui.js?v=2cd17b8";
+import { loadFx, sumIn } from "../fx.js?v=2cd17b8";
+import { getPeriod, periodSwitch } from "../period.js?v=2cd17b8";
+import { limitsCard } from "./limits.js?v=2cd17b8";
+import { renderDashboard } from "./dashboard.js?v=2cd17b8";
+import { pageHeader } from "./shell.js?v=2cd17b8";
 
 export function renderHome(el, ctx) {
   if (ctx.me.role !== "staff") return renderDashboard(el, ctx); // 본사(보도IMC팀·보도국장·재무팀): 전 지국 대시보드
@@ -15,8 +15,8 @@ export function renderHome(el, ctx) {
 // 분기를 바꾸면 화면 전체를 그 분기로 다시 그린다
 function draw(el, { me, go }) {
   clear(el);
-  const quarter = getPeriod();
-  const qName = quarterLabel(quarter).replace(/^\d{4}년 /, ""); // "3분기"
+  const quarter = getPeriod(); // 정산 방식에 따라 월('2026-10') 또는 분기('2026Q4')
+  const qName = quarterLabel(quarter).replace(/^\d{4}년 /, ""); // "3분기" · "10월"
   const branch = `${BRANCH[me.branchId] || me.branchId}지국`;
   const kpis = h("div", { class: "kpis" }, h("div", { class: "card-loading" }, spinner(true)));
   const recent = h("div", { class: "card-body-flush" }, h("div", { class: "card-loading" }, spinner(true)));
@@ -25,7 +25,7 @@ function draw(el, { me, go }) {
     pageHeader({
       crumbs: [branch],
       title: "홈",
-      desc: `${quarterLabel(quarter)} 정산 현황입니다.`,
+      desc: quarterLabel(quarter),
       actions: [
         periodSwitch(() => draw(el, { me, go })),
         h("a", { class: "btn btn-ghost", href: "#/entries" }, icon("list"), h("span", {}, "증빙 조회")),
@@ -47,7 +47,7 @@ function draw(el, { me, go }) {
   );
 
   api
-    .get(`/entries?quarter=${quarter}`)
+    .get(`/entries?period=${quarter}`)
     .then(async ({ entries }) => {
       // 합계는 지국 통화로 환산(현재 환율) — 원화·외화 증빙이 섞여 있어도 한 통화로
       const fx = await loadFx();
@@ -115,10 +115,10 @@ function guideCard() {
     h(
       "ol",
       { class: "steps" },
-      step("1", "증빙 업로드", "PDF·스크린샷을 여러 개 한 번에 올립니다. 촬영 영수증은 촬영앱을 쓰세요."),
-      step("2", "증빙 확인·수정", "AI 가 읽은 날짜·가맹점·금액을 원본과 대조합니다. 취재비는 적요 필수."),
-      step("3", "제출", "확인한 증빙을 제출하면 결재선으로 넘어갑니다. 보도IMC팀이 분류하기 전에는 제출 취소가 가능합니다."),
-      step("4", "정산 출력", "결재가 끝난 증빙은 '정산 출력' 메뉴에서 정산 양식 엑셀로 받습니다."),
+      step("1", "업로드", "모든 계정의 영수증 — 촬영앱 또는 PDF·스크린샷"),
+      step("2", "확인·수정", "원본과 날짜·금액·가맹점 대조"),
+      step("3", "제출", "결재 대상은 결재선으로, 기타 계정은 보관"),
+      step("4", "정산 출력", "엑셀·증빙 PDF 내려받기"),
     ),
   );
 }

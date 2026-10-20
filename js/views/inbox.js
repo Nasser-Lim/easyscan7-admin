@@ -1,13 +1,14 @@
 // 결재함 — 내 역할이 결재할 단계의 증빙(전 지국). 행을 열어 원본 대조 후 결재, 단순 승인 단계는 일괄 처리.
-import { api } from "../api.js?v=653273d";
+import { api } from "../api.js?v=2cd17b8";
 import {
   BRANCH, ELIGIBILITY, ROLE, chip, clear, confirmDialog, dateText, dateTime, empty, errorText, h, icon, money,
-  quarterLabel, select, spinner, statusChip, toast,
-} from "../ui.js?v=653273d";
-import { aiGateMark } from "../aigate.js?v=653273d";
-import { createPager } from "../pager.js?v=653273d";
-import { openDrawer } from "./entries.js?v=653273d";
-import { pageHeader, setNavBadge } from "./shell.js?v=653273d";
+  quarterLabel, select, spinner, statusChip, tip, toast,
+} from "../ui.js?v=2cd17b8";
+import { periodOfEntry, periodSelect, unitName } from "../period.js?v=2cd17b8";
+import { aiGateMark } from "../aigate.js?v=2cd17b8";
+import { createPager } from "../pager.js?v=2cd17b8";
+import { openDrawer } from "./entries.js?v=2cd17b8";
+import { pageHeader, setNavBadge } from "./shell.js?v=2cd17b8";
 
 const ROLE_GUIDE = {
   imc: "제출된 증빙을 원본과 대조해 적격 / 비적격으로 분류합니다. 적격은 재무팀으로, 비적격(사유 필수)은 보도국장 전결로 올라갑니다.",
@@ -16,11 +17,32 @@ const ROLE_GUIDE = {
   finance: "결재선을 거친 증빙을 최종 검토하고 결재합니다. 문제가 있으면 사유를 적어 지국으로 반려합니다.",
   admin: "재무팀 최종 검토 단계 증빙입니다.",
 };
-// 열어 보지 않고 일괄 처리해도 되는 단계: 재무팀 최종 결재, 보도IMC팀의 적격 분류(한도 초과가 없는 증빙만)
+// 열어 보지 않고 일괄 처리해도 되는 단계: 재무팀 최종 결재, 보도IMC팀의 적격 분류(한도 초과가 없는 증빙만),
+// 보도국장·보도본부장의 비적격 전결 승인(목록의 '사유' 열로 판단). 불승인·반려는 사유가 필수라 건별로 한다
 const BULK = {
   finance_review: { roles: ["finance", "admin"], label: "선택 최종 결재", body: () => ({ action: "approve" }) },
   submitted: { roles: ["imc"], label: "선택 적격 분류", body: () => ({ action: "approve", eligibility: "eligible" }), ok: (e) => !(e.ineligibleAmount > 0) },
+  chief_review: { roles: ["bureau_chief", "division_head"], label: "선택 승인", body: () => ({ action: "approve" }) },
 };
+
+// 결재 판단에 필요한 사유 한 줄 — 보도IMC팀의 비적격 사유, 지국 소명, AI 위반 근거, 한도 초과
+function reasonParts(e) {
+  const out = [];
+  const imc = [...(e.approvals || [])].reverse().find((a) => a.from === "submitted" && a.action === "approve" && a.eligibility === "ineligible");
+  if (imc?.comment) out.push(["IMC", imc.comment]);
+  const just = e.aiGate?.override?.justification;
+  if (just) out.push(["소명", just]);
+  const viol = (e.aiGate?.violations || []).map((v) => v.reason).filter(Boolean).join(" · ");
+  if (e.aiGate?.verdict === "fail" && viol) out.push(["AI", viol]);
+  if (e.ineligibleAmount > 0) out.push(["한도", `초과 ${money(e.ineligibleAmount, e.currency)}`]);
+  return out;
+}
+function reasonCell(e) {
+  const parts = reasonParts(e);
+  if (!parts.length) return h("span", { class: "muted" }, "—");
+  const text = parts.map(([k, v]) => `${k}: ${v}`).join("\n");
+  return h("div", { class: "reason", title: text }, parts.map(([k, v]) => h("div", { class: "reason-line" }, h("span", { class: `reason-tag rt-${k === "IMC" ? "imc" : k === "소명" ? "just" : k === "AI" ? "ai" : "limit"}` }, k), h("span", {}, v))));
+}
 
 export async function refreshInboxBadge(me) {
   if (me.role === "staff") return;
@@ -33,6 +55,7 @@ export async function refreshInboxBadge(me) {
 }
 
 let branchFilter = "all";
+let periodFilter = "";
 
 export function renderInbox(el, { me }) {
   let rows = [];
@@ -45,19 +68,22 @@ export function renderInbox(el, { me }) {
   const pagerBox = h("div", {});
   const pager = createPager("inbox", () => paint());
   branchSel.addEventListener("change", () => ((branchFilter = branchSel.value), pager.reset(), paint()));
+  const periodSel = periodSelect(periodFilter);
+  periodFilter = periodSel.value;
+  periodSel.addEventListener("change", () => ((periodFilter = periodSel.value), pager.reset(), paint()));
 
   el.append(
     pageHeader({
       crumbs: ["본사", ROLE[me.role] || me.role],
       title: "결재함",
-      desc: ROLE_GUIDE[me.role] || "",
+      help: `${ROLE_GUIDE[me.role] || ""}\n오래 기다린 순으로 쌓입니다. 여기서 '결재'는 이 시스템 안의 결재(ERP 전표 결재와 별개)입니다.`,
       actions: [h("button", { class: "btn btn-ghost", type: "button", onclick: () => load() }, icon("refresh"), h("span", {}, "새로고침"))],
     }),
     kpiBar,
     h(
       "section",
       { class: "card card-flush" },
-      h("div", { class: "toolbar" }, h("div", { class: "toolbar-filters" }, branchSel), h("div", { class: "muted small" }, "오래 기다린 순")),
+      h("div", { class: "toolbar" }, h("div", { class: "toolbar-filters" }, branchSel, periodSel), h("div", { class: "muted small" }, "오래 기다린 순")),
       bulk,
       tableWrap,
       pagerBox,
@@ -84,7 +110,7 @@ export function renderInbox(el, { me }) {
   };
 
   function paint() {
-    const list = rows.filter((e) => branchFilter === "all" || e.branchId === branchFilter);
+    const list = rows.filter((e) => (branchFilter === "all" || e.branchId === branchFilter) && (!periodFilter || periodOfEntry(e) === periodFilter));
     const cur = list.find((e) => e.currency)?.currency || "USD";
     clear(kpiBar).append(
       ...stages.map((s) => {
@@ -117,7 +143,7 @@ export function renderInbox(el, { me }) {
           "thead",
           {},
           h("tr", {}, h("th", { class: "cell-check" }, all), h("th", {}, "지국"), h("th", {}, "사용일"), h("th", {}, "가맹점"), h("th", {}, "계정"),
-            h("th", { class: "num" }, "금액"), h("th", { class: "num" }, "한도 초과"), h("th", {}, "분류"), h("th", {}, "단계"), h("th", {}, "올라온 시각")),
+            h("th", { class: "num" }, "금액"), h("th", {}, "분류"), h("th", {}, "사유"), h("th", {}, "단계")),
         ),
         h(
           "tbody",
@@ -134,14 +160,14 @@ export function renderInbox(el, { me }) {
               { class: `row-link${selected.has(e.id) ? " selected" : ""}`, onclick: () => openDrawer(e.id, me, load) },
               h("td", { class: "cell-check" }, cb),
               h("td", {}, `${BRANCH[e.branchId] || e.branchId}`),
-              h("td", { class: "mono" }, dateText(e.txnDate), h("div", { class: "cell-sub" }, quarterLabel(e.quarter))),
+              h("td", { class: "mono" }, dateText(e.txnDate), h("div", { class: "cell-sub" }, quarterLabel(periodOfEntry(e)))),
               h("td", { class: "cell-merchant" }, h("div", { class: "cell-main" }, e.merchantKo || e.merchant || "—"), e.memo ? h("div", { class: "cell-sub" }, e.memo) : null),
               h("td", {}, e.account || "—"),
               h("td", { class: "num strong" }, money(e.amount, e.currency)),
-              h("td", { class: `num ${e.ineligibleAmount > 0 ? "text-bad" : "muted"}` }, e.ineligibleAmount > 0 ? money(e.ineligibleAmount, e.currency) : "—"),
               h("td", {}, elig ? chip(elig[0], elig[1]) : e.ineligibleAmount > 0 ? chip("비적격 권장", "bad") : h("span", { class: "muted" }, "—")),
-              h("td", {}, statusChip(e.status), aiGateMark(e.aiGate) || (e.aiGate?.verdict === "pass" ? h("div", { class: "ai-mark ai-ok" }, "AI 검증 통과") : null)),
-              h("td", { class: "cell-sub mono" }, dateTime(last?.at || e.updatedAt), last ? h("div", { class: "cell-sub" }, `${last.roleLabel || ""} ${last.email || ""}`) : null),
+              h("td", { class: "cell-reason" }, reasonCell(e)),
+              // 올라온 시각·직전 결재자는 마우스를 올리면 보인다
+              h("td", { title: `올라온 시각 ${dateTime(last?.at || e.updatedAt)}${last ? ` · ${last.roleLabel || ""}` : ""}` }, statusChip(e.status), aiGateMark(e.aiGate) || (e.aiGate?.verdict === "pass" ? h("div", { class: "ai-mark ai-ok" }, "AI 검증 통과") : null)),
             );
           }),
         ),
@@ -168,11 +194,15 @@ export function renderInbox(el, { me }) {
   }
 
   async function bulkApprove(picked) {
+    const chief = picked[0]?.status === "chief_review";
+    const cur = picked.find((e) => e.currency)?.currency || "USD";
     const ok = await confirmDialog({
-      title: `증빙 ${picked.length}건 결재`,
-      message: h("div", {}, h("p", {}, "선택한 증빙을 원본과 대조했나요? 결재하면 다음 단계로 넘어갑니다."),
-        h("p", { class: "muted small" }, "한도 초과(비적격 금액)가 있는 증빙은 일괄 처리에서 제외됩니다 — 하나씩 열어 결재하세요.")),
-      confirm: "결재",
+      title: chief ? `비적격 ${picked.length}건 승인` : `증빙 ${picked.length}건 결재`,
+      message: h("div", {},
+        h("p", {}, `합계 ${money(picked.reduce((a, e) => a + (Number(e.amount) || 0), 0), cur)} · 결재하면 다음 단계(재무팀)로 넘어갑니다.`),
+        chief ? h("ul", { class: "reason-list" }, picked.slice(0, 8).map((e) => h("li", {}, h("b", {}, `${e.merchantKo || e.merchant || "—"} ${money(e.amount, e.currency)}`), " — ", reasonParts(e).map(([k, v]) => `${k}: ${v}`).join(" · ") || "사유 없음"))) : null,
+        chief && picked.length > 8 ? h("p", { class: "muted small" }, `외 ${picked.length - 8}건`) : null),
+      confirm: chief ? "승인" : "결재",
     });
     if (!ok) return;
     let done = 0;

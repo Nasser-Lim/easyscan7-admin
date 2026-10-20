@@ -1,7 +1,7 @@
 // 앱 셸 — 상단 헤더(SBS 컬러 로고·인쇄 시 검정 로고), 왼쪽 메뉴, 본문.
-import { logout } from "../api.js?v=653273d";
-import { ACCT, BRANCH, ROLE, h, icon } from "../ui.js?v=653273d";
-import { BUILD, VERSION } from "../version.js?v=653273d";
+import { logout } from "../api.js?v=2cd17b8";
+import { ACCT, BRANCH, ROLE, h, icon, tip } from "../ui.js?v=2cd17b8";
+import { BUILD, VERSION } from "../version.js?v=2cd17b8";
 
 let navLinks = [];
 
@@ -66,7 +66,7 @@ export function setActiveNav(route) {
   navLinks.forEach((a) => a.classList.toggle("active", a.dataset.route === route));
 }
 
-export function pageHeader({ crumbs = [], title, desc, actions }) {
+export function pageHeader({ crumbs = [], title, desc, actions, help }) {
   return h(
     "div",
     { class: "page-head" },
@@ -74,7 +74,7 @@ export function pageHeader({ crumbs = [], title, desc, actions }) {
       "div",
       {},
       crumbs.length ? h("div", { class: "crumbs" }, crumbs.flatMap((c, i) => (i ? [h("span", { class: "crumb-sep" }, "/"), c] : [c]))) : null,
-      h("h1", { class: "page-title" }, title),
+      h("h1", { class: "page-title" }, title, help ? tip(help) : null),
       desc ? h("p", { class: "page-desc" }, desc) : null,
     ),
     actions ? h("div", { class: "page-actions" }, actions) : null,

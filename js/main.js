@@ -1,18 +1,19 @@
 // 관리웹 진입점 — 세션 확인 → 로그인 화면 또는 앱 셸 + 해시 라우터.
-import { api, hasSession, logout, onSignedOut } from "./api.js?v=653273d";
-import { clear, h, spinner, toast, errorText } from "./ui.js?v=653273d";
-import { renderLogin } from "./views/login.js?v=653273d";
-import { renderShell, setActiveNav } from "./views/shell.js?v=653273d";
-import { renderHome } from "./views/home.js?v=653273d";
-import { renderUpload } from "./views/upload.js?v=653273d";
-import { renderEntries } from "./views/entries.js?v=653273d";
-import { renderAccount } from "./views/account.js?v=653273d";
-import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=653273d";
-import { renderHelp } from "./views/help.js?v=653273d";
-import { renderLimitSettings } from "./views/limitcfg.js?v=653273d";
-import { renderPolicy } from "./views/policy.js?v=653273d";
-import { renderSettle } from "./views/settle.js?v=653273d";
-import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=653273d";
+import { api, hasSession, logout, onSignedOut } from "./api.js?v=2cd17b8";
+import { clear, h, spinner, toast, errorText } from "./ui.js?v=2cd17b8";
+import { renderLogin } from "./views/login.js?v=2cd17b8";
+import { renderShell, setActiveNav } from "./views/shell.js?v=2cd17b8";
+import { renderHome } from "./views/home.js?v=2cd17b8";
+import { renderUpload } from "./views/upload.js?v=2cd17b8";
+import { renderEntries } from "./views/entries.js?v=2cd17b8";
+import { renderAccount } from "./views/account.js?v=2cd17b8";
+import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=2cd17b8";
+import { renderHelp } from "./views/help.js?v=2cd17b8";
+import { renderLimitSettings } from "./views/limitcfg.js?v=2cd17b8";
+import { renderPolicy } from "./views/policy.js?v=2cd17b8";
+import { renderSettle } from "./views/settle.js?v=2cd17b8";
+import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=2cd17b8";
+import { loadMode } from "./period.js?v=2cd17b8";
 
 const app = document.getElementById("app");
 let me = null;
@@ -28,7 +29,7 @@ const REVIEWER_NAV = [
 // 분기 한도 설정 — 서버 권한(deps.require_limit_admin)과 같은 역할: 보도IMC팀·재무팀·관리자
 // 정산 출력 — 서버 권한(settlements.require_export)과 같은 역할: 지국 담당자·보도IMC팀·재무팀·관리자
 const SETTLE_NAV = { route: "settle", label: "정산 출력", icon: "file" };
-const LIMIT_NAV = { route: "limits", label: "분기 한도 설정", icon: "sliders" };
+const LIMIT_NAV = { route: "limits", label: "한도·정산 설정", icon: "sliders" };
 // AI 적격 정책 — 서버 권한(deps.require_policy_admin)과 같은 역할: 보도IMC팀·재무팀·관리자 공용
 const POLICY_NAV = { route: "policy", label: "AI 적격 정책", icon: "shield" };
 export const NAV = {
@@ -89,7 +90,7 @@ async function boot() {
   }
   app.append(h("div", { class: "boot" }, spinner(), h("span", {}, "불러오는 중…")));
   try {
-    me = await api.get("/me");
+    [me] = await Promise.all([api.get("/me"), loadMode()]); // 정산 방식(월별/분기별)도 함께
   } catch (e) {
     if (e.status !== 401) toast(errorText(e), "bad");
     logout();
