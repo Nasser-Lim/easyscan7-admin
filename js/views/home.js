@@ -1,12 +1,12 @@
 // 홈 — 고른 정산 분기(현분기·전분기)의 요약 지표, 한도 현황, 최근 증빙, 바로가기.
-import { api } from "../api.js?v=986b221";
-import { clear, dateText, empty, errorText, h, icon, metricTile, money, spinner, statusChip } from "../ui.js?v=986b221";
-import { compactFlow } from "../flow.js?v=986b221";
-import { loadFx, sumIn } from "../fx.js?v=986b221";
-import { getPeriod, periodCaption, periodControls, savedDateRange } from "../period.js?v=986b221";
-import { limitsCard } from "./limits.js?v=986b221";
-import { renderDashboard } from "./dashboard.js?v=986b221";
-import { pageHeader } from "./shell.js?v=986b221";
+import { api } from "../api.js?v=6927aa5";
+import { clear, dateText, empty, errorText, h, icon, metricTile, money, spinner, statusChip } from "../ui.js?v=6927aa5";
+import { compactFlow } from "../flow.js?v=6927aa5";
+import { loadFx, sumIn } from "../fx.js?v=6927aa5";
+import { getPeriod, periodCaption, periodControls, savedDateRange } from "../period.js?v=6927aa5";
+import { limitsCard } from "./limits.js?v=6927aa5";
+import { renderDashboard } from "./dashboard.js?v=6927aa5";
+import { pageHeader } from "./shell.js?v=6927aa5";
 
 export function renderHome(el, ctx) {
   if (ctx.me.role !== "staff") return renderDashboard(el, ctx); // 본사(보도IMC팀·보도국장·재무팀): 전 지국 대시보드

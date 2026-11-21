@@ -1,8 +1,8 @@
 // 한도 현황 카드 — 계정별 사용액·한도·사용률을 원장(ledger) 표로. 기간은 정산 방식에 따라 월 또는 분기(월 한도 = 분기 ÷ 3).
-import { api } from "../api.js?v=986b221";
-import { fxStrip, loadFx } from "../fx.js?v=986b221";
-import { clear, h, money, spinner, tip } from "../ui.js?v=986b221";
-import { isDateRange, periodCaption } from "../period.js?v=986b221";
+import { api } from "../api.js?v=6927aa5";
+import { fxStrip, loadFx } from "../fx.js?v=6927aa5";
+import { clear, h, money, spinner, tip } from "../ui.js?v=6927aa5";
+import { isDateRange, periodCaption } from "../period.js?v=6927aa5";
 
 export function limitsCard(period, { compact = false } = {}) {
   const monthly = /^\d{4}-\d{2}$/.test(period);

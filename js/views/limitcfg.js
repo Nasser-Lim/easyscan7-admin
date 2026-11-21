@@ -1,10 +1,10 @@
 // 한도·정산 설정 — 정산 방식(월별/분기별)과 지국별·계정별 한도·통화. 보도IMC팀·재무팀·관리자.
 // 한도는 분기 값으로 저장하고, 월별 정산이면 산술 비례(분기 ÷ 3)로 쓴다 — 입력은 지금 정산 방식의 단위로 받는다.
 // 저장하면 서버가 영향받는 그룹을 다시 계산한다. 결재선에 오른 증빙의 배분은 고정(services/limits.py).
-import { api } from "../api.js?v=986b221";
-import { getMode, setMode, unitName } from "../period.js?v=986b221";
-import { ROLE, chip, clear, confirmDialog, dateTime, errorText, h, icon, select, spinner, tip, toast } from "../ui.js?v=986b221";
-import { pageHeader } from "./shell.js?v=986b221";
+import { api } from "../api.js?v=6927aa5";
+import { getMode, setMode, unitName } from "../period.js?v=6927aa5";
+import { ROLE, chip, clear, confirmDialog, dateTime, errorText, h, icon, select, spinner, tip, toast } from "../ui.js?v=6927aa5";
+import { pageHeader } from "./shell.js?v=6927aa5";
 
 const SYMBOL = { USD: "$", KRW: "₩", JPY: "¥", EUR: "€", CNY: "¥" };
 const ACCOUNT_ORDER = ["취재비", "경상비", "차량유지비"];

@@ -1,20 +1,20 @@
 // 관리웹 진입점 — 세션 확인 → 로그인 화면 또는 앱 셸 + 해시 라우터.
-import { api, hasSession, logout, onSignedOut } from "./api.js?v=986b221";
-import { clear, h, spinner, toast, errorText, updateCatalog, workSummaryDialog } from "./ui.js?v=986b221";
-import { renderLogin } from "./views/login.js?v=986b221";
-import { renderShell, setActiveNav } from "./views/shell.js?v=986b221";
-import { renderHome } from "./views/home.js?v=986b221";
-import { renderUpload } from "./views/upload.js?v=986b221";
-import { renderEntries } from "./views/entries.js?v=986b221";
-import { renderAccount } from "./views/account.js?v=986b221";
-import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=986b221";
-import { renderHelp } from "./views/help.js?v=986b221";
-import { renderLimitSettings } from "./views/limitcfg.js?v=986b221";
-import { renderPolicy } from "./views/policy.js?v=986b221";
-import { renderSettle } from "./views/settle.js?v=986b221";
-import { renderBureau } from "./views/bureau.js?v=986b221";
-import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=986b221";
-import { loadMode } from "./period.js?v=986b221";
+import { api, hasSession, logout, onSignedOut } from "./api.js?v=6927aa5";
+import { clear, h, spinner, toast, errorText, updateCatalog, workSummaryDialog } from "./ui.js?v=6927aa5";
+import { renderLogin } from "./views/login.js?v=6927aa5";
+import { renderShell, setActiveNav } from "./views/shell.js?v=6927aa5";
+import { renderHome } from "./views/home.js?v=6927aa5";
+import { renderUpload } from "./views/upload.js?v=6927aa5";
+import { renderEntries } from "./views/entries.js?v=6927aa5";
+import { renderAccount } from "./views/account.js?v=6927aa5";
+import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=6927aa5";
+import { renderHelp } from "./views/help.js?v=6927aa5";
+import { renderLimitSettings } from "./views/limitcfg.js?v=6927aa5";
+import { renderPolicy } from "./views/policy.js?v=6927aa5";
+import { renderSettle } from "./views/settle.js?v=6927aa5";
+import { renderBureau } from "./views/bureau.js?v=6927aa5";
+import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=6927aa5";
+import { loadMode } from "./period.js?v=6927aa5";
 
 const app = document.getElementById("app");
 let me = null;

@@ -1,10 +1,10 @@
 // 본사 홈 — 시범 지국의 증빙 및 한도 현황.
-import { api } from "../api.js?v=986b221";
-import { branchIcon } from "../branchicons.js?v=986b221";
-import { compact, gauge, limitBar, toneOfPct } from "../charts.js?v=986b221";
-import { getPeriod, isDateRange, periodCaption, periodControls, savedDateRange } from "../period.js?v=986b221";
-import { ACCOUNTS, BRANCH, clear, errorText, h, icon, money, spinner } from "../ui.js?v=986b221";
-import { pageHeader } from "./shell.js?v=986b221";
+import { api } from "../api.js?v=6927aa5";
+import { branchIcon } from "../branchicons.js?v=6927aa5";
+import { compact, gauge, limitBar, toneOfPct } from "../charts.js?v=6927aa5";
+import { getPeriod, isDateRange, periodCaption, periodControls, savedDateRange } from "../period.js?v=6927aa5";
+import { ACCOUNTS, BRANCH, clear, errorText, h, icon, money, spinner } from "../ui.js?v=6927aa5";
+import { pageHeader } from "./shell.js?v=6927aa5";
 
 export const LIVE_BRANCHES = Object.keys(BRANCH);
 

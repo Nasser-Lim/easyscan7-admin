@@ -1,19 +1,19 @@
 // 증빙 조회 — 필터·정렬 목록, 일괄 제출, 상세 서랍(원본 증빙 대조 + 수정·제출·삭제 / 결재).
 // 지국 담당자: 자기 지국 · 본사 결재자: 전 지국(지국 필터), 결재는 결재함 또는 이 화면의 상세 서랍에서.
-import { api } from "../api.js?v=986b221";
+import { api } from "../api.js?v=6927aa5";
 import {
   ACCOUNTS, ACTION_LABEL, BRANCH, DOC_TYPE, ELIGIBILITY, FINAL, IN_REVIEW, ROLE, STAFF_EDITABLE, STATUS, chip, clear,
   confirmDialog, promptDialog, dateText, dateTime, empty, errorText, field, h, icon, money, noticeParts,
   ALL_ACCOUNTS, accountSelect, isCoreAccount, metricTile, mobileDisclosure, mobileReceiptCard, periodBadge, quarterLabel, quarterOf, resubmittedBadge, select, spinner, statusChip, tip, toast,
-} from "../ui.js?v=986b221";
+} from "../ui.js?v=6927aa5";
 import { currentPeriod, getMode, isPeriodOf, periodCaption, periodOfEntry, periodOptions, periodControls,
-  savedDateRange, unitName } from "../period.js?v=986b221";
-import { aiGatePanel } from "../aigate.js?v=986b221";
-import { createPager } from "../pager.js?v=986b221";
-import { compactFlow, flowDiagram } from "../flow.js?v=986b221";
-import { fxStrip, loadFx, sumIn } from "../fx.js?v=986b221";
-import { refreshInboxBadge } from "./inbox.js?v=986b221";
-import { pageHeader } from "./shell.js?v=986b221";
+  savedDateRange, unitName } from "../period.js?v=6927aa5";
+import { aiGatePanel } from "../aigate.js?v=6927aa5";
+import { createPager } from "../pager.js?v=6927aa5";
+import { compactFlow, flowDiagram } from "../flow.js?v=6927aa5";
+import { fxStrip, loadFx, sumIn } from "../fx.js?v=6927aa5";
+import { refreshInboxBadge } from "./inbox.js?v=6927aa5";
+import { pageHeader } from "./shell.js?v=6927aa5";
 
 const EDITABLE_STATUS = STAFF_EDITABLE; // 지국 담당자가 고치고 제출할 수 있는 상태
 const STATUS_GROUPS = { writing: new Set(["draft", "flagged"]), review: IN_REVIEW };
@@ -405,13 +405,14 @@ export function openDrawer(id, me, onChanged) {
 
   const close = async (force = false) => {
     if (!force && dirty() && !(await confirmDialog({ title: "저장하지 않은 수정", message: "수정한 내용을 버리고 닫을까요?", confirm: "버리고 닫기", danger: true }))) return;
+    back.querySelector(".receipt-photo-dialog[open]")?.close();
     urls.forEach((u) => URL.revokeObjectURL(u));
     document.removeEventListener("keydown", onKey);
     back.remove();
     document.body.classList.remove("no-scroll");
     openBack = null;
   };
-  const onKey = (e) => e.key === "Escape" && !document.querySelector(".modal-back") && close();
+  const onKey = (e) => e.key === "Escape" && !document.querySelector(".modal-back, .receipt-photo-dialog[open]") && close();
   const back = h(
     "div",
     { class: "drawer-back", onclick: (e) => e.target === back && close() },
@@ -432,13 +433,16 @@ export function openDrawer(id, me, onChanged) {
   api
     .get(`/entries/${id}`)
     .then((e) => {
-      clear(titleEl).append(e.merchantKo || e.merchant || "증빙 상세", " ", statusChip(e.status));
-      subEl.textContent = [e.account, quarterLabel(periodOfEntry(e)), e.orderNumber ? `주문 #${e.orderNumber}` : null, `ID ${e.id}`].filter(Boolean).join(" · ");
+      if (!back.isConnected) return;
+      clear(titleEl).append(h("span", { class: "drawer-merchant" }, e.merchantKo || e.merchant || "증빙 상세"), statusChip(e.status));
+      const meta = [e.account, quarterLabel(periodOfEntry(e)), e.orderNumber ? `주문 #${e.orderNumber}` : null].filter(Boolean).join(" · ");
+      clear(subEl).append(meta, h("span", { class: "drawer-id" }, `${meta ? " · " : ""}ID ${e.id}`));
       const form = detailForm(e, me);
       const review = e.stage?.canAct ? reviewPanel(e, me) : null;
       if (review) form.node.prepend(review.node);
       dirty = form.dirty;
-      clear(body).append(h("div", { class: "detail" }, evidenceViewer(e, urls), h("div", { class: "detail-side" }, form.node)));
+      const details = h("section", { class: "detail-side", "aria-label": "증빙 정보" }, form.node);
+      clear(body).append(h("div", { class: "detail" }, evidenceViewer(e, urls), details));
       const ctx = { me, close, onChanged: () => (onChanged(), refreshInboxBadge(me)), reopen: () => openDrawer(id, me, onChanged) };
       clear(foot).append(...(review ? reviewFooter(e, me, form, review, ctx) : footer(e, form, ctx)));
     })
@@ -450,13 +454,20 @@ function evidenceViewer(e, urls) {
   const stage = h("div", { class: "viewer-stage" });
   const tabs = h("div", { class: "viewer-tabs", role: "tablist" });
   const nameOf = (uid, i) => (e.sources || []).find((s) => s.uploadId === uid)?.fileName || `증빙 ${i + 1}`;
-  const pagesOf = (uid) => [...new Set((e.sources || []).filter((s) => s.uploadId === uid).map((s) => s.page))].sort((a, b) => a - b);
+  const pagesOf = (uid) => [...new Set((e.sources || [])
+    .filter((s) => s.uploadId === uid && Number.isInteger(s.page) && s.page > 0)
+    .map((s) => s.page))].sort((a, b) => a - b);
   const cache = {};
   let active = 0;
   let size = localStorage.getItem("es7.viewer.size") || "fit";
   let request = 0;
   const sizes = select([["fit", "맞춤"], ["small", "작게"], ["large", "크게"]], size,
     { class: "input input-sm", "aria-label": "원본 보기 크기" });
+  const photoButton = h("button", { class: "btn btn-ghost viewer-open-photo", type: "button", "aria-haspopup": "dialog" }, icon("expand"), "전체 화면");
+  const viewer = h("section", { class: "viewer", dataset: { singleFile: String(ids.length === 1) } },
+    h("div", { class: "viewer-head" }, h("span", { class: "section-label" }, "원본 증빙"),
+      h("div", { class: "viewer-controls" }, ids.length ? sizes : null, photoButton)),
+    tabs, stage);
   sizes.addEventListener("change", () => {
     size = sizes.value;
     localStorage.setItem("es7.viewer.size", size);
@@ -466,11 +477,16 @@ function evidenceViewer(e, urls) {
   async function show(uid, i) {
     active = i;
     const mine = ++request;
-    [...tabs.children].forEach((t, j) => t.classList.toggle("active", j === i));
+    [...tabs.children].forEach((t, j) => {
+      t.classList.toggle("active", j === i);
+      t.setAttribute("aria-selected", String(j === i));
+    });
+    viewer.dataset.kind = "";
     clear(stage).append(h("div", { class: "card-loading" }, spinner()));
     try {
       if (!cache[uid]) {
         const blob = await api.blob(`/uploads/${uid}/file`);
+        if (mine !== request || !stage.isConnected) return;
         const url = URL.createObjectURL(blob);
         urls.push(url);
         cache[uid] = { url, type: blob.type };
@@ -479,31 +495,50 @@ function evidenceViewer(e, urls) {
       const pages = pagesOf(uid);
       if (mine !== request) return;
       clear(stage);
+      stage.scrollTo(0, 0);
       stage.dataset.size = size;
+      const filename = nameOf(uid, i);
+      const downloadFallback = (message) => {
+        viewer.dataset.kind = "download";
+        clear(stage).append(h("div", { class: "viewer-empty" }, icon("image", "ic empty-ic"), h("div", {}, message),
+          h("a", { class: "btn btn-ghost btn-sm", href: url, download: filename }, "원본 내려받기")));
+      };
       if (type === "application/pdf") {
+        viewer.dataset.kind = "pdf";
         const zoom = size === "large" ? "150" : size === "small" ? "65" : "page-fit";
-        stage.append(h("iframe", { class: "viewer-pdf", src: `${url}#page=${pages[0] || 1}&zoom=${zoom}`, title: nameOf(uid, i) }));
-      } else if (type === "image/heic") {
-        stage.append(h("div", { class: "viewer-empty" }, icon("image", "ic empty-ic"), h("div", {}, "HEIC 이미지는 브라우저에서 미리 볼 수 없습니다."), h("a", { class: "btn btn-ghost btn-sm", href: url, download: nameOf(uid, i) }, "내려받기")));
+        stage.append(h("iframe", { class: "viewer-pdf", src: `${url}#page=${pages[0] || 1}&zoom=${zoom}`, title: filename }));
+      } else if (type === "image/heic" || type === "image/heif") {
+        downloadFallback("이 사진 형식은 브라우저에서 미리 볼 수 없습니다.");
       } else {
-        const img = h("img", { class: "viewer-img", src: url, alt: nameOf(uid, i) });
-        img.addEventListener("click", () => img.classList.toggle("zoom"));
-        stage.append(img);
+        viewer.dataset.kind = "image";
+        const openPhoto = () => openReceiptPhoto(viewer, url, filename);
+        const openLabel = `원본 증빙 열기 · ${filename}`;
+        photoButton.onclick = openPhoto;
+        const img = h("img", { class: "viewer-img", src: url, alt: "", draggable: false, onerror: () => {
+          if (mine === request) downloadFallback("미리보기를 표시할 수 없습니다.");
+        } });
+        stage.append(h("button", { class: "viewer-photo", type: "button", "aria-label": openLabel, "aria-haspopup": "dialog", onclick: openPhoto },
+          h("span", { class: "viewer-photo-preview" }, img),
+          h("span", { class: "viewer-photo-caption" }, "원본 증빙"),
+          h("span", { class: "viewer-photo-expand" }, icon("expand"))));
       }
     } catch (ex) {
       if (mine !== request) return;
+      viewer.dataset.kind = "";
       clear(stage).append(h("div", { class: "viewer-empty" }, icon("alert", "ic empty-ic"), h("div", {}, `원본을 불러오지 못했습니다 — ${errorText(ex)}`)));
     }
   }
 
   ids.forEach((uid, i) => {
-    const pages = pagesOf(uid);
+    const filename = nameOf(uid, i);
+    const pdf = /\.pdf$/i.test(filename);
+    const pages = pdf ? pagesOf(uid) : [];
     tabs.append(
       h(
         "button",
-        { class: "viewer-tab", type: "button", role: "tab", onclick: () => show(uid, i), title: nameOf(uid, i) },
-        icon(/\.pdf$/i.test(nameOf(uid, i)) ? "pdf" : "image"),
-        h("span", { class: "viewer-tab-name" }, nameOf(uid, i)),
+        { class: "viewer-tab", type: "button", role: "tab", onclick: () => show(uid, i), title: filename },
+        icon(pdf ? "pdf" : "image"),
+        h("span", { class: "viewer-tab-name" }, filename),
         pages.length ? h("span", { class: "viewer-tab-page" }, `${pages.join(",")}쪽`) : null,
       ),
     );
@@ -511,9 +546,63 @@ function evidenceViewer(e, urls) {
   if (ids.length) show(ids[0], 0);
   else stage.append(h("div", { class: "viewer-empty" }, icon("file", "ic empty-ic"), h("div", {}, "연결된 원본 증빙이 없습니다.")));
 
-  return h("section", { class: "viewer" },
-    h("div", { class: "viewer-head" }, h("span", { class: "section-label" }, "원본 증빙"), ids.length ? sizes : null),
-    tabs, stage);
+  return viewer;
+}
+
+function openReceiptPhoto(viewer, url, filename) {
+  const levels = [1, 1.5, 2, 3, 4];
+  const fitWidth = getComputedStyle(viewer).getPropertyValue("--receipt-photo-width-fit").trim() === "1";
+  const fitLabel = fitWidth ? "너비 맞춤" : "전체 맞춤";
+  let level = 0;
+  let positioned = false;
+  const zoomOut = h("button", { class: "icon-btn", type: "button", "aria-label": "축소", onclick: () => changeZoom(level - 1) }, icon("minus"));
+  const zoomIn = h("button", { class: "icon-btn", type: "button", "aria-label": "확대", onclick: () => changeZoom(level + 1) }, icon("plus"));
+  const fit = h("button", { class: "receipt-photo-fit", type: "button", "aria-label": fitLabel, onclick: () => changeZoom(0) });
+  const photo = h("img", { class: "receipt-photo-img", src: url, alt: filename, draggable: false, onload: resize });
+  const frame = h("div", { class: "receipt-photo-frame" }, photo);
+  const viewport = h("div", { class: "receipt-photo-viewport", role: "region", "aria-label": "원본 사진", tabindex: "0" }, frame);
+  const close = h("button", { class: "icon-btn receipt-photo-close", type: "button", "aria-label": "원본 보기 닫기",
+    autofocus: true, onclick: () => dialog.close() }, icon("x"));
+  const dialog = h("dialog", { class: "receipt-photo-dialog", "aria-label": "원본 증빙 전체 화면" },
+    h("header", { class: "receipt-photo-head" }, h("div", {}, h("h2", {}, "원본 증빙"), h("p", {}, filename)), close),
+    viewport,
+    h("footer", { class: "receipt-photo-tools" }, h("div", { class: "receipt-photo-zoom", role: "group", "aria-label": "사진 크기" }, zoomOut, fit, zoomIn)));
+
+  // Keep the same part of the document in the center when its scale changes.
+  function resize() {
+    if (!photo.naturalWidth || !viewport.clientWidth || !viewport.clientHeight) return;
+    const centerX = (viewport.scrollLeft + viewport.clientWidth / 2 - photo.offsetLeft) / photo.offsetWidth;
+    const centerY = (viewport.scrollTop + viewport.clientHeight / 2 - photo.offsetTop) / photo.offsetHeight;
+    const padding = 2 * parseFloat(getComputedStyle(frame).paddingLeft);
+    const widthScale = (viewport.clientWidth - padding) / photo.naturalWidth;
+    const fitScale = fitWidth ? widthScale : Math.min(widthScale, (viewport.clientHeight - padding) / photo.naturalHeight);
+    photo.style.width = `${Math.max(1, Math.floor(photo.naturalWidth * fitScale * levels[level]))}px`;
+    if (positioned) {
+      viewport.scrollTo(
+        photo.offsetLeft + (Number.isFinite(centerX) ? centerX : .5) * photo.offsetWidth - viewport.clientWidth / 2,
+        photo.offsetTop + (Number.isFinite(centerY) ? centerY : .5) * photo.offsetHeight - viewport.clientHeight / 2,
+      );
+    }
+    positioned = true;
+  }
+
+  function changeZoom(next) {
+    level = Math.max(0, Math.min(next, levels.length - 1));
+    zoomOut.disabled = level === 0;
+    zoomIn.disabled = level === levels.length - 1;
+    fit.textContent = level ? `${levels[level] * 100}% · 맞춤` : fitLabel;
+    resize();
+  }
+
+  const observer = new ResizeObserver(resize);
+  dialog.addEventListener("close", () => {
+    observer.disconnect();
+    dialog.remove();
+  }, { once: true });
+  viewer.append(dialog);
+  dialog.showModal();
+  changeZoom(0);
+  observer.observe(viewport);
 }
 
 function canEdit(e, me) {
