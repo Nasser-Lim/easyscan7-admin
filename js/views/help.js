@@ -1,43 +1,31 @@
-// 도움말 — EASY SCAN 결재선 다이어그램(역할별 레인 + AI 1차 검증), 상태 안내, 내 역할 안내, 현재 AI 적격 정책, 자주 묻는 질문. 전 계정 공통.
-import { api } from "../api.js?v=2cd17b8";
-import { ACCOUNTS, ROLE, STATUS, chip, clear, dateTime, h, icon, spinner, policyVer } from "../ui.js?v=2cd17b8";
-import { BUILD, VERSION } from "../version.js?v=2cd17b8";
-import { pageHeader } from "./shell.js?v=2cd17b8";
+// 도움말 — 결재 흐름, 역할별 안내, 자주 묻는 질문, 현재 AI 적격 정책.
+import { api } from "../api.js?v=986b221";
+import { ACCOUNTS, ROLE, chip, clear, dateTime, h, icon, spinner, policyVer } from "../ui.js?v=986b221";
+import { BUILD, VERSION } from "../version.js?v=986b221";
+import { pageHeader } from "./shell.js?v=986b221";
 
 // ── 역할 → 다이어그램 레인 ──
 const LANES = [
-  { id: "staff", title: "지국 담당자", sub: "업로드 · 작성 · 제출", roles: ["staff"] },
-  { id: "ai", title: "AI 1차 검증", sub: "재무·IMC 정책 자동 적용", roles: [] },
-  { id: "imc", title: "보도IMC팀", sub: "적격 / 비적격 분류", roles: ["imc"] },
-  { id: "chief", title: "보도국장", sub: "보도본부장 동일 권한", roles: ["bureau_chief", "division_head"] },
-  { id: "fin", title: "재무팀", sub: "최종 검토 · 결재", roles: ["finance", "admin"] },
+  { id: "staff", title: "지국 담당자", sub: "업로드 · 작성 · 제출", step: "증빙 제출", icon: "send", roles: ["staff"] },
+  { id: "ai", title: "AI 1차 검증", sub: "재무·IMC 정책 자동 적용", step: "AI 검증", icon: "shield", roles: [] },
+  { id: "imc", title: "보도IMC팀", sub: "적격 / 비적격 분류", step: "적격 분류", icon: "list", roles: ["imc"] },
+  { id: "chief", title: "보도국장", sub: "보도본부장 동일 권한", step: "비적격 전결", icon: "user", roles: ["bureau_chief", "division_head"] },
+  { id: "fin", title: "재무팀", sub: "최종 검토 · 결재", step: "최종 결재", icon: "check", roles: ["finance", "admin"] },
 ];
 
 const MY_TASK = {
-  staff: "증빙을 올리고(관리웹·촬영앱) AI 가 읽은 날짜·금액·적요를 원본과 대조해 제출합니다. AI 가 정책 위반으로 판단한 증빙은 고치거나, 업무상 필요한 지출이면 소명을 적어 제출하세요(소명 없이 내면 자동 반려). 반려되면 사유를 확인하고 고쳐서 다시 제출하세요. 보도IMC팀이 분류하기 전에는 [제출 취소]로 되돌릴 수 있고, 결재가 끝난 증빙은 '정산 출력'에서 엑셀로 받습니다.",
-  imc: "AI 1차 검증을 통과했거나 지국이 소명한 증빙을 원본과 대조해 적격 / 비적격으로 분류합니다. 증빙 상세의 AI 판정과 근거를 참고하세요. 적격은 재무팀 최종 검토로, 비적격(사유 필수)은 보도국장 전결로 올라갑니다. 잘못 분류했다면 다음 단계가 처리하기 전에 [내 결재 취소]로 되돌릴 수 있습니다. 지국별 분기 한도와 AI 적격 정책을 관리하고, '정산 출력'으로 결재 완료분 엑셀을 받습니다.",
-  bureau_chief: "보도IMC팀이 비적격으로 분류한 증빙을 결재합니다. 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않고 종결됩니다. 사유를 적어 반려할 수도 있고, 재무팀이 처리하기 전에는 [내 결재 취소]로 되돌릴 수 있습니다.",
-  division_head: "보도IMC팀이 비적격으로 분류한 증빙을 결재합니다(보도국장과 권한 동일). 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않고 종결됩니다.",
-  finance: "결재선을 거친 증빙을 최종 검토하고 결재합니다. 문제가 있으면 사유를 적어 지국으로 반려합니다. 검토 중에는 내용을 정정할 수 있습니다. 결재 완료 후에도 [내 결재 취소]로 되돌릴 수 있습니다. 보도IMC팀과 함께 AI 적격 정책(계정별 비적격 기준)을 관리하고, '정산 출력'으로 결재 완료분 엑셀을 받습니다.",
+  staff: "AI가 읽은 날짜·금액·적요를 원본과 맞춰 보고 제출하세요. 반려된 증빙은 사유를 확인해 수정하거나 소명한 뒤 다시 제출할 수 있습니다.",
+  imc: "원본과 AI 판정 근거를 확인해 적격·비적격을 분류하세요. 적격 증빙은 재무팀으로, 비적격 증빙은 사유와 함께 보도국장에게 보냅니다.",
+  bureau_chief: "비적격 증빙의 사유를 확인해 전결하세요. 승인하면 재무팀에 넘어가고, 불승인하면 종결됩니다.",
+  division_head: "보도국장과 같은 권한으로 비적격 증빙을 전결합니다. 승인하면 재무팀에 넘어가고, 불승인하면 종결됩니다.",
+  finance: "원본과 정산 금액을 최종 확인한 뒤 결재하세요. 결재 완료분은 정산 출력에서 받을 수 있습니다.",
   admin: "재무팀과 같은 최종 검토 단계를 처리할 수 있고, 지국별 분기 한도와 AI 적격 정책을 설정합니다.",
 };
-
-const STATUS_GUIDE = [
-  ["draft", "지국 담당자", "증빙을 원본과 대조·수정한 뒤 제출", "AI 1차 검증 → 보도IMC 결재중"],
-  ["flagged", "지국 담당자", "검증 경고(날짜·금액·적요, AI 정책 위반 등)를 확인하고 수정·제출", "AI 1차 검증 → 보도IMC 결재중"],
-  ["returned", "지국 담당자", "반려 사유(AI 자동 반려 포함)를 확인하고 고쳐서, 또는 소명을 적어 다시 제출", "AI 1차 검증 → 보도IMC 결재중"],
-  ["submitted", "보도IMC팀", "적격 / 비적격 분류 (비적격은 사유 필수). 지국은 [제출 취소]로 되돌릴 수 있음", "적격 → 재무팀 결재중 · 비적격 → 보도국장 결재중"],
-  ["chief_review", "보도국장·보도본부장", "승인 / 불승인(사유 필수) / 반려", "승인 → 재무팀 결재중 · 불승인 → 종결"],
-  ["finance_review", "재무팀", "증빙 최종 검토 후 결재 (정정 가능)", "결재 완료"],
-  ["approved", "—", "결재가 끝났습니다. '정산 출력' 엑셀에 포함됩니다(재무팀이 [내 결재 취소]하면 빠짐)", "종결"],
-  ["rejected", "—", "비적격 증빙으로 지급하지 않기로 결재됐습니다", "종결 (한도에서도 빠짐)"],
-  ["filed", "—", "기타 계정 증빙 — 결재 없이 보관됩니다(지국은 제출 취소 가능)", "정산서 시트에 계정별 합산"],
-];
 
 const FAQ = [
   ["AI 1차 적격 검증은 무엇인가요?", "보도IMC팀과 재무팀이 계정(취재비·경상비·차량유지비)별로 정한 '이런 경우 비적격' 기준을 AI 가 먼저 적용합니다. 증빙을 올리면 바로 판정해 위반이면 '검토 필요'로 알려 주고, 제출할 때 다시 판정해 위반이면 결재선에 올리지 않고 자동 반려합니다. 사람이 모든 영수증의 기준 위반 여부를 일일이 보지 않아도 되도록, AI 판정과 근거가 증빙과 결재 이력에 남습니다."],
   ["AI 가 잘못 반려한 것 같아요.", "업무상 필요한 지출이면 증빙을 열어 [IMC팀에 제출] 할 때 소명을 적으세요. 소명과 함께 보도IMC팀으로 넘어가 사람이 판단합니다. AI 는 정책에 적힌 기준만 쓰고, 판단할 정보가 부족하면 막지 않고 '판단 보류'로 결재자에게 넘깁니다."],
-  ["AI 적격 정책은 누가 정하나요?", "보도IMC팀과 재무팀이 관리웹 'AI 적격 정책' 메뉴에서 함께 관리합니다. 저장하면 바로 적용되고 변경 이력이 남습니다. 현재 정책은 이 도움말 아래에서 누구나 볼 수 있습니다."],
+  ["AI 적격 정책은 누가 정하나요?", "보도IMC팀과 재무팀이 함께 관리합니다. 적용 중인 기준은 이 화면의 [현재 AI 적격 정책]에서 확인할 수 있습니다."],
   ["반려되면 어떻게 되나요?", "어느 결재 단계에서든 사유를 적어 지국으로 반려할 수 있습니다. 증빙 상세 맨 위에 반려 사유가 표시되고, 지국 담당자가 고쳐서 다시 제출하면 보도IMC팀 분류부터 다시 시작합니다. 지난 결재 이력은 증빙에 그대로 남습니다."],
   ["분기 한도를 넘으면 제출할 수 없나요?", "제출은 됩니다. 한도를 넘은 금액만큼이 비적격으로 처리되고, 그런 증빙은 보도IMC팀이 적격으로 분류할 수 없어 보도국장 전결을 거칩니다. 한도는 보도IMC팀이 지국·계정별로 설정합니다."],
   ["결재가 끝난 증빙의 한도 금액이 바뀌기도 하나요?", "아니요. 보도국장·재무팀 단계로 넘어간 증빙과 결재 완료 증빙은 그때의 적격/비적격 금액이 고정됩니다(재무팀이 금액을 고치면 다시 계산). 아직 보도IMC팀이 분류하기 전인 증빙은 한도를 바꾸면 새 한도로 다시 계산됩니다. 나중에 앞선 날짜의 영수증이 들어오면 그 영수증이 남은 한도를 쓰고, 한도가 찼다면 그 영수증이 비적격이 됩니다."],
@@ -45,7 +33,7 @@ const FAQ = [
   ["정산 분기는 어떻게 정해지나요?", "영수증 사용일이 속한 분기로 자동 지정됩니다. 다른 분기에 정산해야 하면 지국 담당자가 증빙에서 분기를 직접 바꿀 수 있고, 직접 바꾼 분기는 사용일을 고쳐도 따라 바뀌지 않습니다."],
   ["제출한 증빙을 고치고 싶어요.", "보도IMC팀이 분류하기 전(보도IMC 결재중)이면 증빙을 열어 [제출 취소]로 되돌린 뒤 고쳐서 다시 제출하세요. 이미 분류됐다면 수정할 수 없으니 보도IMC팀·보도국장·재무팀에 반려를 요청하세요. 반려되면 다시 고쳐서 제출할 수 있습니다."],
   ["결재를 잘못 눌렀어요.", "각 팀은 자기 팀이 마지막으로 한 결재(승인·분류·불승인)를 다음 단계가 처리하기 전까지 증빙 상세의 [내 결재 취소]로 되돌릴 수 있습니다. 취소하면 직전 단계로 돌아가고 이력에 남습니다. 다음 단계가 이미 처리했다면 그 담당자에게 반려를 요청하세요."],
-  ["촬영만 하고 제출하지 않으면 어떻게 되나요?", "촬영하거나 업로드한 증빙은 곧바로 '지국 작성중'으로 저장됩니다. 제출하기 전에는 결재선에 오르지 않지만 한도 사용액에는 잡히므로, 필요 없는 증빙은 증빙 조회에서 삭제하세요."],
+  ["촬영만 하고 제출하지 않으면 어떻게 되나요?", "사진과 수정값은 촬영앱 초안에 저장됩니다. 이어쓰기 링크에서 작성한 내용을 불러올 수 있고, 최종 제출하면 관리웹 증빙 목록에 등록됩니다."],
   ["월별 정산과 분기별 정산 중 무엇으로 하나요?", "보도IMC팀·재무팀이 '한도·정산 설정'에서 정합니다. 바꾸면 증빙 조회·결재함·한도·정산 출력이 그 단위로 바뀝니다. 한도는 분기 값으로 저장하고 월별이면 분기 ÷ 3 으로 계산합니다. 기간은 영수증 사용일 기준이며 증빙에서 직접 바꿀 수 있습니다."],
   ["취재비·경상비·차량유지비 말고 다른 영수증은요?", "통신비·급여·임차료 등 모든 영수증을 같은 방법으로 올립니다(계정에서 '기타 계정' 선택). 기타 계정은 AI 검증·한도·결재 없이 '제출 완료(보관)'되고, 정산 출력의 정산서 시트에 계정별로 합산됩니다. 우편 발송은 필요 없습니다."],
   ["전표에 붙일 증빙은 어떻게 받나요?", "'정산 출력'에서 계정별 [증빙 PDF]를 누르면 원본을 엑셀과 같은 번호·순서로 한 쪽에 한 장씩 모은 PDF 를 받습니다."],
@@ -133,51 +121,26 @@ function diagram(role) {
 }
 
 export function renderHelp(el, { me }) {
-  const lane = LANES.find((l) => l.roles.includes(me.role));
   el.append(
-    pageHeader({ crumbs: ["설정"], title: "도움말", desc: "EASY SCAN 에서 증빙이 어떤 결재선을 따라 흐르는지 한눈에 봅니다." }),
-    h(
-      "section",
-      { class: "card" },
-      h("div", { class: "card-head" }, h("div", {}, h("div", { class: "card-title" }, "결재선"), h("div", { class: "card-sub" }, "지국에서 올린 증빙이 재무팀 결재까지 가는 길")),
-        h("div", { class: "dg-legend" }, h("span", { class: "lg ok" }, "승인·적격"), h("span", { class: "lg bad" }, "비적격·불승인"), h("span", { class: "lg back" }, "반려"))),
-      h("div", { class: "dg-wrap" }, diagram(me.role)),
-      h("ul", { class: "dg-notes" },
-        h("li", { class: "dg-note-ai" }, h("b", {}, "AI 가 먼저 적격 여부를 검증합니다."), " 보도IMC팀·재무팀이 정한 계정별 정책으로 업로드 직후 사전 판정하고, 제출할 때 다시 판정해 정책 위반이면 결재선에 올리지 않고 자동 반려합니다. 업무상 필요한 지출은 지국이 소명을 적어 제출하면 사람이 판단합니다. AI 판정과 근거는 증빙과 결재 이력에 남아 결재자가 함께 봅니다."),
-        h("li", {}, h("b", {}, "적격 / 비적격은 보도IMC팀이 분류합니다."), " 적격이면 바로 재무팀 최종 검토로, 비적격(사유 필수)이면 보도국장 전결을 거쳐 재무팀으로 갑니다."),
-        h("li", {}, h("b", {}, "분기 한도를 넘은 금액이 있는 증빙"), "은 적격으로 분류할 수 없어 보도국장 전결(비적격)을 거칩니다."),
-        h("li", {}, h("b", {}, "반려"), "는 어느 결재 단계에서든 가능하며 사유가 필수입니다. 반려되면 지국이 고쳐서 처음 단계부터 다시 제출합니다."),
-        h("li", {}, h("b", {}, "보도본부장"), "은 보도국장과 같은 권한으로 ⑤ 단계를 결재합니다."),
-        h("li", {}, h("b", {}, "결재 취소"), "는 각 팀이 자기 팀의 마지막 결재를 다음 단계가 처리하기 전까지 되돌리는 기능입니다. 지국은 보도IMC팀이 분류하기 전에 [제출 취소]를 쓸 수 있습니다.")),
-    ),
-    h(
-      "div",
-      { class: "grid-2" },
-      h("section", { class: "card" },
-        h("div", { class: "card-head" }, h("div", { class: "card-title" }, "내 역할"), chip(ROLE[me.role] || me.role, "info")),
-        h("p", { class: "help-task" }, MY_TASK[me.role] || ""),
-        lane ? h("p", { class: "muted small" }, `다이어그램에서 「${lane.title}」 줄이 내 업무입니다.`) : null),
-      h("section", { class: "card" },
-        h("div", { class: "card-head" }, h("div", { class: "card-title" }, "상태 이름 읽는 법")),
-        h("p", { class: "help-task" }, "증빙 상태는 「지금 처리해야 하는 쪽 + 행위」로 표시됩니다. 예) ", chip(STATUS.chief_review.label, "info"), " 는 보도국장이 결재할 차례라는 뜻입니다."),
-        h("p", { class: "muted small" }, "메뉴의 결재함에는 내 차례인 증빙만 모입니다.")),
-    ),
-    h(
-      "section",
-      { class: "card card-flush" },
-      h("div", { class: "card-head pad" }, h("div", { class: "card-title" }, "단계별 처리 안내")),
-      h("div", { class: "table-wrap" },
-        h("table", { class: "table" },
-          h("thead", {}, h("tr", {}, h("th", {}, "증빙 상태"), h("th", {}, "처리 주체"), h("th", {}, "할 일"), h("th", {}, "다음"))),
-          h("tbody", {}, STATUS_GUIDE.map(([st, who, todo, next]) =>
-            h("tr", {}, h("td", {}, h("span", { class: `chip ${STATUS[st].cls}` }, STATUS[st].label)), h("td", { class: "strong" }, who), h("td", {}, todo), h("td", { class: "cell-sub" }, next)))))),
-    ),
-    policyCard(),
-    h(
-      "section",
-      { class: "card" },
-      h("div", { class: "card-head" }, h("div", { class: "card-title" }, "자주 묻는 질문")),
-      h("div", { class: "faq" }, FAQ.map(([q, a]) => h("details", { class: "faq-item" }, h("summary", {}, icon("chevron", "ic faq-ic"), q), h("p", {}, a)))),
+    pageHeader({ title: "도움말" }),
+    h("div", { class: "help-sections" },
+      h("section", { class: "card help-overview", "aria-labelledby": "help-flow-title" },
+        h("h2", { class: "help-title", id: "help-flow-title" }, "결재 흐름"),
+        h("ol", { class: "help-flow" }, LANES.map((lane) =>
+          h("li", { class: `help-flow-step${lane.roles.includes(me.role) ? " is-mine" : ""}` },
+            h("span", { class: "help-step-icon" }, icon(lane.icon)),
+            h("div", {}, h("b", {}, lane.step), h("small", {}, lane.id === "ai" ? "계정별 정책 확인" : lane.title))))),
+        MY_TASK[me.role] ? h("div", { class: "help-role" }, icon("user"),
+          h("div", {}, h("h3", {}, "내 역할", h("span", {}, ROLE[me.role] || me.role)), h("p", {}, MY_TASK[me.role]))) : null,
+        h("details", { class: "help-diagram help-disclosure" },
+          h("summary", {}, h("span", {}, icon("list"), "상세 결재선 보기"), icon("chevron", "ic help-chevron")),
+          h("div", { class: "dg-legend" }, h("span", { class: "lg ok" }, "승인·적격"), h("span", { class: "lg bad" }, "비적격·불승인"), h("span", { class: "lg back" }, "반려")),
+          h("div", { class: "dg-wrap", tabindex: "0", role: "region", "aria-label": "상세 결재선" }, diagram(me.role)))),
+      policyCard(),
+      h("section", { class: "card help-faq", "aria-labelledby": "help-faq-title" },
+        h("h2", { class: "help-title", id: "help-faq-title" }, "자주 묻는 질문"),
+        h("div", { class: "faq" }, FAQ.map(([q, a]) => h("details", { class: "faq-item" },
+          h("summary", {}, h("span", {}, q), icon("chevron", "ic faq-ic")), h("p", {}, a))))),
     ),
     h("p", { class: "muted small help-foot" }, `EASY SCAN 관리웹 v${VERSION}${BUILD === "dev" ? " · dev" : ` · ${BUILD}`} — 문의: 보도IMC팀`),
   );
@@ -204,5 +167,7 @@ function policyCard() {
       );
     })
     .catch(() => clear(box).append(h("p", { class: "muted small" }, "정책을 불러오지 못했습니다.")));
-  return h("section", { class: "card" }, h("div", { class: "card-head" }, h("div", { class: "card-title" }, "현재 AI 적격 정책"), h("span", { class: "muted small" }, "이 기준으로 AI 가 1차 검증합니다")), box);
+  return h("details", { class: "card help-policy help-disclosure" },
+    h("summary", {}, h("span", {}, icon("shield"), "현재 AI 적격 정책"), icon("chevron", "ic help-chevron")),
+    h("div", { class: "help-policy-body" }, box));
 }

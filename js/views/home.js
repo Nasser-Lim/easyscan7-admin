@@ -1,33 +1,30 @@
 // 홈 — 고른 정산 분기(현분기·전분기)의 요약 지표, 한도 현황, 최근 증빙, 바로가기.
-import { api } from "../api.js?v=2cd17b8";
-import { BRANCH, clear, dateText, empty, errorText, h, icon, money, quarterLabel, spinner, statusChip } from "../ui.js?v=2cd17b8";
-import { loadFx, sumIn } from "../fx.js?v=2cd17b8";
-import { getPeriod, periodSwitch } from "../period.js?v=2cd17b8";
-import { limitsCard } from "./limits.js?v=2cd17b8";
-import { renderDashboard } from "./dashboard.js?v=2cd17b8";
-import { pageHeader } from "./shell.js?v=2cd17b8";
+import { api } from "../api.js?v=986b221";
+import { clear, dateText, empty, errorText, h, icon, metricTile, money, spinner, statusChip } from "../ui.js?v=986b221";
+import { compactFlow } from "../flow.js?v=986b221";
+import { loadFx, sumIn } from "../fx.js?v=986b221";
+import { getPeriod, periodCaption, periodControls, savedDateRange } from "../period.js?v=986b221";
+import { limitsCard } from "./limits.js?v=986b221";
+import { renderDashboard } from "./dashboard.js?v=986b221";
+import { pageHeader } from "./shell.js?v=986b221";
 
 export function renderHome(el, ctx) {
   if (ctx.me.role !== "staff") return renderDashboard(el, ctx); // 본사(보도IMC팀·보도국장·재무팀): 전 지국 대시보드
-  draw(el, ctx);
+  draw(el, ctx, savedDateRange() || getPeriod());
 }
 
 // 분기를 바꾸면 화면 전체를 그 분기로 다시 그린다
-function draw(el, { me, go }) {
+function draw(el, { me, go }, quarter) {
   clear(el);
-  const quarter = getPeriod(); // 정산 방식에 따라 월('2026-10') 또는 분기('2026Q4')
-  const qName = quarterLabel(quarter).replace(/^\d{4}년 /, ""); // "3분기" · "10월"
-  const branch = `${BRANCH[me.branchId] || me.branchId}지국`;
+  const qName = periodCaption(quarter).replace(/^\d{4}년 /, "");
   const kpis = h("div", { class: "kpis" }, h("div", { class: "card-loading" }, spinner(true)));
   const recent = h("div", { class: "card-body-flush" }, h("div", { class: "card-loading" }, spinner(true)));
 
   el.append(
     pageHeader({
-      crumbs: [branch],
       title: "홈",
-      desc: quarterLabel(quarter),
       actions: [
-        periodSwitch(() => draw(el, { me, go })),
+        periodControls(quarter, (next) => draw(el, { me, go }, next), { all: false }),
         h("a", { class: "btn btn-ghost", href: "#/entries" }, icon("list"), h("span", {}, "증빙 조회")),
         h("a", { class: "btn btn-primary", href: "#/upload" }, icon("upload"), h("span", {}, "증빙 업로드")),
       ],
@@ -47,7 +44,7 @@ function draw(el, { me, go }) {
   );
 
   api
-    .get(`/entries?period=${quarter}`)
+    .get(`/entries?period=${encodeURIComponent(quarter)}`)
     .then(async ({ entries }) => {
       // 합계는 지국 통화로 환산(현재 환율) — 원화·외화 증빙이 섞여 있어도 한 통화로
       const fx = await loadFx();
@@ -59,18 +56,23 @@ function draw(el, { me, go }) {
       const totalSum = sumIn(entries, "amount", fx, cur);
       const total = totalSum.total;
       clear(kpis).append(
-        kpi(`${qName} 증빙`, `${entries.length}건`, `${money(total, cur)}${totalSum.converted ? " · 환산 포함(참고용)" : ""}`, "neutral"),
-        kpi("미제출", `${todo}건`, count(["returned"]) ? `반려 ${count(["returned"])}건 — 고쳐서 다시 제출` : count(["flagged"]) ? `검토 필요 ${count(["flagged"])}건` : "확인 후 제출하세요", count(["returned"]) ? "bad" : todo ? "warn" : "ok", () => go("entries")),
-        kpi("결재 진행·완료", `${inReview + count(["approved"])}건`, `진행 ${inReview}건 · 완료 ${count(["approved"])}건${count(["rejected"]) ? ` · 불승인 ${count(["rejected"])}건` : ""}`, "info"),
-        kpi("한도 초과 비적격", money(inel, cur), inel > 0 ? "초과분은 비적격 처리" : "초과 없음", inel > 0 ? "bad" : "ok"),
+        metricTile({ label: `${qName} 증빙`, value: `${entries.length}건`, note: `${money(total, cur)}${totalSum.converted ? " · 참고 환산" : ""}` }),
+        metricTile({ label: "미제출", value: `${todo}건`, symbol: "edit", tone: todo ? "warn" : "ok",
+          note: count(["returned"]) ? `반려 ${count(["returned"])}건` : count(["flagged"]) ? `검토 필요 ${count(["flagged"])}건` : null,
+          onClick: () => go(count(["returned"]) ? "entries/returned" : "entries") }),
+        metricTile({ label: "결재 진행·완료", value: `${inReview + count(["approved"])}건`, symbol: "clock", tone: "info",
+          note: `진행 ${inReview} · 완료 ${count(["approved"])}${count(["rejected"]) ? ` · 불승인 ${count(["rejected"])}` : ""}` }),
+        metricTile({ label: "한도 초과 비적격", value: money(inel, cur), symbol: "sliders", tone: inel > 0 ? "bad" : "ok" }),
       );
       const rows = [...entries].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))).slice(0, 8);
       clear(recent).append(
         rows.length
           ? h(
               "table",
-              { class: "table" },
-              h("thead", {}, h("tr", {}, h("th", {}, "사용일"), h("th", {}, "가맹점"), h("th", {}, "계정"), h("th", { class: "num" }, "금액"), h("th", {}, "상태"))),
+              { class: "table home-receipts" },
+              h("thead", {}, h("tr", {},
+                h("th", {}, "사용일"), h("th", {}, "가맹점"), h("th", { class: "recent-account" }, "계정"),
+                h("th", { class: "num" }, "금액"), h("th", {}, "상태"), h("th", { scope: "col" }, "결재 단계"))),
               h(
                 "tbody",
                 {},
@@ -78,16 +80,18 @@ function draw(el, { me, go }) {
                   h(
                     "tr",
                     { class: "row-link", onclick: () => go(`entries/${e.id}`) },
-                    h("td", { class: "mono" }, dateText(e.txnDate)),
-                    h("td", {}, h("div", { class: "cell-main" }, e.merchantKo || e.merchant || "—"), e.merchantKo && e.merchant ? h("div", { class: "cell-sub" }, e.merchant) : null),
-                    h("td", {}, e.account || "—"),
+                    h("td", { class: "mono" }, recentDate(e.txnDate)),
+                    h("td", {}, h("div", { class: "cell-main" }, e.merchantKo || e.merchant || "—"),
+                      e.merchantKo && e.merchant && e.merchantKo !== e.merchant ? h("div", { class: "cell-sub" }, e.merchant) : null),
+                    h("td", { class: "recent-account" }, e.account || "—"),
                     h("td", { class: "num" }, money(e.amount, e.currency)),
                     h("td", {}, statusChip(e.status)),
+                    h("td", {}, compactFlow(e)),
                   ),
                 ),
               ),
             )
-          : empty(`${quarterLabel(quarter)} 증빙이 없습니다`, "증빙을 업로드하면 AI 가 내용을 읽어 정리합니다."),
+          : empty(`${periodCaption(quarter)} 증빙이 없습니다`),
       );
     })
     .catch((e) => {
@@ -96,29 +100,23 @@ function draw(el, { me, go }) {
     });
 }
 
-function kpi(label, value, sub, tone, onclick) {
-  return h(
-    onclick ? "button" : "div",
-    { class: `kpi kpi-${tone}${onclick ? " kpi-link" : ""}`, onclick, type: onclick ? "button" : null },
-    h("div", { class: "kpi-label" }, label),
-    h("div", { class: "kpi-value" }, value),
-    h("div", { class: "kpi-sub" }, sub),
-  );
+function recentDate(value) {
+  const date = dateText(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+  return h("time", { class: "recent-date", datetime: date, "aria-label": date },
+    h("span", { class: "recent-year" }, date.slice(0, 4)),
+    h("span", { class: "recent-date-sep" }, "-"),
+    h("span", {}, date.slice(5)));
 }
 
 function guideCard() {
-  const step = (n, t, d) => h("li", {}, h("span", { class: "step-no" }, n), h("div", {}, h("div", { class: "step-title" }, t), h("div", { class: "step-desc" }, d)));
+  const steps = [["upload", "업로드"], ["edit", "확인·수정"], ["send", "제출"], ["print", "정산 출력"]];
   return h(
     "section",
-    { class: "card" },
-    h("div", { class: "card-head" }, h("div", { class: "card-title" }, "정산 절차")),
-    h(
-      "ol",
-      { class: "steps" },
-      step("1", "업로드", "모든 계정의 영수증 — 촬영앱 또는 PDF·스크린샷"),
-      step("2", "확인·수정", "원본과 날짜·금액·가맹점 대조"),
-      step("3", "제출", "결재 대상은 결재선으로, 기타 계정은 보관"),
-      step("4", "정산 출력", "엑셀·증빙 PDF 내려받기"),
-    ),
+    { class: "card desktop-guide" },
+    h("div", { class: "card-head" }, h("div", { class: "card-title" }, "정산 절차"),
+      h("a", { class: "link-more", href: "#/help" }, "도움말", icon("chevron"))),
+    h("ol", { class: "workflow-strip" }, steps.map(([symbol, label]) =>
+      h("li", {}, h("span", { class: "workflow-symbol" }, icon(symbol)), h("span", {}, label)))),
   );
 }

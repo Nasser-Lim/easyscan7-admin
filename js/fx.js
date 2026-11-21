@@ -1,7 +1,7 @@
 // 환율 — 백엔드 GET /fx(원화 기준 KRW per 1 단위)를 한 번 받아 두고, 합계를 지국 통화로 환산해 표시한다.
 // 표시용 합산이다. 증빙별 적격/비적격 배분은 서버가 같은 통화 증빙만으로 계산한다.
-import { api } from "./api.js?v=2cd17b8";
-import { h } from "./ui.js?v=2cd17b8";
+import { api } from "./api.js?v=986b221";
+import { h, tip } from "./ui.js?v=986b221";
 
 const TTL = 10 * 60 * 1000;
 let cache = null;
@@ -62,7 +62,7 @@ export function sumIn(rows, f, fx, target) {
 }
 
 // 환산액은 어디까지나 참고용 — 정산 시점의 환율로 다시 계산하면 금액이 달라질 수 있다(오해 방지).
-export const FX_DISCLAIMER = "환산액은 참고용이며, 정산 시점의 환율에 따라 달라질 수 있습니다";
+export const FX_DISCLAIMER = "거주국가 외 지출 환산액은 참고용이며, 정산 시점의 환율에 따라 달라질 수 있습니다";
 
 // 환율 띠 — 현재 환율과 기준일. currencies: 보여 줄 통화 목록(원화 제외).
 export function fxStrip() {
@@ -72,17 +72,18 @@ export function fxStrip() {
     paint(fx, currencies, note) {
       node.replaceChildren();
       const list = [...new Set(currencies)].filter((c) => c && c !== "KRW");
-      node.append(h("span", { class: "fx-label" }, "환율"), h("span", { class: "fx-ref" }, "참고용"));
+      node.append(h("span", { class: "fx-label" }, "환율", tip(FX_DISCLAIMER, "환율 안내", "help")));
       if (!fx?.available) {
-        node.append(h("span", { class: "fx-miss" }, "환율을 불러오지 못했습니다 — 다른 통화 금액은 합계에서 제외됩니다"));
+        node.append(h("span", { class: "fx-miss" }, "환율 미확인 · 다른 통화 제외"));
         return;
       }
       for (const c of list) {
         const r = rateOf(fx, c);
         if (r) node.append(h("span", { class: "fx-chip" }, h("span", { class: "fx-pair" }, r.label), h("b", {}, fmtRate(r.value))));
       }
-      node.append(h("span", { class: "fx-asof" }, `${fx.asOf || ""} 기준`, fx.source ? h("span", { class: "fx-src" }, ` · ${fx.source}`) : null, fx.stale ? " · 갱신 실패, 직전 값" : ""));
-      node.append(h("span", { class: "fx-note" }, [note, FX_DISCLAIMER].filter(Boolean).join(" · ")));
+      if (fx.asOf || fx.source || fx.stale) node.append(h("span", { class: "fx-asof" }, fx.asOf ? `${fx.asOf} 기준` : null,
+        fx.source ? h("span", { class: "fx-src" }, `${fx.asOf ? " · " : ""}${fx.source}`) : null, fx.stale ? " · 직전 값" : null));
+      if (note) node.append(h("span", { class: "fx-note" }, note));
     },
   };
 }

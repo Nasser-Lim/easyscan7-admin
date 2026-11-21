@@ -1,6 +1,6 @@
 // 결재 흐름 도식 — 증빙 상세 상단에 '지금 어디까지 왔는지'를 한눈에 보여 준다.
 // 지국 제출 → AI 1차 검증 → 보도IMC팀 분류 → 보도국장 전결(비적격일 때) → 재무팀 최종 결재
-import { h, icon, isCoreAccount } from "./ui.js?v=2cd17b8";
+import { h, icon, isCoreAccount } from "./ui.js?v=986b221";
 
 const NODES = [
   { key: "staff", label: "지국", sub: "작성 · 제출" },
@@ -69,7 +69,7 @@ export function flowState(e) {
   const summary =
     {
       draft: ["작성중", "지국 담당자가 작성 중입니다", "muted"],
-      flagged: ["작성중", "검토 필요 항목이 있어 지국에서 확인 중입니다", "warn"],
+      flagged: ["작성중", "검토 필요 항목이 있어 지국에서 확인 중입니다", "muted"],
       returned: ["반려", aiReturned ? "AI 1차 검증에서 자동 반려되었습니다 — 소명하거나 고쳐서 다시 제출" : "반려되었습니다 — 지국에서 고쳐서 다시 제출", "bad"],
       submitted: ["보도IMC팀 적격 분류 대기", "다음: 보도IMC팀이 적격 · 비적격을 분류합니다", "info"],
       chief_review: ["보도국장 전결 대기", "비적격 증빙이라 보도국장 전결이 필요합니다", "info"],
@@ -91,6 +91,21 @@ function otherFlow(e) {
     ],
     summary: filed ? ["제출 완료(보관)", "결재 없이 보관되어 정산서에 계정별로 합산됩니다", "ok"] : ["작성중", "기타 계정 — 제출하면 결재 없이 보관됩니다", "muted"],
   };
+}
+
+const STEP_ICON = { staff: "send", ai: "shield", imc: "list", chief: "user", fin: "check", file: "file" };
+const STEP_STATE = { done: "완료", current: "진행 중", todo: "대기", skip: "해당 없음", bad: "반려·불승인" };
+
+export function compactFlow(entry) {
+  const { nodes, summary: [, , tone] } = flowState(entry);
+  return h("ol", { class: `receipt-pipeline flow-${tone}`, "aria-label": "결재 단계" }, nodes.map((node, index) => {
+    const current = node.state === "current";
+    const active = current || (tone === "ok" && index === nodes.length - 1) || (entry.status === "rejected" && node.state === "bad");
+    const label = `${node.label} · ${STEP_STATE[node.state]}${node.note ? ` (${node.note})` : ""}`;
+    return h("li", { class: `rp-step rp-${node.state}${active ? " rp-active" : ""}`, title: label, "aria-current": current ? "step" : null },
+      node.state === "skip" ? h("span", { "aria-hidden": "true" }, "–") : icon(node.state === "bad" ? "x" : STEP_ICON[node.key]),
+      h("span", { class: "sr-only" }, label));
+  }));
 }
 
 export function flowDiagram(e) {

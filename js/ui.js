@@ -30,6 +30,7 @@ export function clear(el) {
 
 // ── 아이콘 (정적 SVG) ──
 const ICONS = {
+  more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
   home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
   upload: '<path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>',
   list: '<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>',
@@ -42,6 +43,7 @@ const ICONS = {
   check: '<path d="M5 12.5 10 17l9-10"/>',
   alert: '<path d="M12 4 2.5 20h19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r=".6"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.8" r=".6"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4.3 1.7c-1.1 1-1.8 1.3-1.8 2.6"/><circle cx="12" cy="16.7" r=".6"/>',
   refresh: '<path d="M20 11a8 8 0 1 0-2.3 6.3"/><path d="M20 5v6h-6"/>',
   send: '<path d="M4 12 20 4l-6 16-3-7z"/><path d="m11 13 9-9"/>',
   trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
@@ -50,6 +52,12 @@ const ICONS = {
   sliders: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
   shield: '<path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z"/><path d="m8.8 12.2 2.3 2.3 4.2-4.6"/>',
   print: '<path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v7H7z"/>',
+  receipt: '<path d="M5 3l2 1.5L9 3l3 1.5L15 3l2 1.5L19 3v18l-2-1.5-2 1.5-3-1.5L9 21l-2-1.5L5 21zM8 8h8m-8 4h8m-8 4h5"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  bell: '<path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9zm-8 12a2 2 0 0 0 4 0"/>',
+  pin: '<path d="M20 10c0 5-8 11-8 11s-8-6-8-11a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
+  return: '<path d="M9 6l-5 5 5 5m-5-5h10a5 5 0 0 1 5 5v2"/>',
+  edit: '<path d="m4 16-1 5 5-1L21 7l-4-4L4 16Zm10-10 4 4"/>',
 };
 export function icon(name, cls = "ic") {
   return h("span", {
@@ -60,7 +68,7 @@ export function icon(name, cls = "ic") {
 }
 
 // ── 업무 상수 ──
-export const BRANCH = { newyork: "뉴욕", washington: "워싱턴", paris: "파리", beijing: "베이징", tokyo: "도쿄" };
+export const BRANCH = { newyork: "뉴욕", washington: "워싱턴" };
 export const ACCOUNTS = ["경상비", "취재비", "차량유지비"]; // 한도·AI 검증·결재 대상(세 계정)
 // 그 밖의 계정 — 결재 없이 '보관'으로 제출되고 정산서 시트에 계정별로 합산된다(백엔드 accounts.py 와 같은 목록)
 export const OTHER_ACCOUNTS = [
@@ -68,22 +76,34 @@ export const OTHER_ACCOUNTS = [
   "현지채용인 급여.시간외수당.상여", "현지채용인 의료비지원", "현지채용인 교통비지원", "급여조정표", "소방서 연납 비용",
 ];
 export const ALL_ACCOUNTS = [...ACCOUNTS, ...OTHER_ACCOUNTS];
+let bureauCatalog = null;
+export function updateCatalog(branch, accounts) {
+  if (branch === "newyork" && accounts) bureauCatalog = accounts;
+}
 export const isCoreAccount = (a) => ACCOUNTS.includes(a);
+export function resubmittedBadge(entry) {
+  const resubmission = [...(entry.approvals || [])].reverse().find((a) => a.action === "submit");
+  if (resubmission?.from !== "returned" || entry.status === "returned") return null;
+  return h("span", { class: "resubmitted", title: resubmission.comment || "반려 후 다시 제출했습니다" }, "재제출");
+}
 // 계정 선택 상자 — 세 계정 먼저, 그 밖은 '기타 계정(보관)' 묶음
-export function accountSelect(value, attrs = {}, { blank } = {}) {
-  const opt = (a) => h("option", { value: a, selected: a === value }, a);
+export function accountSelect(value, attrs = {}, { blank, branch } = {}) {
+  const opt = (a, label = a) => h("option", { value: a, selected: a === value }, label);
+  const other = bureauCatalog
+    ? Object.keys(bureauCatalog).filter((a) => !isCoreAccount(a) && (bureauCatalog[a].enabled || a === value))
+    : OTHER_ACCOUNTS;
   return h("select", { class: "input", ...attrs },
-    blank ? h("option", { value: "" }, blank) : null,
-    h("optgroup", { label: "결재 대상" }, ACCOUNTS.map(opt)),
-    h("optgroup", { label: "기타 계정 · 보관" }, OTHER_ACCOUNTS.map(opt)));
+    blank ? opt("", blank) : null,
+    h("optgroup", { label: "결재 대상" }, ACCOUNTS.map((a) => opt(a))),
+    branch === "washington" ? null : h("optgroup", { label: "기타 계정 · 보관" }, other.map((a) => opt(a))));
 }
 export const STATUS = {
   // 이름 규칙: 「지금 처리해야 하는 주체 + 행위」 — 누구 차례인지 바로 보이게
   draft: { label: "지국 작성중", cls: "chip-neutral" },
-  flagged: { label: "지국 검토 필요", cls: "chip-warn" },
+  flagged: { label: "지국 검토 필요", cls: "chip-neutral" },
   returned: { label: "지국 수정 필요(반려)", cls: "chip-bad" },
   submitted: { label: "보도IMC 결재중", cls: "chip-info" },
-  chief_review: { label: "보도국장 결재중", cls: "chip-purple" },
+  chief_review: { label: "보도국장 결재중", cls: "chip-info" },
   finance_review: { label: "재무팀 결재중", cls: "chip-info" },
   approved: { label: "결재 완료", cls: "chip-ok" },
   rejected: { label: "보도국장 불승인", cls: "chip-bad" },
@@ -208,8 +228,8 @@ export function periodBadge(p, current) {
   return h("span", { class: `q-badge${p === current ? " cur" : ""}`, title: quarterLabel(p) }, q ? `${q[1]} Q${q[2]}` : `${m[1]}.${m[2]}`);
 }
 // 도움말 아이콘 — 설명 문구 대신 마우스를 올리거나 눌러서 보는 짧은 안내
-export function tip(text, label = "도움말") {
-  return h("span", { class: "tip", tabindex: "0", role: "note", "aria-label": `${label}: ${text}`, "data-tip": text }, icon("info"));
+export function tip(text, label = "도움말", symbol = "info") {
+  return h("span", { class: "tip", tabindex: "0", role: "note", "aria-label": `${label}: ${text}`, "data-tip": text }, icon(symbol));
 }
 export function bytes(n) {
   if (n < 1024) return `${n} B`;
@@ -218,9 +238,34 @@ export function bytes(n) {
 }
 
 // ── 공통 컴포넌트 ──
+const STATUS_ICON = {
+  draft: "edit", flagged: "alert", returned: "return", submitted: "clock", chief_review: "clock",
+  finance_review: "clock", approved: "check", rejected: "x", filed: "file", deleted: "trash",
+};
 export function statusChip(status) {
   const s = STATUS[status] || { label: status || "—", cls: "chip-neutral" };
-  return h("span", { class: `chip ${s.cls}` }, s.label);
+  const symbol = STATUS_ICON[status];
+  return h("span", { class: `chip ${s.cls}${symbol ? " chip-with-icon" : ""}` }, symbol ? icon(symbol) : null, s.label);
+}
+
+export function mobileReceiptCard(entry, { open, selection, branch, below }) {
+  const details = [branch, dateText(entry.txnDate), entry.account].filter(Boolean).join(" · ");
+  return h("li", { class: "receipt-card" }, selection,
+    h("button", { class: "receipt-card-open", type: "button", onclick: open },
+      h("span", { class: "receipt-card-top" }, h("b", {}, entry.merchantKo || entry.merchant || "증빙 상세"),
+        h("strong", { class: "mono" }, money(entry.amount, entry.currency))),
+      h("span", { class: "receipt-card-meta" }, details),
+      h("span", { class: "receipt-card-status" }, statusChip(entry.status), resubmittedBadge(entry), icon("chevron"))),
+    below ? h("div", { class: "receipt-card-extra" }, below) : null);
+}
+
+export function mobileDisclosure(label, panel, id) {
+  panel.id = id;
+  panel.classList.add("mobile-disclosure-panel");
+  const button = h("button", { class: "btn btn-ghost mobile-disclosure", type: "button", "aria-controls": id, "aria-expanded": "false" },
+    h("span", {}, label), icon("chevron"));
+  button.addEventListener("click", () => button.setAttribute("aria-expanded", String(panel.classList.toggle("mobile-expanded"))));
+  return button;
 }
 export function chip(text, tone = "neutral") {
   return h("span", { class: `chip chip-${tone}` }, text);
@@ -240,6 +285,17 @@ export function spinner(small) {
 }
 export function empty(title, desc) {
   return h("div", { class: "empty" }, icon("list", "ic empty-ic"), h("div", { class: "empty-title" }, title), desc ? h("div", { class: "empty-desc" }, desc) : null);
+}
+
+export function metricTile({ label, value, note, symbol = "receipt", tone = "neutral", compact = false, onClick, pressed }) {
+  return h(onClick ? "button" : "div", {
+    class: `kpi kpi-${tone}${compact ? " kpi-mini" : ""}${onClick ? " kpi-link" : ""}`,
+    type: onClick ? "button" : null, onclick: onClick, "aria-pressed": pressed === undefined ? null : String(pressed),
+  },
+  h("span", { class: "kpi-icon" }, icon(symbol)),
+  h("span", { class: "kpi-label" }, label),
+  h("strong", { class: "kpi-value" }, value),
+  note ? h("span", { class: "kpi-sub" }, note) : null);
 }
 
 // 알림 메시지 — 화면 가운데에 뜨는 작은 카드(확인 창과 같은 문서형 스타일). 클릭을 막지 않고, 시간이 지나면 사라지며, 누르면 바로 닫힌다.
@@ -273,7 +329,7 @@ export function toast(message, tone = "info", ms) {
   timer = setTimeout(close, life);
 }
 
-export function confirmDialog({ title, message, confirm = "확인", danger = false }) {
+export function confirmDialog({ title, message, confirm = "확인", cancel = "취소", danger = false }) {
   return new Promise((resolve) => {
     const close = (v) => {
       back.remove();
@@ -290,13 +346,39 @@ export function confirmDialog({ title, message, confirm = "확인", danger = fal
         h(
           "div",
           { class: "modal-actions" },
-          h("button", { class: "btn btn-ghost", onclick: () => close(false) }, "취소"),
+          h("button", { class: "btn btn-ghost", onclick: () => close(false) }, cancel),
           h("button", { class: danger ? "btn btn-danger" : "btn btn-primary", onclick: () => close(true) }, confirm),
         ),
       ),
     );
     document.body.append(back);
     back.querySelector(".btn-primary, .btn-danger").focus();
+  });
+}
+
+export function workSummaryDialog({ title, count, days }) {
+  return new Promise((resolve) => {
+    const later = h("button", { class: "btn btn-ghost", type: "button", onclick: () => dialog.close() }, "나중에");
+    const open = h("button", { class: "btn btn-primary", type: "button", onclick: () => dialog.close("open") }, "목록 보기", icon("chevron"));
+    const dialog = h("dialog", { class: "work-summary", "aria-labelledby": "work-summary-title", "aria-describedby": "work-summary-count" },
+      h("div", { class: "work-summary-inner" },
+        h("div", { class: "work-summary-hero" },
+          h("div", { class: "work-summary-copy" },
+            h("h2", { id: "work-summary-title" }, title),
+            h("p", { id: "work-summary-count", class: "work-summary-count" }, h("strong", {}, count.toLocaleString("ko-KR")), "건")),
+          h("div", { class: "work-summary-art", "aria-hidden": "true" },
+            h("span", { class: "work-summary-paper" }, icon("receipt")),
+            h("span", { class: "work-summary-bell" }, icon("bell")))),
+        days > 0 ? h("p", { class: "work-summary-wait" }, icon("clock"), `최장 대기 ${days}일`) : null,
+        h("div", { class: "work-summary-actions" }, later, open)));
+    dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
+    dialog.addEventListener("close", () => {
+      dialog.remove();
+      resolve(dialog.returnValue === "open");
+    }, { once: true });
+    document.body.append(dialog);
+    dialog.showModal();
+    open.focus();
   });
 }
 

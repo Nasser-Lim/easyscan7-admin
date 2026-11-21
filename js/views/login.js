@@ -1,13 +1,13 @@
-// 로그인 화면 — 왼쪽 브랜드 패널(SBS 흰색 로고, 네이비), 오른쪽 폼.
-import { health, login } from "../api.js?v=2cd17b8";
-import { h, icon, spinner } from "../ui.js?v=2cd17b8";
+import { health, login } from "../api.js?v=986b221";
+import { h, icon } from "../ui.js?v=986b221";
+import { BUILD, VERSION } from "../version.js?v=986b221";
 
 export function renderLogin(root, onSuccess) {
   const err = h("div", { class: "form-error", role: "alert" });
-  const email = h("input", { class: "input input-lg", type: "email", autocomplete: "username", required: true, placeholder: "name@example.com" });
-  const pw = h("input", { class: "input input-lg", type: "password", autocomplete: "current-password", required: true, placeholder: "비밀번호" });
+  const email = h("input", { class: "input input-lg", name: "email", type: "email", autocomplete: "username", required: true });
+  const pw = h("input", { class: "input input-lg", name: "password", type: "password", autocomplete: "current-password", required: true });
   const btn = h("button", { class: "btn btn-primary btn-lg btn-block", type: "submit" }, "로그인");
-  const status = h("div", { class: "login-status" }, spinner(true), h("span", {}, "서버 연결 확인 중"));
+  const status = h("p", { class: "login-status", role: "status" });
 
   const form = h(
     "form",
@@ -17,8 +17,15 @@ export function renderLogin(root, onSuccess) {
       onsubmit: async (e) => {
         e.preventDefault();
         err.textContent = "";
-        if (!email.value.trim() || !pw.value) {
-          err.textContent = "아이디와 비밀번호를 입력하세요.";
+        if (btn.disabled) return;
+        if (!email.value.trim() || email.validity.typeMismatch) {
+          err.textContent = "이메일을 확인해 주세요.";
+          email.focus();
+          return;
+        }
+        if (!pw.value) {
+          err.textContent = "비밀번호를 입력해 주세요.";
+          pw.focus();
           return;
         }
         btn.disabled = true;
@@ -34,42 +41,42 @@ export function renderLogin(root, onSuccess) {
         }
       },
     },
-    h("div", { class: "login-eyebrow" }, "EASYSCAN"),
-    h("h1", { class: "login-title" }, "해외지국 정산관리"),
-    h("p", { class: "login-sub" }, "발급받은 계정으로 로그인하세요."),
-    h("label", { class: "field" }, h("span", { class: "field-label" }, "아이디"), email),
+    h("h2", { class: "login-title" }, "로그인"),
+    h("label", { class: "field" }, h("span", { class: "field-label" }, "이메일"), email),
     h("label", { class: "field" }, h("span", { class: "field-label" }, "비밀번호"), pw),
     err,
     btn,
-    h("p", { class: "login-help" }, "계정 발급·비밀번호 초기화는 보도IMC팀에 문의하세요."),
+    h("p", { class: "login-help" }, "계정·비밀번호 문의는 보도IMC팀에 연락해 주세요."),
     status,
   );
 
+  const visual = h("figure", { class: "login-visual" },
+    h("img", { src: "assets/easyscan-ai-accounting-flow.webp", alt: "영수증의 날짜와 금액이 AI를 거쳐 정산표로 이어지는 모습", width: 1536, height: 1024, loading: "lazy" }),
+  );
   const brand = h(
-    "aside",
+    "section",
     { class: "login-brand" },
-    h("div", { class: "login-rings", "aria-hidden": "true" }),
-    h("img", { class: "login-logo", src: "assets/sbs-logo-w.png", alt: "SBS" }),
+    h("div", { class: "login-lockup" },
+      h("img", { class: "login-logo", src: "assets/sbs-logo-w.png", alt: "SBS" }),
+      h("span", {}, "EASYSCAN"),
+    ),
     h(
       "div",
       { class: "login-brand-body" },
-      h("div", { class: "login-brand-kicker" }, "보도본부 · 보도IMC팀 · 재무팀"),
-      h("div", { class: "login-brand-title" }, "해외지국 영수증", h("br"), "정산 시스템"),
+      h("h1", { class: "login-brand-title" }, "해외지국 AI 정산 시스템"),
       h(
         "ul",
         { class: "login-points" },
-        h("li", {}, icon("upload"), h("span", {}, "PDF·스크린샷 증빙을 올리면 AI가 대신 처리합니다")),
-        h("li", {}, icon("check"), h("span", {}, "한글 번역·검산·분기 한도를 자동으로 확인합니다")),
-        h("li", {}, icon("send"), h("span", {}, "결재가 끝난 증빙은 정산 양식 엑셀로 바로 출력합니다")),
+        h("li", {}, icon("check"), h("span", {}, "AI 자동화로 업무 효율화")),
+        h("li", {}, icon("file"), h("span", {}, "외국어 영수증 번역·검산 자동화")),
+        h("li", {}, icon("print"), h("span", {}, "사내 정산 양식으로 원클릭 출력")),
       ),
     ),
-    h("div", { class: "login-brand-foot" }, "© SBS · EASYSCAN"),
+    visual,
+    h("small", { class: "login-version" }, `v${VERSION} · ${BUILD}`),
   );
 
   root.append(h("div", { class: "login" }, brand, h("main", { class: "login-main" }, form)));
-  email.focus();
 
-  health()
-    .then(() => status.replaceChildren(h("span", { class: "dot dot-ok" }), h("span", {}, "서버 연결 정상")))
-    .catch(() => status.replaceChildren(h("span", { class: "dot dot-bad" }), h("span", {}, "서버에 연결할 수 없습니다")));
+  health().catch(() => { status.textContent = "서버에 연결할 수 없습니다."; });
 }

@@ -1,17 +1,20 @@
 // 한도 현황 카드 — 계정별 사용액·한도·사용률을 원장(ledger) 표로. 기간은 정산 방식에 따라 월 또는 분기(월 한도 = 분기 ÷ 3).
-import { api } from "../api.js?v=2cd17b8";
-import { fxStrip, loadFx } from "../fx.js?v=2cd17b8";
-import { clear, h, money, quarterLabel, spinner, tip } from "../ui.js?v=2cd17b8";
-import { unitName } from "../period.js?v=2cd17b8";
+import { api } from "../api.js?v=986b221";
+import { fxStrip, loadFx } from "../fx.js?v=986b221";
+import { clear, h, money, spinner, tip } from "../ui.js?v=986b221";
+import { isDateRange, periodCaption } from "../period.js?v=986b221";
 
 export function limitsCard(period, { compact = false } = {}) {
+  const monthly = /^\d{4}-\d{2}$/.test(period);
   const body = h("div", { class: "card-body-flush" }, h("div", { class: "card-loading" }, spinner(true)));
   const fxBar = fxStrip();
   fxBar.node.classList.add("fx-strip-card");
   const card = h(
     "section",
     { class: "card" },
-    h("div", { class: "card-head" }, h("div", { class: "card-title" }, `${unitName()} 한도 현황`, tip(`한도를 넘는 금액은 제출은 되지만 비적격입니다(사용일 순 누적).${unitName() === "월" ? "\n월 한도 = 분기 한도 ÷ 3" : ""}`)),h("div", { class: "card-meta" }, quarterLabel(period))),
+    h("div", { class: "card-head" }, h("div", { class: "card-title" }, isDateRange(period) ? "기간 사용액" : `${monthly ? "월" : "분기"} 한도 현황`,
+      tip(isDateRange(period) ? "사용일로 합산한 증빙의 금액입니다." : `한도 초과분은 비적격으로 처리합니다.${monthly ? "\n월 한도 = 분기 한도 ÷ 3" : ""}`)),
+      h("div", { class: "card-meta" }, periodCaption(period))),
     fxBar.node,
     body,
   );
@@ -33,6 +36,7 @@ async function load(body, period, fxBar) {
     const [u, fx] = await Promise.all([api.get(`/limits?period=${encodeURIComponent(period)}`), loadFx()]);
     clear(body);
     const rows = Object.entries(u.accounts || {});
+    const range = u.unit === "range";
     const cur = u.currency;
     const fxSkipped = rows.reduce((a, [, s]) => a + (s.fxSkipped || 0), 0);
     // 지국 통화의 환율(뉴욕=원/달러, 베이징=원/위안…)과 합산 기준
@@ -49,7 +53,8 @@ async function load(body, period, fxBar) {
       h(
         "table",
         { class: "table ledger" },
-        h("thead", {}, h("tr", {}, h("th", {}, "계정"), h("th", { class: "num" }, "사용액"), h("th", { class: "num" }, "한도"), h("th", { class: "num col-usage" }, "사용률"))),
+        h("thead", {}, h("tr", {}, h("th", {}, "계정"), h("th", { class: "num" }, "사용액"),
+          range ? null : [h("th", { class: "num" }, "한도"), h("th", { class: "num col-usage" }, "사용률")])),
         h(
           "tbody",
           {},
@@ -57,10 +62,10 @@ async function load(body, period, fxBar) {
             h(
               "tr",
               {},
-              h("td", {}, h("div", { class: "cell-main" }, acc), h("div", { class: "cell-sub" }, `${s.count}건`, s.fxCount ? ` · 환산 ${s.fxCount}건` : "")),
+              h("td", {}, h("div", { class: "cell-main" }, acc), h("div", { class: "cell-sub limit-count" }, `${s.count}건`, s.fxCount ? ` · 지역 외 ${s.fxCount}건` : "")),
               h("td", { class: "num" }, money(s.used, cur), s.ineligible > 0 ? h("div", { class: "cell-sub text-bad" }, `비적격 ${money(s.ineligible, cur)}`) : null),
-              h("td", { class: "num muted" }, money(s.limit, cur)),
-              h("td", { class: "num col-usage" }, usage(pctOf(s.used, s.limit))),
+              range ? null : [h("td", { class: "num muted" }, money(s.limit, cur)),
+                h("td", { class: "num col-usage" }, usage(pctOf(s.used, s.limit)))],
             ),
           ),
         ),
@@ -73,8 +78,8 @@ async function load(body, period, fxBar) {
                 { class: "tr-total" },
                 h("td", {}, "합계"),
                 h("td", { class: "num" }, money(used, cur), inel > 0 ? h("div", { class: "cell-sub text-bad" }, `비적격 ${money(inel, cur)}`) : null),
-                h("td", { class: "num" }, money(limit, cur)),
-                h("td", { class: "num col-usage" }, usage(pctOf(used, limit))),
+                range ? null : [h("td", { class: "num" }, money(limit, cur)),
+                  h("td", { class: "num col-usage" }, usage(pctOf(used, limit)))],
               ),
             )
           : null,

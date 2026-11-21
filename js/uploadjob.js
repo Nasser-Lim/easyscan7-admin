@@ -2,8 +2,8 @@
 //  · 진행 중: 모달 프로그레스 바(파일 전송 → AI 인식 → 정리). 메뉴를 이동해도 모달과 처리는 계속된다.
 //  · 처리 결과: 업로드마다 '처리 결과' 기록으로 남는다(확인 절차 없음, 직접 지울 수 있음). 이 브라우저에 계정별로 최근 5회만 보관한다.
 // 증빙 자체는 서버가 업로드 즉시 '작성중'으로 저장한다 — 기록은 그 처리 결과를 다시 볼 수 있게 한 것이지 데이터 보관소가 아니다.
-import { api } from "./api.js?v=2cd17b8";
-import { bytes, errorText, h, icon, toast } from "./ui.js?v=2cd17b8";
+import { api } from "./api.js?v=986b221";
+import { bytes, errorText, h, icon, toast } from "./ui.js?v=986b221";
 
 const KEY = "es7.upload-history";
 const MAX_QUEUE = 5;
@@ -166,7 +166,7 @@ const guard = (e) => {
 };
 
 // 업로드를 시작한다. 성공하면 결과를 큐 맨 앞에 쌓고 true, 실패하면 모달에 사유를 보이고 false.
-export async function startUpload(files, account) {
+export async function startUpload(files, account, quarter = "auto") {
   if (job) return false;
   job = { count: files.length, total: files.reduce((a, f) => a + f.size, 0), stage: "send", sent: 0, aiStart: 0 };
   const modal = openModal();
@@ -174,7 +174,7 @@ export async function startUpload(files, account) {
   const fd = new FormData();
   files.forEach((f) => fd.append("files", f, f.name));
   fd.append("account", account);
-  fd.append("quarter", "auto"); // 정산 분기는 항상 영수증 날짜 기준(자동)
+  fd.append("quarter", quarter);
   try {
     const r = await api.postFormProgress("/intake", fd, {
       onUpload: (loaded, all) => job && (job.sent = all ? loaded / all : 1),
@@ -186,7 +186,7 @@ export async function startUpload(files, account) {
       },
     });
     job = null;
-    queue = [{ id: `${Date.now()}`, at: Date.now(), account, fileCount: files.length, result: slim(r) }, ...queue].slice(0, MAX_QUEUE);
+    queue = [{ id: `${Date.now()}`, at: Date.now(), account, quarter, fileCount: files.length, result: slim(r) }, ...queue].slice(0, MAX_QUEUE);
     modal.close();
     const n = (r.entries || []).length;
     toast(n ? `증빙 ${n}건을 등록했습니다 — 처리 결과는 아래 기록에 남았습니다` : "새로 등록된 증빙이 없습니다", n ? "ok" : "info");

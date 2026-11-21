@@ -1,15 +1,15 @@
 // 증빙 업로드 — PDF·스크린샷 여러 개를 한 번에 올리면 AI 가 증빙으로 나눈다(POST /intake).
-// 정산 기간(월/분기)은 항상 영수증 날짜 기준(자동). 업로드 진행·처리 결과 보관은 uploadjob.js 가 맡는다.
+// 적용 분기를 직접 고르거나 사용일로 자동 결정한다. 업로드 진행·처리 결과 보관은 uploadjob.js 가 맡는다.
 import {
-  ACCOUNTS, BRANCH, DOC_TYPE, accountSelect, bytes, chip, clear, field, h, icon, money, noticeParts,
-  quarterLabel, statusChip, tip, toast,
-} from "../ui.js?v=2cd17b8";
-import { aiGateMark } from "../aigate.js?v=2cd17b8";
-import { api } from "../api.js?v=2cd17b8";
-import { currentPeriod, getPeriod, periodOfEntry, periodSwitch, unitName } from "../period.js?v=2cd17b8";
-import { dismiss, dismissAll, getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js?v=2cd17b8";
-import { limitsCard } from "./limits.js?v=2cd17b8";
-import { pageHeader } from "./shell.js?v=2cd17b8";
+  DOC_TYPE, accountSelect, bytes, chip, clear, currentQuarter, field, h, icon, money, noticeParts,
+  quarterLabel, select, statusChip, tip, toast,
+} from "../ui.js?v=986b221";
+import { aiGateMark } from "../aigate.js?v=986b221";
+import { api } from "../api.js?v=986b221";
+import { currentPeriod, periodOfEntry, periodOptions, unitName } from "../period.js?v=986b221";
+import { dismiss, dismissAll, getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js?v=986b221";
+import { limitsCard } from "./limits.js?v=986b221";
+import { pageHeader } from "./shell.js?v=986b221";
 
 const MAX_FILES = 20;
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -18,15 +18,21 @@ const SKIP_REASON = { unsupported: "형식 미지원", too_large: "용량 초과
 
 export function renderUpload(el, { me, go }) {
   let files = [];
-  const branch = `${BRANCH[me.branchId] || me.branchId}지국`;
 
-  const account = accountSelect(ACCOUNTS[0]);
+  const account = accountSelect("", { required: true }, { branch: me.branchId, blank: "증빙 유형을 선택하세요" });
+  const appliedQuarter = select([["auto", "사용일 기준 (자동)"],
+    ...periodOptions(4, "quarter").map((q) => [q, quarterLabel(q)])], "auto", { "aria-label": "적용 분기" });
   const input = h("input", { type: "file", multiple: true, accept: ".pdf,.jpg,.jpeg,.png,.webp,.heic,application/pdf,image/*", class: "sr-only" });
   const list = h("div", { class: "file-list" });
-  const submit = h("button", { class: "btn btn-primary btn-lg", type: "button", disabled: true }, icon("upload"), h("span", {}, "업로드하고 자동 인식"));
+  const submit = h("button", { class: "btn btn-primary btn-lg", type: "button", disabled: true }, icon("upload"), h("span", {}, "업로드·AI 판독"));
   const summary = h("div", { class: "upload-summary muted" });
   const queueSlot = h("div", { class: "stack" });
   const limitsSlot = h("div", {});
+  function refreshLimits() {
+    const quarter = appliedQuarter.value === "auto" ? currentQuarter() : appliedQuarter.value;
+    limitsSlot.replaceChildren(limitsCard(quarter));
+  }
+  appliedQuarter.addEventListener("change", refreshLimits);
 
   const drop = h(
     "div",
@@ -46,8 +52,8 @@ export function renderUpload(el, { me, go }) {
       },
     },
     icon("upload", "ic dropzone-ic"),
-    h("div", { class: "dropzone-title" }, "파일을 끌어다 놓거나 클릭해서 선택"),
-    h("div", { class: "dropzone-desc" }, `PDF · JPG · PNG · WEBP · HEIC — 한 번에 ${MAX_FILES}개, 합계 25쪽, 파일당 20MB까지`),
+    h("div", { class: "dropzone-title" }, "파일 선택 또는 드래그"),
+    h("div", { class: "dropzone-desc" }, `PDF · JPG · PNG · WEBP · HEIC · ${MAX_FILES}개 / 25쪽 · 파일당 20MB`),
   );
   input.addEventListener("change", () => {
     add([...input.files]);
@@ -91,9 +97,11 @@ export function renderUpload(el, { me, go }) {
     );
     const total = files.reduce((a, f) => a + f.size, 0);
     summary.textContent = files.length ? `${files.length}개 파일 · ${bytes(total)}` : "선택한 파일이 없습니다";
-    submit.disabled = busy || !files.length;
+    submit.disabled = busy || !files.length || !account.value;
     account.disabled = busy;
+    appliedQuarter.disabled = busy;
   }
+  account.addEventListener("change", paint);
 
   // 기록의 상태·금액은 업로드 당시 값이 아니라 **지금 값**(증빙 조회와 같은 값)으로 보여 준다 — 서버에서 한 번 받아 둔다
   let live = null; // { entryId: 증빙 } — 못 받으면 null(기록에 저장된 값으로 대체)
@@ -123,11 +131,11 @@ export function renderUpload(el, { me, go }) {
   }
 
   submit.addEventListener("click", async () => {
-    if (!files.length || isBusy()) return;
+    if (!files.length || isBusy() || !account.value) return;
     const picked = files;
+    const upload = startUpload(picked, account.value, appliedQuarter.value);
     paint();
-    const ok = await startUpload(picked, account.value);
-    if (ok) files = files.filter((f) => !picked.includes(f));
+    if (await upload) files = files.filter((f) => !picked.includes(f));
     if (queueSlot.isConnected) paint();
   });
 
@@ -138,21 +146,17 @@ export function renderUpload(el, { me, go }) {
     paint();
     if (event === "done") {
       refreshLive();
-      clear(limitsSlot).append(limitsCard(getPeriod()));
+      refreshLimits();
       queueSlot.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   });
 
-  limitsSlot.append(limitsCard(getPeriod()));
+  refreshLimits();
 
   el.append(
     pageHeader({
-      crumbs: [branch, "업무"],
       title: "증빙 업로드",
-      desc: "PDF·스크린샷을 올리면 AI 가 영수증별로 나눠 등록합니다.",
       help: "촬영 영수증은 촬영앱을 쓰세요.\n세 계정(취재비·경상비·차량유지비) 밖의 영수증도 모두 올립니다 — 결재 없이 '보관'되고 정산서에 계정별로 합산됩니다.",
-      // 오른쪽 분기 한도 현황을 볼 분기. 증빙의 정산 분기는 이와 무관하게 영수증 날짜로 정해진다
-      actions: [periodSwitch((q) => clear(limitsSlot).append(limitsCard(q)))],
     }),
     h(
       "div",
@@ -163,15 +167,15 @@ export function renderUpload(el, { me, go }) {
         h(
           "section",
           { class: "card" },
-          h("div", { class: "card-head" }, h("div", { class: "card-title" }, "1. 정산 구분")),
-          h("div", { class: "field-narrow" }, field(h("span", {}, "계정", tip(`이번에 올리는 증빙 전체에 적용됩니다.
-정산 ${unitName()}은 영수증 날짜로 자동 지정됩니다.
-기타 계정은 결재 없이 보관됩니다.`)), account)),
+          h("div", { class: "card-head" }, h("div", { class: "card-title with-symbol" }, icon("sliders"), "정산 구분")),
+          h("div", { class: "form-row" },
+            field(h("span", {}, "증빙 유형", tip("같은 유형의 파일을 한 번에 올려 주세요.\n기타 계정은 결재 없이 보관됩니다.")), account),
+            field(h("span", {}, "적용 분기", tip("직접 고른 분기는 이번 업로드에서 새로 등록되는 증빙에 적용됩니다. 자동으로 두면 각 영수증의 사용일을 따릅니다.")), appliedQuarter)),
         ),
         h(
           "section",
           { class: "card" },
-          h("div", { class: "card-head" }, h("div", { class: "card-title" }, "2. 증빙 파일")),
+          h("div", { class: "card-head" }, h("div", { class: "card-title with-symbol" }, icon("receipt"), "증빙 파일")),
           drop,
           input,
           list,
@@ -188,19 +192,19 @@ export function renderUpload(el, { me, go }) {
 }
 
 function tipsCard() {
-  const li = (text, help) => h("li", {}, text, help ? tip(help) : null);
+  const li = (symbol, text, help) => h("li", {}, h("span", { class: "upload-guide-icon" }, icon(symbol)), h("span", {}, text), help ? tip(help) : null);
   return h(
     "section",
-    { class: "card" },
+    { class: "card desktop-guide" },
     h("div", { class: "card-head" }, h("div", { class: "card-title" }, "올리기 전에")),
     h(
       "ul",
-      { class: "tips" },
-      li("같은 주문의 여러 장은 한 번에 올리면 1건", "주문 내역·결제 확인·배송 안내 등"),
-      li("이미 등록된 증빙은 자동으로 합쳐짐", "주문번호·금액이 같으면 새 증빙 없이 기존 증빙에 합치고 알려 드립니다."),
-      li("올린 증빙은 '지국 작성중'으로 저장 — 확인 후 직접 제출"),
-      li("한도 초과분은 비적격(제출은 가능)", "원화처럼 지국 통화와 다른 영수증은 한도 판정에서 제외됩니다."),
-      li("AI 정책 위반이면 소명을 적어 제출", "재무팀·보도IMC팀 정책으로 AI 가 먼저 검증합니다. 소명 없이 제출하면 자동 반려됩니다."),
+      { class: "upload-guide" },
+      li("file", "같은 주문은 한 번에", "주문 내역·결제 확인·배송 안내를 함께 올리면 한 건으로 묶입니다."),
+      li("check", "중복 증빙은 자동 병합", "주문번호·금액이 같으면 기존 증빙에 합치고 알려 드립니다."),
+      li("send", "판독 결과 확인 후 제출", "업로드만 하면 작성중 상태로 저장됩니다."),
+      li("sliders", "한도 초과분은 비적격", "제출은 가능합니다. 지국 통화와 다른 영수증은 한도 판정에서 제외됩니다."),
+      li("shield", "정책 위반 건은 소명 후 제출", "소명 없이 제출하면 자동 반려됩니다."),
     ),
   );
 }
@@ -269,7 +273,9 @@ function batchView(b, go, live) {
 
   const notes = [];
   const qs = [...new Set(r.entries.map((e) => periodOfEntry(e)))].filter(Boolean).sort();
-  if (qs.length > 1 || (qs.length === 1 && qs[0] !== currentPeriod()))
+  if (b.quarter && b.quarter !== "auto" && r.entries.length)
+    notes.push(note("info", "적용 분기", `${quarterLabel(b.quarter)} · ${r.entries.length}건`));
+  else if (qs.length > 1 || (qs.length === 1 && qs[0] !== currentPeriod()))
     notes.push(note("info", `정산 ${unitName()}`, `영수증 날짜에 따라 ${qs.map((q) => `${quarterLabel(q)} ${r.entries.filter((e) => periodOfEntry(e) === q).length}건`).join(", ")}`));
   for (const m of r.merged)
     notes.push(note("info", "중복 병합", `${m.merchant || "기존 증빙"} ${money(m.amount, cur)} (주문 ${m.orderNumber}) — ${m.fileNames.join(", ")}`, () => go(`entries/${m.entryId}`)));
@@ -306,7 +312,7 @@ function batchView(b, go, live) {
         "div",
         {},
         h("div", { class: "card-title" }, `${whenText(b.at)} 업로드 · ${b.account}`),
-        h("div", { class: "card-sub" }, `파일 ${b.fileCount}개 — 증빙을 눌러 원본과 대조하고 수정·제출하세요.`),
+        h("div", { class: "card-sub" }, `파일 ${b.fileCount}개`),
       ),
       h("div", { class: "card-actions" }, h("button", { class: "btn btn-ghost btn-sm", type: "button", title: "이 처리 결과 기록을 지웁니다(증빙은 그대로)", onclick: () => dismiss(b.id) }, icon("trash"), h("span", {}, "지우기"))),
     ),

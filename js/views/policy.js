@@ -1,9 +1,9 @@
 // AI 적격 정책 — 보도IMC팀·재무팀이 계정별로 '이런 경우 비적격' 문장을 적는다(공용 설정).
 // 이 정책으로 AI 가 지국 증빙의 1차 적격 검증(gate)을 한다: 업로드 직후 사전 판정, 제출할 때 위반이면 자동 반려.
-import { api } from "../api.js?v=2cd17b8";
-import { aiGatePanel } from "../aigate.js?v=2cd17b8";
-import { ACCOUNTS, BRANCH, clear, confirmDialog, dateTime, errorText, h, icon, money, policyVer, select, spinner, toast } from "../ui.js?v=2cd17b8";
-import { pageHeader } from "./shell.js?v=2cd17b8";
+import { api } from "../api.js?v=986b221";
+import { aiGatePanel } from "../aigate.js?v=986b221";
+import { ACCOUNTS, BRANCH, clear, confirmDialog, dateTime, errorText, h, icon, money, policyVer, select, spinner, toast } from "../ui.js?v=986b221";
+import { pageHeader } from "./shell.js?v=986b221";
 
 const EXAMPLE = {
   취재비: "- 주류만 단독으로 구매한 영수증은 비적격(식사와 함께면 가능)\n- 취재와 무관한 개인 식사(1인 식사)는 비적격\n- 적요에 만난 사람·취재 건명이 없으면 비적격",
@@ -17,7 +17,7 @@ export function renderPolicy(el) {
     pageHeader({
       crumbs: ["본사", "설정"],
       title: "AI 적격 정책",
-      desc: "지국 증빙을 AI 가 먼저 검증하는 기준 · 보도IMC팀과 재무팀 공용",
+      help: "보도IMC팀·재무팀이 함께 관리하는 AI 사전 검증 기준입니다.",
     }),
     body,
   );
@@ -115,6 +115,7 @@ export function renderPolicy(el) {
       ),
       masterCard),
       howLine(),
+      h("p", { class: "muted small" }, "한 줄에 한 기준을 적으세요. 금지 품목, 적용 범위, 허용 예외를 구체적으로 적고 아래에서 시험 판정으로 확인할 수 있습니다."),
       h("div", { class: "policy-grid" }, ACCOUNTS.map((acc) =>
         h(
           "section",
@@ -125,6 +126,7 @@ export function renderPolicy(el) {
         ),
       )),
       testCard(forms),
+      feedbackCard(),
       historyCard(),
     );
     refreshLive(); // 카드가 화면에 붙은 뒤 감시 표시를 다시 그린다
@@ -139,6 +141,19 @@ export function renderPolicy(el) {
       foot.prepend(cnt);
     }
   }
+}
+
+function feedbackCard() {
+  const list = h("div", { class: "stack" }, spinner());
+  const panel = h("section", { class: "card" },
+    h("div", { class: "card-head" }, h("div", { class: "card-title" }, "AI 판정 의견")), list);
+  api.get("/policies/feedback").then(({ items }) => {
+    clear(list).append(...(items.length ? items.map((item) => h("div", {},
+      h("a", { href: `#/entries/${item.entryId}` }, `${BRANCH[item.branchId]} · ${item.account || "미분류"} 증빙`),
+      h("small", { class: "muted" }, ` · ${dateTime(item.updatedAt)}`),
+      h("p", {}, item.comment))) : [h("p", { class: "muted" }, "접수된 의견이 없습니다.")]));
+  }).catch((err) => clear(list).append(h("p", { class: "card-error" }, errorText(err))));
+  return panel;
 }
 
 const LIVE = { on: "감시 중", idle: "기준 없음", off: "꺼짐" };

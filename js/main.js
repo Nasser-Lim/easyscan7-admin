@@ -1,19 +1,20 @@
 // 관리웹 진입점 — 세션 확인 → 로그인 화면 또는 앱 셸 + 해시 라우터.
-import { api, hasSession, logout, onSignedOut } from "./api.js?v=2cd17b8";
-import { clear, h, spinner, toast, errorText } from "./ui.js?v=2cd17b8";
-import { renderLogin } from "./views/login.js?v=2cd17b8";
-import { renderShell, setActiveNav } from "./views/shell.js?v=2cd17b8";
-import { renderHome } from "./views/home.js?v=2cd17b8";
-import { renderUpload } from "./views/upload.js?v=2cd17b8";
-import { renderEntries } from "./views/entries.js?v=2cd17b8";
-import { renderAccount } from "./views/account.js?v=2cd17b8";
-import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=2cd17b8";
-import { renderHelp } from "./views/help.js?v=2cd17b8";
-import { renderLimitSettings } from "./views/limitcfg.js?v=2cd17b8";
-import { renderPolicy } from "./views/policy.js?v=2cd17b8";
-import { renderSettle } from "./views/settle.js?v=2cd17b8";
-import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=2cd17b8";
-import { loadMode } from "./period.js?v=2cd17b8";
+import { api, hasSession, logout, onSignedOut } from "./api.js?v=986b221";
+import { clear, h, spinner, toast, errorText, updateCatalog, workSummaryDialog } from "./ui.js?v=986b221";
+import { renderLogin } from "./views/login.js?v=986b221";
+import { renderShell, setActiveNav } from "./views/shell.js?v=986b221";
+import { renderHome } from "./views/home.js?v=986b221";
+import { renderUpload } from "./views/upload.js?v=986b221";
+import { renderEntries } from "./views/entries.js?v=986b221";
+import { renderAccount } from "./views/account.js?v=986b221";
+import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=986b221";
+import { renderHelp } from "./views/help.js?v=986b221";
+import { renderLimitSettings } from "./views/limitcfg.js?v=986b221";
+import { renderPolicy } from "./views/policy.js?v=986b221";
+import { renderSettle } from "./views/settle.js?v=986b221";
+import { renderBureau } from "./views/bureau.js?v=986b221";
+import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=986b221";
+import { loadMode } from "./period.js?v=986b221";
 
 const app = document.getElementById("app");
 let me = null;
@@ -32,6 +33,7 @@ const SETTLE_NAV = { route: "settle", label: "정산 출력", icon: "file" };
 const LIMIT_NAV = { route: "limits", label: "한도·정산 설정", icon: "sliders" };
 // AI 적격 정책 — 서버 권한(deps.require_policy_admin)과 같은 역할: 보도IMC팀·재무팀·관리자 공용
 const POLICY_NAV = { route: "policy", label: "AI 적격 정책", icon: "shield" };
+const BUREAU_NAV = { route: "bureau", label: "지국 관리", icon: "user" };
 export const NAV = {
   staff: [
     { route: "home", label: "홈", icon: "home" },
@@ -39,11 +41,11 @@ export const NAV = {
     { route: "entries", label: "증빙 조회", icon: "list" },
     SETTLE_NAV,
   ],
-  imc: [...REVIEWER_NAV, SETTLE_NAV, LIMIT_NAV, POLICY_NAV],
+  imc: [...REVIEWER_NAV, SETTLE_NAV, LIMIT_NAV, POLICY_NAV, BUREAU_NAV],
   bureau_chief: REVIEWER_NAV,
   division_head: REVIEWER_NAV,
-  finance: [...REVIEWER_NAV, SETTLE_NAV, LIMIT_NAV, POLICY_NAV],
-  admin: [...REVIEWER_NAV, SETTLE_NAV, LIMIT_NAV, POLICY_NAV],
+  finance: [...REVIEWER_NAV, SETTLE_NAV, LIMIT_NAV, POLICY_NAV, BUREAU_NAV],
+  admin: [...REVIEWER_NAV, SETTLE_NAV, LIMIT_NAV, POLICY_NAV, BUREAU_NAV],
 };
 
 const ROUTES = {
@@ -56,6 +58,7 @@ const ROUTES = {
   limits: (el, ctx) => renderLimitSettings(el, ctx),
   policy: (el, ctx) => renderPolicy(el, ctx),
   settle: (el, ctx) => renderSettle(el, ctx),
+  bureau: (el, ctx) => renderBureau(el, ctx),
 };
 
 function parseHash() {
@@ -90,7 +93,9 @@ async function boot() {
   }
   app.append(h("div", { class: "boot" }, spinner(), h("span", {}, "불러오는 중…")));
   try {
-    [me] = await Promise.all([api.get("/me"), loadMode()]); // 정산 방식(월별/분기별)도 함께
+    const [identity, , catalog] = await Promise.all([api.get("/me"), loadMode(), api.get("/accounts/catalog").catch(() => null)]);
+    me = identity;
+    updateCatalog(catalog?.branch, catalog?.accounts);
   } catch (e) {
     if (e.status !== 401) toast(errorText(e), "bad");
     logout();
@@ -101,6 +106,24 @@ async function boot() {
   initUploadQueue(me);
   navigate();
   refreshInboxBadge(me);
+  dailyWorkSummary(me);
+}
+
+async function dailyWorkSummary(user) {
+  const day = new Date().toLocaleDateString("sv-SE");
+  const key = `es7.daily.${user.uid}`;
+  try {
+    if (localStorage.getItem(key) === day) return;
+    const staff = user.role === "staff";
+    const { entries } = await api.get(staff ? "/entries?status=returned" : "/entries/queue");
+    if (user !== me) return;
+    localStorage.setItem(key, day);
+    if (!entries.length) return;
+    const oldest = staff ? Infinity : entries.reduce((time, entry) => Math.min(time, Date.parse(entry.updatedAt) || Infinity), Infinity);
+    const days = Math.max(0, Math.floor((Date.now() - oldest) / 86400000));
+    const open = await workSummaryDialog({ title: staff ? "반려된 증빙" : "결재 대기 증빙", count: entries.length, days });
+    if (open && user === me) location.hash = staff ? "#/entries/returned" : "#/inbox";
+  } catch { /* 요약을 읽을 수 없어도 기본 업무 화면은 사용할 수 있다. */ }
 }
 
 onSignedOut(() => {

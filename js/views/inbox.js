@@ -1,14 +1,14 @@
 // 결재함 — 내 역할이 결재할 단계의 증빙(전 지국). 행을 열어 원본 대조 후 결재, 단순 승인 단계는 일괄 처리.
-import { api } from "../api.js?v=2cd17b8";
+import { api } from "../api.js?v=986b221";
 import {
-  BRANCH, ELIGIBILITY, ROLE, chip, clear, confirmDialog, dateText, dateTime, empty, errorText, h, icon, money,
-  quarterLabel, select, spinner, statusChip, tip, toast,
-} from "../ui.js?v=2cd17b8";
-import { periodOfEntry, periodSelect, unitName } from "../period.js?v=2cd17b8";
-import { aiGateMark } from "../aigate.js?v=2cd17b8";
-import { createPager } from "../pager.js?v=2cd17b8";
-import { openDrawer } from "./entries.js?v=2cd17b8";
-import { pageHeader, setNavBadge } from "./shell.js?v=2cd17b8";
+  BRANCH, ELIGIBILITY, ROLE, chip, clear, confirmDialog, dateText, dateTime, empty, errorText, h, icon, metricTile, mobileDisclosure, mobileReceiptCard, money,
+  quarterLabel, resubmittedBadge, select, spinner, statusChip, tip, toast,
+} from "../ui.js?v=986b221";
+import { isPeriodOf, periodOfEntry, periodControls, savedDateRange, unitName } from "../period.js?v=986b221";
+import { aiGateMark } from "../aigate.js?v=986b221";
+import { createPager } from "../pager.js?v=986b221";
+import { openDrawer } from "./entries.js?v=986b221";
+import { pageHeader, setNavBadge } from "./shell.js?v=986b221";
 
 const ROLE_GUIDE = {
   imc: "제출된 증빙을 원본과 대조해 적격 / 비적격으로 분류합니다. 적격은 재무팀으로, 비적격(사유 필수)은 보도국장 전결로 올라갑니다.",
@@ -56,6 +56,7 @@ export async function refreshInboxBadge(me) {
 
 let branchFilter = "all";
 let periodFilter = "";
+let queueOrder = "wait";
 
 export function renderInbox(el, { me }) {
   let rows = [];
@@ -67,10 +68,13 @@ export function renderInbox(el, { me }) {
   const tableWrap = h("div", { class: "table-wrap" }, h("div", { class: "card-loading" }, spinner()));
   const pagerBox = h("div", {});
   const pager = createPager("inbox", () => paint());
+  const order = select([["wait", "오래 기다린 순"], ["amount", "금액 큰 순"], ["reasons", "사유 있는 순"]],
+    queueOrder, { class: "input input-sm", "aria-label": "결재함 정렬" });
+  order.addEventListener("change", () => { queueOrder = order.value; pager.reset(); paint(); });
   branchSel.addEventListener("change", () => ((branchFilter = branchSel.value), pager.reset(), paint()));
-  const periodSel = periodSelect(periodFilter);
-  periodFilter = periodSel.value;
-  periodSel.addEventListener("change", () => ((periodFilter = periodSel.value), pager.reset(), paint()));
+  periodFilter = savedDateRange() || (isPeriodOf(periodFilter) ? periodFilter : "");
+  const periodSel = periodControls(periodFilter, (p) => { periodFilter = p; pager.reset(); load(); });
+  const filters = h("div", { class: "toolbar-filters" }, branchSel, periodSel);
 
   el.append(
     pageHeader({
@@ -83,7 +87,7 @@ export function renderInbox(el, { me }) {
     h(
       "section",
       { class: "card card-flush" },
-      h("div", { class: "toolbar" }, h("div", { class: "toolbar-filters" }, branchSel, periodSel), h("div", { class: "muted small" }, "오래 기다린 순")),
+      h("div", { class: "toolbar mobile-toolbar" }, filters, order, mobileDisclosure("필터", filters, "inbox-filters")),
       bulk,
       tableWrap,
       pagerBox,
@@ -94,10 +98,10 @@ export function renderInbox(el, { me }) {
     clear(tableWrap).append(h("div", { class: "card-loading" }, spinner()));
     selected.clear();
     try {
-      const r = await api.get("/entries/queue");
+      const r = await api.get(`/entries/queue${periodFilter ? `?period=${encodeURIComponent(periodFilter)}` : ""}`);
       rows = r.entries;
       stages = r.stages;
-      setNavBadge("inbox", rows.length);
+      if (!periodFilter) setNavBadge("inbox", rows.length);
       paint();
     } catch (e) {
       clear(tableWrap).append(h("p", { class: "card-error" }, errorText(e)));
@@ -110,55 +114,65 @@ export function renderInbox(el, { me }) {
   };
 
   function paint() {
-    const list = rows.filter((e) => (branchFilter === "all" || e.branchId === branchFilter) && (!periodFilter || periodOfEntry(e) === periodFilter));
+    const list = rows.filter((e) => branchFilter === "all" || e.branchId === branchFilter);
+    if (queueOrder === "amount") list.sort((a, b) => String(a.currency).localeCompare(String(b.currency)) || (b.amount || 0) - (a.amount || 0));
+    if (queueOrder === "reasons") list.sort((a, b) => reasonParts(b).length - reasonParts(a).length);
     const cur = list.find((e) => e.currency)?.currency || "USD";
     clear(kpiBar).append(
       ...stages.map((s) => {
         const n = list.filter((e) => e.status === s.status);
-        return mini(s.label, `${n.length}건`, money(n.reduce((a, e) => a + (Number(e.amount) || 0), 0), cur), n.length ? "warn" : "ok");
+        return metricTile({ label: s.label, value: `${n.length}건`, note: money(n.reduce((a, e) => a + (Number(e.amount) || 0), 0), cur),
+          tone: n.length ? "warn" : "ok", symbol: "clock", compact: true });
       }),
-      mini("한도 초과 포함", `${list.filter((e) => e.ineligibleAmount > 0).length}건`, "비적격 금액이 있는 증빙", list.some((e) => e.ineligibleAmount > 0) ? "bad" : null),
+      metricTile({ label: "한도 초과", value: `${list.filter((e) => e.ineligibleAmount > 0).length}건`,
+        tone: list.some((e) => e.ineligibleAmount > 0) ? "bad" : "neutral", symbol: "alert", compact: true }),
     );
     for (const id of [...selected]) if (!list.some((e) => e.id === id && bulkable(e))) selected.delete(id);
     paintBulk();
     clear(pagerBox);
     if (!list.length) {
-      clear(tableWrap).append(empty("결재할 증빙이 없습니다", "새로 올라오는 증빙은 여기에 쌓입니다."));
+      clear(tableWrap).append(empty("결재할 증빙이 없습니다"));
       return;
     }
     const pageRows = pager.slice(list); // 선택은 쪽을 넘어서도 유지, '전체 선택'은 지금 보이는 쪽만
     pagerBox.append(pager.node(list.length));
     const canBulk = pageRows.filter(bulkable);
-    const all = h("input", { type: "checkbox", class: "check", "aria-label": "전체 선택", disabled: !canBulk.length });
-    all.checked = canBulk.length > 0 && canBulk.every((e) => selected.has(e.id));
-    all.addEventListener("change", () => {
-      canBulk.forEach((e) => (all.checked ? selected.add(e.id) : selected.delete(e.id)));
-      paint();
-    });
+    const selectAll = () => {
+      const all = h("input", { type: "checkbox", class: "check", "aria-label": "이 페이지 전체 선택", disabled: !canBulk.length });
+      all.checked = canBulk.length > 0 && canBulk.every((e) => selected.has(e.id));
+      all.addEventListener("change", () => {
+        canBulk.forEach((e) => (all.checked ? selected.add(e.id) : selected.delete(e.id)));
+        paint();
+      });
+      return all;
+    };
+    const selectOne = (e) => {
+      const cb = h("input", { type: "checkbox", class: "check", "aria-label": "선택", disabled: !bulkable(e) });
+      cb.checked = selected.has(e.id);
+      cb.addEventListener("click", (ev) => ev.stopPropagation());
+      cb.addEventListener("change", () => ((cb.checked ? selected.add(e.id) : selected.delete(e.id)), paint()));
+      return cb;
+    };
     clear(tableWrap).append(
       h(
         "table",
-        { class: "table table-entries" },
+        { class: "table table-entries queue-table" },
         h(
           "thead",
           {},
-          h("tr", {}, h("th", { class: "cell-check" }, all), h("th", {}, "지국"), h("th", {}, "사용일"), h("th", {}, "가맹점"), h("th", {}, "계정"),
+          h("tr", {}, h("th", { class: "cell-check" }, selectAll()), h("th", {}, "지국"), h("th", {}, "사용일"), h("th", {}, "가맹점"), h("th", {}, "계정"),
             h("th", { class: "num" }, "금액"), h("th", {}, "분류"), h("th", {}, "사유"), h("th", {}, "단계")),
         ),
         h(
           "tbody",
           {},
           pageRows.map((e) => {
-            const cb = h("input", { type: "checkbox", class: "check", "aria-label": "선택", disabled: !bulkable(e) });
-            cb.checked = selected.has(e.id);
-            cb.addEventListener("click", (ev) => ev.stopPropagation());
-            cb.addEventListener("change", () => ((cb.checked ? selected.add(e.id) : selected.delete(e.id)), paint()));
             const last = (e.approvals || []).at(-1);
             const elig = e.eligibility ? ELIGIBILITY[e.eligibility] : null;
             return h(
               "tr",
               { class: `row-link${selected.has(e.id) ? " selected" : ""}`, onclick: () => openDrawer(e.id, me, load) },
-              h("td", { class: "cell-check" }, cb),
+              h("td", { class: "cell-check" }, selectOne(e)),
               h("td", {}, `${BRANCH[e.branchId] || e.branchId}`),
               h("td", { class: "mono" }, dateText(e.txnDate), h("div", { class: "cell-sub" }, quarterLabel(periodOfEntry(e)))),
               h("td", { class: "cell-merchant" }, h("div", { class: "cell-main" }, e.merchantKo || e.merchant || "—"), e.memo ? h("div", { class: "cell-sub" }, e.memo) : null),
@@ -167,11 +181,18 @@ export function renderInbox(el, { me }) {
               h("td", {}, elig ? chip(elig[0], elig[1]) : e.ineligibleAmount > 0 ? chip("비적격 권장", "bad") : h("span", { class: "muted" }, "—")),
               h("td", { class: "cell-reason" }, reasonCell(e)),
               // 올라온 시각·직전 결재자는 마우스를 올리면 보인다
-              h("td", { title: `올라온 시각 ${dateTime(last?.at || e.updatedAt)}${last ? ` · ${last.roleLabel || ""}` : ""}` }, statusChip(e.status), aiGateMark(e.aiGate) || (e.aiGate?.verdict === "pass" ? h("div", { class: "ai-mark ai-ok" }, "AI 검증 통과") : null)),
+              h("td", { title: `올라온 시각 ${dateTime(last?.at || e.updatedAt)}${last ? ` · ${last.roleLabel || ""}` : ""}` }, statusChip(e.status), resubmittedBadge(e), aiGateMark(e.aiGate) || (e.aiGate?.verdict === "pass" ? h("div", { class: "ai-mark ai-ok" }, "AI 검증 통과") : null)),
             );
           }),
         ),
       ),
+      h("div", { class: "mobile-receipts" },
+        canBulk.length ? h("label", { class: "receipt-card-select-all" }, selectAll(), "이 페이지 전체 선택") : null,
+        h("ul", { class: "receipt-cards", "aria-label": "결재할 증빙" }, pageRows.map((e) => mobileReceiptCard(e, {
+          selection: bulkable(e) ? selectOne(e) : null,
+          open: () => openDrawer(e.id, me, load), branch: BRANCH[e.branchId] || e.branchId,
+          below: reasonParts(e).length ? reasonCell(e) : null,
+        })))),
     );
   }
 
@@ -220,9 +241,5 @@ export function renderInbox(el, { me }) {
   }
 
   load();
-}
-
-function mini(label, value, sub, tone) {
-  return h("div", { class: `kpi kpi-mini${tone ? " kpi-" + tone : ""}` }, h("div", { class: "kpi-label" }, label), h("div", { class: "kpi-value" }, String(value)), h("div", { class: "kpi-sub" }, sub));
 }
 

@@ -1,81 +1,98 @@
-// 본사 홈 — 전 지국의 분기 한도 소진 현황을 지국 카드로 한눈에 본다(보도IMC팀·보도국장·재무팀·관리자).
-// 지금은 뉴욕만 실데이터이고, 나머지 지국은 화면 설계를 보여 주는 예시(mock) 데이터다 — 카드에 '예시'로 표시한다.
-// 지국을 실제로 열 때는 LIVE_BRANCHES 에 ID 를 추가하면 그 지국은 GET /limits 실데이터로 바뀐다(mock 은 무시).
-import { api } from "../api.js?v=2cd17b8";
-import { branchIcon } from "../branchicons.js?v=2cd17b8";
-import { compact, gauge, limitBar, toneOfPct } from "../charts.js?v=2cd17b8";
-import { getMode, getPeriod, periodSwitch } from "../period.js?v=2cd17b8";
-import { ACCOUNTS, BRANCH, clear, errorText, h, icon, money, quarterLabel, spinner } from "../ui.js?v=2cd17b8";
-import { pageHeader } from "./shell.js?v=2cd17b8";
+// 본사 홈 — 시범 지국의 증빙 및 한도 현황.
+import { api } from "../api.js?v=986b221";
+import { branchIcon } from "../branchicons.js?v=986b221";
+import { compact, gauge, limitBar, toneOfPct } from "../charts.js?v=986b221";
+import { getPeriod, isDateRange, periodCaption, periodControls, savedDateRange } from "../period.js?v=986b221";
+import { ACCOUNTS, BRANCH, clear, errorText, h, icon, money, spinner } from "../ui.js?v=986b221";
+import { pageHeader } from "./shell.js?v=986b221";
 
-export const LIVE_BRANCHES = ["newyork"];
+export const LIVE_BRANCHES = Object.keys(BRANCH);
 
-// 예시 데이터 — GET /limits 응답과 같은 모양(통화·계정별 사용액·한도·비적격·건수)
-const MOCK = {
-  washington: { currency: "USD", accounts: { 취재비: { used: 2480, limit: 4000, ineligible: 0, count: 14 }, 경상비: { used: 1390, limit: 1500, ineligible: 0, count: 22 }, 차량유지비: { used: 410, limit: 900, ineligible: 0, count: 9 } } },
-  paris: { currency: "EUR", accounts: { 취재비: { used: 4710, limit: 4500, ineligible: 210, count: 19 }, 경상비: { used: 1180, limit: 2000, ineligible: 0, count: 17 }, 차량유지비: { used: 640, limit: 1000, ineligible: 0, count: 8 } } },
-  beijing: { currency: "CNY", accounts: { 취재비: { used: 17200, limit: 30000, ineligible: 0, count: 12 }, 경상비: { used: 8900, limit: 12000, ineligible: 0, count: 25 }, 차량유지비: { used: 2100, limit: 6000, ineligible: 0, count: 6 } } },
-  tokyo: { currency: "JPY", accounts: { 취재비: { used: 412000, limit: 600000, ineligible: 0, count: 11 }, 경상비: { used: 188000, limit: 240000, ineligible: 0, count: 16 }, 차량유지비: { used: 96000, limit: 120000, ineligible: 0, count: 7 } } },
-};
-const COUNTRY = { newyork: "미국", washington: "미국", paris: "프랑스", beijing: "중국", tokyo: "일본" };
-// 예시 값은 분기 기준 — 월별 정산이면 산술 비례(÷ 3)로 맞춘다
-function scaleMock(m) {
-  if (getMode() !== "month") return m;
-  const k = 1 / 3;
-  const r = (n) => Math.round(n * k * 100) / 100;
-  return { ...m, accounts: Object.fromEntries(Object.entries(m.accounts).map(([a, v]) => [a, { ...v, used: r(v.used), limit: r(v.limit), ineligible: r(v.ineligible), count: Math.max(1, Math.round(v.count * k)) }])) };
-}
 const ACC_CLS = { 취재비: "seg-a", 경상비: "seg-b", 차량유지비: "seg-c" };
 
-export function renderDashboard(el, ctx, live = LIVE_BRANCHES) {
-  draw(el, ctx, live);
+export function renderDashboard(el, ctx) {
+  draw(el, ctx, savedDateRange() || getPeriod());
 }
 
-function draw(el, ctx, live) {
+function draw(el, ctx, quarter) {
   clear(el);
-  const quarter = getPeriod();
   const grid = h("div", { class: "branch-grid" }, h("div", { class: "card-loading" }, spinner()));
-  const again = () => draw(el, ctx, live);
+  const again = () => draw(el, ctx, quarter);
   el.append(
     pageHeader({
       crumbs: ["본사"],
       title: "홈",
-      desc: `${quarterLabel(quarter)} 지국별 한도 소진`,
-      actions: [periodSwitch(again), h("button", { class: "btn btn-ghost", type: "button", onclick: again }, icon("refresh"), h("span", {}, "새로고침"))],
+      desc: `${periodCaption(quarter)} 지국별 ${isDateRange(quarter) ? "사용액" : "한도 소진"}`,
+      actions: [periodControls(quarter, (next) => draw(el, ctx, next), { all: false }), h("button", { class: "btn btn-ghost", type: "button", onclick: again }, icon("refresh"), h("span", {}, "새로고침"))],
     }),
     grid,
+    ["imc", "finance", "admin"].includes(ctx.me.role) ? recognitionStats() : null,
   );
 
-  // 실데이터 지국은 병렬로 받고, 나머지는 예시로 채운다. 순서는 BRANCH(뉴욕·워싱턴·파리·베이징·도쿄) 그대로.
   Promise.all(
-    Object.keys(BRANCH).map(async (id) => {
-      if (!live.includes(id)) return { id, name: BRANCH[id], mock: true, ...scaleMock(MOCK[id]) };
+    LIVE_BRANCHES.map(async (id) => {
       try {
         const u = await api.get(`/limits?period=${encodeURIComponent(quarter)}&branch=${id}`);
-        return { id, name: BRANCH[id], mock: false, currency: u.currency, accounts: u.accounts || {} };
+        return { id, name: BRANCH[id], range: u.unit === "range", currency: u.currency, accounts: u.accounts || {} };
       } catch (e) {
-        return { id, name: BRANCH[id], mock: false, error: errorText(e) };
+        return { id, name: BRANCH[id], error: errorText(e) };
       }
     }),
   ).then((branches) => clear(grid).append(...branches.map(branchCard)));
 }
 
+function recognitionStats() {
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+  const month = h("input", { type: "month", class: "input input-sm", "aria-label": "사용량 집계 월", value: today.slice(0, 7) });
+  const content = h("div", {});
+  const el = h("section", { class: "card usage-card desktop-guide" },
+    h("div", { class: "card-head" }, h("h2", { class: "card-title with-symbol" }, icon("shield"), "AI 판독 사용량"), month), content);
+  let revision = 0;
+  async function load() {
+    if (!month.value) return;
+    const current = ++revision;
+    clear(content).append(spinner());
+    try {
+      const { rows } = await api.get(`/settings/recognition-stats?month=${encodeURIComponent(month.value)}`);
+      if (revision !== current) return;
+      const table = h("table", { class: "table" },
+        h("thead", {}, h("tr", {}, ["지국", "모델", "판독 쪽", "오류", "입력 토큰", "출력 토큰", "평균 시간"].map((x) => h("th", {}, x)))),
+        h("tbody", {}, rows.map((row) => h("tr", {}, h("td", {}, BRANCH[row.branchId]), h("td", {}, row.model),
+          h("td", {}, row.pages.toLocaleString()), h("td", {}, row.errors.toLocaleString()),
+          h("td", {}, row.inputTokens.toLocaleString()), h("td", {}, row.outputTokens.toLocaleString()),
+          h("td", {}, `${(row.meanLatencyMs / 1000).toFixed(1)}초`)))));
+      clear(content).append(rows.length ? h("div", { class: "table-wrap" }, table) : h("p", { class: "muted" }, "이달 기록 없음"));
+    } catch (err) {
+      if (revision === current) clear(content).append(h("p", { class: "card-error" }, errorText(err)));
+    }
+  }
+  month.addEventListener("change", load);
+  load();
+  return el;
+}
+
 function branchCard(b) {
-  const tag = b.mock ? h("span", { class: "bc-tag bc-mock", title: "화면 설계용 예시 데이터입니다" }, "예시") : h("span", { class: "bc-tag bc-live" }, h("i", {}), "실데이터");
-  const head = h(
-    "div",
-    { class: "card-head bc-head" },
-    h("div", { class: "bc-title" }, h("span", { class: "bc-icon" }, branchIcon(b.id)), h("div", {}, h("div", { class: "bc-name" }, h("span", { class: "card-title" }, `${b.name}지국`), tag), h("div", { class: "bc-sub" }, [COUNTRY[b.id], b.currency].filter(Boolean).join(" · ")))),
-  );
+  const head = h("div", { class: "card-head bc-head" },
+    h("div", { class: "bc-title" }, h("span", { class: "bc-icon" }, branchIcon(b.id)),
+      h("div", {}, h("div", { class: "bc-name" }, h("span", { class: "card-title" }, `${b.name}지국`)),
+        h("div", { class: "bc-sub" }, b.currency || "미국"))));
   if (b.error) return h("section", { class: "card branch-card" }, head, h("p", { class: "card-error" }, b.error));
 
+  if (b.range) {
+    return h("section", { class: "card branch-card" }, head,
+      h("ul", { class: "lb-list range-usage" }, ACCOUNTS.map((account) => {
+        const usage = b.accounts[account] || {};
+        return h("li", { class: "lb-head" }, h("span", {}, account),
+          h("strong", { class: "num" }, money(usage.used || 0, b.currency)));
+      })));
+  }
   const rows = ACCOUNTS.map((acc) => [acc, b.accounts[acc]]).filter(([, v]) => v && v.limit > 0);
   const used = rows.reduce((a, [, v]) => a + (Number(v.used) || 0), 0);
   const limit = rows.reduce((a, [, v]) => a + (Number(v.limit) || 0), 0);
   const pct = limit > 0 ? (used / limit) * 100 : 0;
   return h(
     "section",
-    { class: `card branch-card${b.mock ? " is-mock" : ""}` },
+    { class: "card branch-card" },
     head,
     limit > 0
       ? h(
