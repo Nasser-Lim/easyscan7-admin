@@ -1,10 +1,10 @@
 // AI 적격 정책 — 보도BIZ팀·재무팀이 계정별로 '이런 경우 비적격' 문장을 적는다(공용 설정).
 // 이 정책으로 AI 가 지국 증빙의 1차 적격 검증(gate)을 한다: 업로드 직후 사전 판정, 제출할 때 위반이면 자동 반려.
-import { api } from "../api.js?v=8bbda7c";
-import { aiGatePanel } from "../aigate.js?v=8bbda7c";
-import { motionControl } from "../motion.js?v=8bbda7c";
-import { ACCOUNTS, BRANCH, clear, confirmDialog, dateTime, displayTeamName, errorText, h, icon, money, policyVer, select, spinner, toast } from "../ui.js?v=8bbda7c";
-import { pageHeader } from "./shell.js?v=8bbda7c";
+import { api } from "../api.js?v=49218f7";
+import { aiGatePanel } from "../aigate.js?v=49218f7";
+import { motionControl } from "../motion.js?v=49218f7";
+import { ACCOUNTS, BRANCH, clear, confirmDialog, dateTime, displayTeamName, errorText, h, icon, money, policyVer, select, spinner, toast } from "../ui.js?v=49218f7";
+import { pageHeader } from "./shell.js?v=49218f7";
 
 const EXAMPLE = {
   취재비: "- 주류만 단독으로 구매한 영수증은 비적격(식사와 함께면 가능)\n- 취재와 무관한 개인 식사(1인 식사)는 비적격\n- 적요에 만난 사람·취재 건명이 없으면 비적격",

@@ -1,7 +1,7 @@
-import { api } from "../api.js?v=8bbda7c";
-import { branchFlag } from "../branchicons.js?v=8bbda7c";
-import { BRANCH, chip, clear, confirmDialog, empty, errorText, field, h, select, spinner, toast, updateCatalog } from "../ui.js?v=8bbda7c";
-import { pageHeader } from "./shell.js?v=8bbda7c";
+import { api } from "../api.js?v=49218f7";
+import { branchFlag } from "../branchicons.js?v=49218f7";
+import { BRANCH, chip, clear, confirmDialog, empty, errorText, field, h, icon, select, spinner, toast, updateCatalog } from "../ui.js?v=49218f7";
+import { pageHeader } from "./shell.js?v=49218f7";
 
 const control = (attrs) => h("input", { class: "input", ...attrs });
 const button = (label, action, primary = false) => h("button", {
@@ -31,10 +31,14 @@ export function renderBureau(el, { me }) {
   const catalog = h("section", { class: "card bureau-catalog" },
     h("div", { class: "card-head bureau-catalog-head" }, h("h2", { class: "card-title" }, "기타 계정 관리"), branchTabs),
     catalogBody);
-  const staff = h("section", { class: "card bureau-staff" }, spinner());
+  const staffBody = h("div", {}, spinner());
   const canManageStaff = me.role === "imc" || me.role === "admin";
+  const staff = canManageStaff ? h("section", { class: "card bureau-staff" },
+    h("div", { class: "card-head" }, h("h2", { class: "card-title" }, "지국 담당자 계정"),
+      editable ? button("담당자 추가", addStaff, true) : h("span", { class: "muted small" }, "연결된 운영 계정")),
+    captureLinks(), staffBody) : null;
   el.append(pageHeader({ crumbs: editable ? ["본사", "설정"] : ["운영 클라우드 · 읽기 전용"], title: "지국 관리" }),
-    h("div", { class: "stack" }, catalog, canManageStaff ? staff : null));
+    h("div", { class: "stack" }, catalog, staff));
   loadCatalog();
   if (canManageStaff) loadStaff();
 
@@ -128,13 +132,11 @@ export function renderBureau(el, { me }) {
 
   async function loadStaff() {
     const request = ++staffRequest;
-    clear(staff).append(spinner());
+    clear(staffBody).append(spinner());
     try {
       const { accounts } = await api.get("/accounts/staff" + sourceQuery);
       if (request !== staffRequest) return;
-      clear(staff).append(
-        h("div", { class: "card-head" }, h("h2", { class: "card-title" }, "지국 담당자 계정"),
-          editable ? button("담당자 추가", addStaff, true) : h("span", { class: "muted small" }, "연결된 운영 계정")),
+      clear(staffBody).append(
         accounts.length === 0 ? empty("표시할 담당자 계정이 없습니다") :
         h("div", { class: "table-wrap" }, h("table", { class: "table bureau-table" },
           h("thead", {}, h("tr", {}, h("th", {}, "지국"), h("th", {}, "담당자"), h("th", {}, "상태"),
@@ -148,7 +150,7 @@ export function renderBureau(el, { me }) {
               row.disabled ? null : button("비밀번호 설정 링크", () => resetLink(row)),
               button(row.disabled ? "재활성화" : "정지", () => toggleStaff(row)), removeButton(() => deleteStaff(row)))) : null))))));
     } catch (err) {
-      if (request === staffRequest) clear(staff).append(h("p", { class: "card-error" }, errorText(err)));
+      if (request === staffRequest) clear(staffBody).append(h("p", { class: "card-error" }, errorText(err)));
     }
   }
 
@@ -209,4 +211,33 @@ export function renderBureau(el, { me }) {
       if (err.status === 404) loadStaff();
     }
   }
+}
+
+function captureLinks() {
+  const links = Object.entries(BRANCH).map(([id, name]) => {
+    const url = new URL("https://easyscan7.vercel.app/");
+    url.searchParams.set("branch", id);
+    const address = control({
+      type: "text", value: url.href, readonly: true, "aria-label": `${name}지국 촬영앱 주소`,
+      onfocus: (event) => event.currentTarget.select(),
+    });
+    const copy = h("button", { class: "btn btn-ghost btn-sm", type: "button", "aria-label": `${name}지국 촬영앱 링크 복사`,
+      onclick: async () => {
+        try {
+          await navigator.clipboard.writeText(url.href);
+          toast(`${name}지국 촬영앱 링크를 복사했습니다`, "ok");
+        } catch {
+          address.focus();
+          address.select();
+          toast("주소를 선택했습니다. 복사해 주세요.", "info");
+        }
+      },
+    }, "복사");
+    return h("div", { class: "bureau-capture-link" },
+      h("span", { class: "branch-name" }, branchFlag(id), `${name}지국`),
+      h("div", { class: "bureau-capture-address" }, address, copy));
+  });
+  return h("section", { class: "bureau-capture-links", "aria-labelledby": "bureau-capture-links-title" },
+    h("h3", { id: "bureau-capture-links-title", class: "card-title" }, icon("receipt"), "촬영앱 링크"),
+    h("div", { class: "bureau-capture-grid" }, links));
 }

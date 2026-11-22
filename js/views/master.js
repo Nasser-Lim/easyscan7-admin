@@ -1,8 +1,8 @@
-import { api, passwordSetupUrl } from "../api.js?v=8bbda7c";
-import { branchFlag } from "../branchicons.js?v=8bbda7c";
-import { estimateTokenCost, GEMINI_PRICING_URL } from "../usage-cost.js?v=8bbda7c";
-import { BRANCH, ROLE, chip, clear, confirmDialog, dateTime, empty, errorText, field, h, icon, select, spinner, toast } from "../ui.js?v=8bbda7c";
-import { pageHeader } from "./shell.js?v=8bbda7c";
+import { api, passwordSetupUrl } from "../api.js?v=49218f7";
+import { branchFlag } from "../branchicons.js?v=49218f7";
+import { estimateTokenCost, GEMINI_PRICING_URL } from "../usage-cost.js?v=49218f7";
+import { BRANCH, ROLE, chip, clear, confirmDialog, dateTime, empty, errorText, field, h, icon, select, spinner, toast } from "../ui.js?v=49218f7";
+import { pageHeader } from "./shell.js?v=49218f7";
 
 const kindLabel = { recognition: "증빙 판독", policy: "적격 판정", policy_test: "정책 테스트" };
 const kindIcon = { recognition: "receipt", policy: "shield", policy_test: "search" };
@@ -70,7 +70,7 @@ function renderUsers(panel, me) {
       clear(body).append(userList(visible, branches, (u) => u.editable ? [
         u.email && !u.disabled ? button("설정 링크", () => resetLink(u)) : null,
         button("편집", () => edit(u)),
-        button("삭제", (event) => removeUser(u, event.currentTarget), "danger-ghost"),
+        button("계정 삭제", (event) => removeUser(u, event.currentTarget), "danger"),
       ] : h("span", { class: "muted small" }, "보호됨")));
     }
     clear(card).append(

@@ -1479,6 +1479,14 @@ select.input { padding-right: 28px; }
 /* 지국 관리 */
 .bureau-catalog-head { flex-wrap: wrap; gap: 8px; }
 .bureau-catalog-tools { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 8px; }
+.bureau-capture-links { display: grid; gap: 8px; margin-bottom: 12px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); }
+.bureau-capture-links .card-title { display: flex; align-items: center; gap: 6px; margin: 0; }
+.bureau-capture-links .ic { color: var(--sbs-blue); }
+.bureau-capture-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 295px), 1fr)); gap: 8px 14px; }
+.bureau-capture-link { display: grid; gap: 4px; min-width: 0; }
+.bureau-capture-link .branch-name { font-size: 12px; font-weight: 650; }
+.bureau-capture-address { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px; }
+.bureau-capture-address .input { min-width: 0; min-height: 34px; padding: 5px 8px; font-size: 12px; background: var(--surface); }
 .bureau-table .bulk-actions { flex-wrap: wrap; gap: 4px; }
 .bureau-table .cell-main, .bureau-table .cell-sub, .bureau-table .bureau-template-col { white-space: normal; overflow-wrap: anywhere; }
 .bureau-table .bureau-template-mobile { display: none; }
