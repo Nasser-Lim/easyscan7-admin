@@ -1,8 +1,8 @@
-import { api, passwordSetupUrl } from "../api.js?v=511206f";
-import { branchFlag } from "../branchicons.js?v=511206f";
-import { estimateTokenCost, GEMINI_PRICING_URL } from "../usage-cost.js?v=511206f";
-import { BRANCH, ROLE, chip, clear, confirmDialog, dateTime, empty, errorText, field, h, icon, select, spinner, toast } from "../ui.js?v=511206f";
-import { pageHeader } from "./shell.js?v=511206f";
+import { api, passwordSetupUrl } from "../api.js?v=8bbda7c";
+import { branchFlag } from "../branchicons.js?v=8bbda7c";
+import { estimateTokenCost, GEMINI_PRICING_URL } from "../usage-cost.js?v=8bbda7c";
+import { BRANCH, ROLE, chip, clear, confirmDialog, dateTime, empty, errorText, field, h, icon, select, spinner, toast } from "../ui.js?v=8bbda7c";
+import { pageHeader } from "./shell.js?v=8bbda7c";
 
 const kindLabel = { recognition: "증빙 판독", policy: "적격 판정", policy_test: "정책 테스트" };
 const kindIcon = { recognition: "receipt", policy: "shield", policy_test: "search" };
@@ -33,8 +33,8 @@ export function renderMaster(el, { me, query }) {
 
 function renderUsers(panel, me) {
   const card = h("section", { class: "card master-users" }, loading());
-  const cloud = me.cloudData === true;
   panel.append(card);
+  if (me.cloudData) panel.append(linkedCloudUsers());
   let request = 0;
   let current;
   let roleFilter = "";
@@ -45,7 +45,7 @@ function renderUsers(panel, me) {
     const revision = ++request;
     clear(card).append(loading());
     try {
-      const result = await api.get(cloud ? "/master/users?source=cloud" : "/master/users");
+      const result = await api.get("/master/users");
       if (revision !== request) return;
       current = result;
       draw();
@@ -67,22 +67,17 @@ function renderUsers(panel, me) {
       const term = query.trim().toLowerCase();
       const visible = users.filter((u) => (!roleFilter || u.role === roleFilter) &&
         (!term || `${u.displayName || ""} ${u.email || ""} ${branches[u.branchId] || ""}`.toLowerCase().includes(term)));
-      clear(body).append(visible.length ? h("ul", { class: "master-list" }, visible.map((u) =>
-        h("li", { class: "master-user" },
-          h("div", { class: "master-identity" }, h("strong", {}, u.displayName || u.email || "이름 없음"),
-            u.displayName && u.email ? h("span", { class: "muted small" }, u.email) : null),
-          h("div", { class: "master-user-role" }, h("strong", {}, roleLabel(u)),
-            u.branchId ? h("span", { class: "muted small" }, branches[u.branchId] || u.branchId) : null),
-          chip(u.disabled ? "정지" : "활성", u.disabled ? "muted" : "ok"),
-          h("div", { class: "bulk-actions" }, u.editable ? [
-            u.email && !u.disabled ? button("설정 링크", () => resetLink(u)) : null,
-            button("편집", () => edit(u)),
-          ] : null)))) : empty("표시할 계정이 없습니다"));
+      clear(body).append(userList(visible, branches, (u) => u.editable ? [
+        u.email && !u.disabled ? button("설정 링크", () => resetLink(u)) : null,
+        button("편집", () => edit(u)),
+        button("삭제", (event) => removeUser(u, event.currentTarget), "danger-ghost"),
+      ] : h("span", { class: "muted small" }, "보호됨")));
     }
     clear(card).append(
       h("div", { class: "card-head" }, h("h2", { class: "card-title" }, "계정·권한"),
-        cloud ? h("span", { class: "muted small" }, "연결된 운영 계정 · 읽기 전용") : button("계정 추가", () => edit(), "primary")),
+        button("계정 추가", () => edit(), "primary")),
       h("div", { class: "master-controls" }, filter, search,
+        me.cloudData ? chip("테스트 환경", "muted") : null,
         h("span", { class: "muted small" }, `전체 ${users.length}개 · 활성 ${users.filter((u) => !u.disabled).length}개`)),
       body);
     list();
@@ -130,6 +125,28 @@ function renderUsers(panel, me) {
     }
   }
 
+  async function removeUser(user, trigger) {
+    trigger.disabled = true;
+    try {
+      if (!(await confirmDialog({
+        title: "계정 삭제",
+        message: h("div", {},
+          h("p", {}, h("strong", {}, user.email || user.displayName || user.uid), ` · ${roleLabel(user)}`),
+          h("p", {}, me.cloudData ? "테스트 환경의 로그인 계정을 영구 삭제합니다." : "로그인 계정을 영구 삭제합니다."),
+          h("p", { class: "muted small" }, "등록한 증빙과 결재 이력은 보존됩니다.")),
+        confirm: "삭제", danger: true,
+      }))) return;
+      await api.del(`/master/users/${encodeURIComponent(user.uid)}`);
+      await load();
+      toast("계정을 삭제했습니다", "ok");
+    } catch (err) {
+      toast(errorText(err), "bad");
+      if (err.status === 404) await load();
+    } finally {
+      trigger.disabled = false;
+    }
+  }
+
   async function resetLink(user) {
     try {
       const { url } = await api.post(`/master/users/${encodeURIComponent(user.uid)}/reset-link`, {});
@@ -142,6 +159,39 @@ function renderUsers(panel, me) {
       }
     } catch (err) { toast(errorText(err), "bad"); }
   }
+}
+
+function userList(users, branches, actions) {
+  return users.length ? h("ul", { class: "master-list" }, users.map((u) =>
+    h("li", { class: "master-user" },
+      h("div", { class: "master-identity" }, h("strong", {}, u.displayName || u.email || "이름 없음"),
+        u.displayName && u.email ? h("span", { class: "muted small" }, u.email) : null),
+      h("div", { class: "master-user-role" }, h("strong", {}, roleLabel(u)),
+        u.branchId ? h("span", { class: "muted small" }, branches[u.branchId] || u.branchId) : null),
+      chip(u.disabled ? "정지" : "활성", u.disabled ? "muted" : "ok"),
+      actions ? h("div", { class: "bulk-actions" }, actions(u)) : null,
+    ))) : empty("표시할 계정이 없습니다");
+}
+
+function linkedCloudUsers() {
+  const body = h("div", { class: "master-user-list" });
+  const details = h("details", { class: "card master-users" },
+    h("summary", { class: "card-title" }, "연결된 운영 계정", " · ", h("span", { class: "muted small" }, "읽기 전용")),
+    body);
+  let started = false;
+  details.addEventListener("toggle", async () => {
+    if (!details.open || started) return;
+    started = true;
+    clear(body).append(loading());
+    try {
+      const { users, branches } = await api.get("/master/users?source=cloud");
+      clear(body).append(userList(users, branches));
+    } catch (err) {
+      started = false;
+      clear(body).append(h("p", { class: "card-error" }, errorText(err)));
+    }
+  });
+  return details;
 }
 
 function renderUsage(panel, me) {
