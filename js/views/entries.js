@@ -1,19 +1,19 @@
 // 증빙 조회 — 필터·정렬 목록, 일괄 제출, 상세 서랍(원본 증빙 대조 + 수정·제출·삭제 / 결재).
 // 지국 담당자: 자기 지국 · 본사 결재자: 전 지국(지국 필터), 결재는 결재함 또는 이 화면의 상세 서랍에서.
-import { api } from "../api.js?v=44821c9";
+import { api } from "../api.js?v=135b131";
 import {
   ACCOUNTS, ACTION_LABEL, BRANCH, DOC_TYPE, ELIGIBILITY, FINAL, IN_REVIEW, NON_REVIEW_ACCOUNT_LABEL, ROLE, STAFF_EDITABLE, STATUS, WRITING_STATUSES, chip, clear,
   confirmDialog, promptDialog, dateText, dateTime, displayTeamName, empty, errorText, field, h, icon, money, noticeParts,
   ALL_ACCOUNTS, accountSelect, isCoreAccount, metricTile, mobileDisclosure, mobileReceiptCard, periodBadge, quarterLabel, quarterOf, resubmittedBadge, select, spinner, statusChip, tip, toast,
-} from "../ui.js?v=44821c9";
+} from "../ui.js?v=135b131";
 import { currentPeriod, getMode, isDateRange, isPeriodOf, periodCaption, periodOfEntry, periodOptions, periodControls,
-  savedDateRange, unitName } from "../period.js?v=44821c9";
-import { aiGatePanel } from "../aigate.js?v=44821c9";
-import { createPager } from "../pager.js?v=44821c9";
-import { compactFlow, flowDiagram } from "../flow.js?v=44821c9";
-import { fxStrip, loadFx, sumIn } from "../fx.js?v=44821c9";
-import { refreshInboxBadge } from "./inbox.js?v=44821c9";
-import { pageHeader } from "./shell.js?v=44821c9";
+  savedDateRange, unitName } from "../period.js?v=135b131";
+import { aiGatePanel } from "../aigate.js?v=135b131";
+import { createPager } from "../pager.js?v=135b131";
+import { compactFlow, flowDiagram } from "../flow.js?v=135b131";
+import { fxStrip, loadFx, sumIn } from "../fx.js?v=135b131";
+import { refreshInboxBadge } from "./inbox.js?v=135b131";
+import { pageHeader } from "./shell.js?v=135b131";
 
 const EDITABLE_STATUS = STAFF_EDITABLE; // 지국 담당자가 고치고 제출할 수 있는 상태
 const STATUS_GROUPS = { writing: WRITING_STATUSES, review: IN_REVIEW };
@@ -491,13 +491,13 @@ export function openDrawer(id, me, onChanged) {
       const meta = [e.account, quarterLabel(periodOfEntry(e)), e.orderNumber ? `주문 #${e.orderNumber}` : null].filter(Boolean).join(" · ");
       clear(subEl).append(meta, h("span", { class: "drawer-id" }, `${meta ? " · " : ""}ID ${e.id}`));
       const form = detailForm(e, me);
-      const review = e.stage?.canAct ? reviewPanel(e, me) : null;
+      const review = e.stage?.canAct ? reviewPanel(e) : null;
       if (review) form.node.prepend(review.node);
       dirty = form.dirty;
       const details = h("section", { class: "detail-side", "aria-label": "증빙 정보" }, form.node);
       clear(body).append(h("div", { class: "detail" }, evidenceViewer(e, urls), details));
       const ctx = { me, close, onChanged: () => (onChanged(), refreshInboxBadge(me)), reopen: () => openDrawer(id, me, onChanged) };
-      clear(foot).append(...(review ? reviewFooter(e, me, form, review, ctx) : footer(e, form, ctx)));
+      clear(foot).append(...(review ? reviewFooter(e, form, review, ctx) : footer(e, form, ctx)));
     })
     .catch((ex) => clear(body).append(h("p", { class: "card-error" }, errorText(ex))));
 }
@@ -883,28 +883,10 @@ function approvalTimeline(e) {
   ];
 }
 
-function reviewPanel(e, me) {
+function reviewPanel(e) {
   const atImc = e.status === "submitted";
   const overLimit = e.ineligibleAmount > 0;
-  const comment = h("textarea", { class: "input", rows: "2", placeholder: "의견 (반려·불승인·비적격일 때 필수)" });
-  let eligibility = e.eligibility || (overLimit ? "ineligible" : null);
-  const radios = atImc
-    ? h(
-        "div",
-        { class: "seg", role: "radiogroup", "aria-label": "적격 분류" },
-        ["eligible", "ineligible"].map((v) => {
-          const b = h("button", { type: "button", class: `seg-btn seg-${v}`, role: "radio", disabled: v === "eligible" && overLimit,
-            title: v === "eligible" && overLimit ? "한도 초과 금액이 있어 적격으로 분류할 수 없습니다" : "" }, ELIGIBILITY[v][0]);
-          b.addEventListener("click", () => {
-            eligibility = v;
-            radios.querySelectorAll(".seg-btn").forEach((x) => x.classList.toggle("on", x === b));
-            panel.dispatchEvent(new Event("eligibility"));
-          });
-          if (eligibility === v) b.classList.add("on");
-          return b;
-        }),
-      )
-    : null;
+  const comment = h("textarea", { class: "input", rows: "2", placeholder: "의견 또는 사유" });
   const guide = {
     submitted: "적격이면 재무팀 최종 검토로, 비적격이면 보도국장 전결로 올립니다.",
     chief_review: "보도BIZ팀이 비적격으로 분류한 증빙입니다. 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않습니다.",
@@ -916,56 +898,63 @@ function reviewPanel(e, me) {
     h("div", { class: "review-panel-head" }, icon("check"), h("b", {}, displayTeamName(e.stage.label)), h("span", { class: "muted small" }, "내 결재 차례")),
     h("p", { class: "small" }, guide),
     overLimit ? h("p", { class: "small text-bad" }, `분기 한도 초과로 ${money(e.ineligibleAmount, e.currency)} 가 비적격 — 보도국장 전결이 필요합니다.`) : null,
-    radios ? h("div", { class: "field" }, h("span", { class: "field-label" }, "적격 분류"), radios) : e.eligibility ? h("p", { class: "small" }, "보도BIZ팀 분류: ", chip(ELIGIBILITY[e.eligibility][0], ELIGIBILITY[e.eligibility][1])) : null,
+    !atImc && ELIGIBILITY[e.eligibility] ? h("p", { class: "small" }, "보도BIZ팀 분류: ", chip(...ELIGIBILITY[e.eligibility])) : null,
     field("의견", comment),
   );
-  return { node: panel, comment, eligibility: () => eligibility, atImc };
+  return { node: panel, comment, atImc, overLimit };
 }
 
-function reviewFooter(e, me, form, review, { close, onChanged }) {
+function reviewFooter(e, form, review, { close, onChanged }) {
   const buttons = [];
-  const send = async (action, confirmText, danger = false) => {
-    const c = review.comment.value.trim();
-    const elig = review.eligibility();
-    if (review.atImc && action === "approve" && !elig) return toast("적격 / 비적격을 선택하세요", "warn");
-    // 의견 필수: 반려·불승인, 그리고 보도BIZ팀이 비적격으로 분류할 때(사유). 보도국장·재무팀 승인은 선택
-    if ((action !== "approve" || (review.atImc && elig === "ineligible")) && !c) {
+  let pending = false;
+  const send = async (action, confirmText, { danger = false, eligibility } = {}) => {
+    if (pending) return;
+    let comment = review.comment.value.trim();
+    if (action !== "approve" && !comment) {
       review.comment.focus();
-      return toast(action === "return" ? "반려 사유를 입력하세요" : action === "reject" ? "불승인 사유를 입력하세요" : "비적격 사유를 입력하세요", "warn");
+      return toast(action === "return" ? "반려 사유를 입력하세요" : "불승인 사유를 입력하세요", "warn");
     }
-    if (!(await confirmDialog({ title: confirmText, message: c ? `의견: ${c}` : "결재하면 다음 단계로 넘어갑니다.", confirm: confirmText, danger }))) return;
-    buttons.forEach((b) => (b.disabled = true));
+    const next = eligibility === "ineligible" ? "보도국장 전결로 보냅니다." : "재무팀 최종 검토로 보냅니다.";
+    const message = eligibility ? h("div", {},
+      h("p", {}, h("b", {}, e.merchantKo || e.merchant || "증빙"), ` · ${money(e.amount, e.currency)}`),
+      h("p", {}, next),
+      comment ? h("p", { class: "small" }, `의견: ${comment}`) : null)
+      : comment ? `의견: ${comment}` : e.status === "finance_review" ? "이 증빙의 결재를 완료합니다." : next;
+    pending = true;
     try {
+      if (eligibility === "ineligible" && !comment) {
+        comment = await promptDialog({ title: confirmText, message, placeholder: "비적격 사유를 입력하세요", confirm: confirmText });
+        if (comment === null) return;
+        review.comment.value = comment;
+      } else if (!(await confirmDialog({ title: confirmText, message, confirm: confirmText, danger }))) return;
+      buttons.forEach((b) => (b.disabled = true));
       if (form.editable && Object.keys(form.diff()).length) await api.patch(`/entries/${e.id}`, form.diff()); // 재무팀 정정분 먼저 저장
-      const r = await api.post(`/entries/${e.id}/review`, { action, eligibility: review.atImc ? elig : undefined, comment: c || undefined, expectedStatus: e.status });
-      toast(`${ACTION_LABEL[action]} — ${STATUS[r.status]?.label || r.status}`, action === "approve" ? "ok" : "warn");
+      const r = await api.post(`/entries/${e.id}/review`, { action, eligibility, comment: comment || undefined, expectedStatus: e.status });
+      toast(`${eligibility ? confirmText : ACTION_LABEL[action]} — ${STATUS[r.status]?.label || r.status}`, action === "approve" ? "ok" : "warn");
       onChanged();
       close(true);
     } catch (ex) {
       toast(errorText(ex), "bad", 6000);
+    } finally {
+      pending = false;
       buttons.forEach((b) => (b.disabled = false));
     }
   };
-  const btn = (cls, ic, label, fn) => {
-    const b = h("button", { class: `btn ${cls}`, type: "button", onclick: fn }, icon(ic), h("span", {}, label));
-    buttons.push(b);
+  const btn = (cls, ic, label, fn, disabled = false) => {
+    const b = h("button", { class: `btn ${cls}`, type: "button", onclick: fn, disabled,
+      title: disabled ? "한도 초과 금액이 있어 적격으로 분류할 수 없습니다" : null }, icon(ic), h("span", {}, label));
+    if (!disabled) buttons.push(b);
     return b;
   };
-  const returnBtn = btn("btn-danger-ghost", "x", "반려", () => send("return", "지국으로 반려", true));
+  const returnBtn = btn("btn-danger-ghost", "x", "반려", () => send("return", "지국으로 반려", { danger: true }));
   const right = [];
   if (review.atImc) {
-    const approve = btn("btn-primary", "check", "", () => send("approve", approve.textContent));
-    const sync = () => {
-      const elig = review.eligibility();
-      approve.querySelector("span:last-child").textContent =
-        elig === "ineligible" ? "비적격 — 보도국장 전결 요청" : elig === "eligible" ? "적격 — 재무팀으로" : "분류를 선택하세요";
-      approve.disabled = !elig;
-    };
-    review.node.addEventListener("eligibility", sync);
-    sync();
-    right.push(approve);
+    right.push(
+      btn("btn-ghost", "alert", "비적격 분류", () => send("approve", "비적격 분류", { eligibility: "ineligible" })),
+      btn("btn-primary", "check", "적격 분류", () => send("approve", "적격 분류", { eligibility: "eligible" }), review.overLimit),
+    );
   } else if (e.status === "chief_review") {
-    right.push(btn("btn-ghost", "x", "불승인", () => send("reject", "불승인(지급하지 않음)", true)));
+    right.push(btn("btn-ghost", "x", "불승인", () => send("reject", "불승인(지급하지 않음)", { danger: true })));
     right.push(btn("btn-primary", "check", "승인", () => send("approve", "비적격 증빙 승인")));
   } else {
     right.push(btn("btn-primary", "check", "최종 결재", () => send("approve", "증빙 최종 결재")));

@@ -1,9 +1,9 @@
 // AI 적격 정책 — 보도BIZ팀·재무팀이 계정별로 '이런 경우 비적격' 문장을 적는다(공용 설정).
 // 이 정책으로 AI 가 지국 증빙의 1차 적격 검증(gate)을 한다: 업로드 직후 사전 판정, 제출할 때 위반이면 자동 반려.
-import { api } from "../api.js?v=44821c9";
-import { aiGatePanel } from "../aigate.js?v=44821c9";
-import { ACCOUNTS, BRANCH, clear, confirmDialog, dateTime, displayTeamName, errorText, h, icon, money, policyVer, select, spinner, toast } from "../ui.js?v=44821c9";
-import { pageHeader } from "./shell.js?v=44821c9";
+import { api } from "../api.js?v=135b131";
+import { aiGatePanel } from "../aigate.js?v=135b131";
+import { ACCOUNTS, BRANCH, clear, confirmDialog, dateTime, displayTeamName, errorText, h, icon, money, policyVer, select, spinner, toast } from "../ui.js?v=135b131";
+import { pageHeader } from "./shell.js?v=135b131";
 
 const EXAMPLE = {
   취재비: "- 주류만 단독으로 구매한 영수증은 비적격(식사와 함께면 가능)\n- 취재와 무관한 개인 식사(1인 식사)는 비적격\n- 적요에 만난 사람·취재 건명이 없으면 비적격",
@@ -115,7 +115,7 @@ export function renderPolicy(el) {
       ),
       masterCard),
       howLine(),
-      h("p", { class: "muted small" }, "한 줄에 한 기준을 적으세요. 금지 품목, 적용 범위, 허용 예외를 구체적으로 적고 아래에서 시험 판정으로 확인할 수 있습니다."),
+      h("p", { class: "muted small" }, "한 줄에 한 기준을 적으세요. 금지 품목, 적용 범위, 허용 예외를 적고 아래에서 AI 판정을 미리 확인할 수 있습니다."),
       h("div", { class: "policy-grid" }, ACCOUNTS.map((acc) =>
         h(
           "section",
@@ -174,8 +174,8 @@ function howLine() {
 
 // 저장 전 문장으로 기존 증빙을 판정해 본다(결과는 저장하지 않음)
 function testCard(forms) {
-  const acc = select(ACCOUNTS.map((a) => [a, a]), ACCOUNTS[0], { class: "input input-sm" });
-  const entrySel = h("select", { class: "input input-sm" });
+  const acc = select(ACCOUNTS.map((a) => [a, a]), ACCOUNTS[0], { class: "input input-sm", "aria-label": "테스트 계정" });
+  const entrySel = h("select", { class: "input input-sm", "aria-label": "판정할 증빙" });
   const run = h("button", { class: "btn btn-primary btn-sm", type: "button" }, icon("shield"), h("span", {}, "이 정책으로 판정"));
   const out = h("div", { class: "policy-test-out" }, h("p", { class: "muted small" }, "저장 전 문장으로 판정해 봅니다. 증빙에는 반영되지 않습니다."));
   async function loadEntries() {
@@ -214,7 +214,7 @@ function testCard(forms) {
   return h(
     "section",
     { class: "card" },
-    h("div", { class: "card-head" }, h("div", { class: "card-title" }, "시험"), h("span", { class: "muted small" }, "저장 없이 판정")),
+    h("div", { class: "card-head policy-test-head" }, h("h2", { class: "card-title" }, "AI 판정 미리 테스트하기"), h("span", { class: "muted small" }, "저장 없이 판정")),
     h("div", { class: "policy-test-bar" }, acc, entrySel, run),
     out,
   );

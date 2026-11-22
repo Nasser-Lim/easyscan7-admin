@@ -255,14 +255,14 @@ export function statusChip(status) {
   return h("span", { class: `chip ${s.cls}${symbol ? " chip-with-icon" : ""}` }, symbol ? icon(symbol) : null, s.label);
 }
 
-export function mobileReceiptCard(entry, { open, selection, branch, below }) {
+export function mobileReceiptCard(entry, { open, selection, branch, statusDetail, below }) {
   const details = [branch, dateText(entry.txnDate), entry.account].filter(Boolean).join(" · ");
   return h("li", { class: "receipt-card" }, selection,
     h("button", { class: "receipt-card-open", type: "button", onclick: open },
       h("span", { class: "receipt-card-top" }, h("b", {}, entry.merchantKo || entry.merchant || "증빙 상세"),
         h("strong", { class: "mono" }, money(entry.amount, entry.currency))),
       h("span", { class: "receipt-card-meta" }, details),
-      h("span", { class: "receipt-card-status" }, statusChip(entry.status), resubmittedBadge(entry), icon("chevron"))),
+      h("span", { class: "receipt-card-status" }, statusChip(entry.status), resubmittedBadge(entry), statusDetail, icon("chevron"))),
     below ? h("div", { class: "receipt-card-extra" }, below) : null);
 }
 

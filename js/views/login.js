@@ -1,6 +1,6 @@
-import { health, login } from "../api.js?v=44821c9";
-import { h, icon } from "../ui.js?v=44821c9";
-import { BUILD, VERSION } from "../version.js?v=44821c9";
+import { health, login } from "../api.js?v=135b131";
+import { h, icon } from "../ui.js?v=135b131";
+import { BUILD, VERSION } from "../version.js?v=135b131";
 
 export function renderLogin(root, onSuccess) {
   const err = h("div", { class: "form-error", role: "alert" });

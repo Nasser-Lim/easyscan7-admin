@@ -1,14 +1,15 @@
 // 결재함 — 내 역할이 결재할 단계의 증빙(전 지국). 행을 열어 원본 대조 후 결재, 단순 승인 단계는 일괄 처리.
-import { api } from "../api.js?v=44821c9";
+import { api } from "../api.js?v=135b131";
 import {
   BRANCH, ELIGIBILITY, ROLE, chip, clear, confirmDialog, dateText, dateTime, displayTeamName, empty, errorText, h, icon, metricTile, mobileDisclosure, mobileReceiptCard, money,
   quarterLabel, resubmittedBadge, select, spinner, statusChip, tip, toast,
-} from "../ui.js?v=44821c9";
-import { isPeriodOf, periodOfEntry, periodControls, savedDateRange, unitName } from "../period.js?v=44821c9";
-import { aiGateMark } from "../aigate.js?v=44821c9";
-import { createPager } from "../pager.js?v=44821c9";
-import { openDrawer } from "./entries.js?v=44821c9";
-import { pageHeader, setNavBadge } from "./shell.js?v=44821c9";
+} from "../ui.js?v=135b131";
+import { isPeriodOf, periodOfEntry, periodControls, savedDateRange, unitName } from "../period.js?v=135b131";
+import { aiGateMark } from "../aigate.js?v=135b131";
+import { compactFlow } from "../flow.js?v=135b131";
+import { createPager } from "../pager.js?v=135b131";
+import { openDrawer } from "./entries.js?v=135b131";
+import { pageHeader, setNavBadge } from "./shell.js?v=135b131";
 
 const ROLE_GUIDE = {
   imc: "제출된 증빙을 원본과 대조해 적격 / 비적격으로 분류합니다. 적격은 재무팀으로, 비적격(사유 필수)은 보도국장 전결로 올라갑니다.",
@@ -18,7 +19,7 @@ const ROLE_GUIDE = {
   admin: "재무팀 최종 검토 단계 증빙입니다.",
 };
 // 열어 보지 않고 일괄 처리해도 되는 단계: 재무팀 최종 결재, 보도BIZ팀의 적격 분류(한도 초과가 없는 증빙만),
-// 보도국장·보도본부장의 비적격 전결 승인(목록의 '사유' 열로 판단). 불승인·반려는 사유가 필수라 건별로 한다
+// 보도국장·보도본부장의 비적격 전결 승인은 확인 창에서 사유를 보여 준다. 불승인·반려는 사유가 필수라 건별로 한다
 const BULK = {
   finance_review: { roles: ["finance", "admin"], label: "선택 최종 결재", body: () => ({ action: "approve" }) },
   submitted: { roles: ["imc"], label: "선택 적격 분류", body: () => ({ action: "approve", eligibility: "eligible" }), ok: (e) => !(e.ineligibleAmount > 0) },
@@ -37,11 +38,18 @@ function reasonParts(e) {
   if (e.ineligibleAmount > 0) out.push(["한도", `초과 ${money(e.ineligibleAmount, e.currency)}`]);
   return out;
 }
-function reasonCell(e) {
-  const parts = reasonParts(e);
-  if (!parts.length) return h("span", { class: "muted" }, "—");
-  const text = parts.map(([k, v]) => `${k}: ${v}`).join("\n");
-  return h("div", { class: "reason", title: text }, parts.map(([k, v]) => h("div", { class: "reason-line" }, h("span", { class: `reason-tag rt-${k === ROLE.imc ? "imc" : k === "소명" ? "just" : k === "AI" ? "ai" : "limit"}` }, k), h("span", {}, v))));
+function statusDetail(e) {
+  const detail = ELIGIBILITY[e.eligibility] || (e.ineligibleAmount > 0 ? ["한도 초과", "bad"] : null);
+  return detail ? chip(detail[0], detail[1]) : null;
+}
+
+function amountSummary(rows, fallbackCurrency = "USD") {
+  const totals = new Map();
+  for (const { amount, currency } of rows) {
+    const cur = currency || fallbackCurrency;
+    totals.set(cur, (totals.get(cur) || 0) + (Number(amount) || 0));
+  }
+  return [...totals].map(([currency, amount]) => money(amount, currency)).join(" · ") || money(0, fallbackCurrency);
 }
 
 export async function refreshInboxBadge(me) {
@@ -61,33 +69,35 @@ let queueOrder = "wait";
 export function renderInbox(el, { me }) {
   let rows = [];
   let stages = [];
+  let reviewing = false;
   const selected = new Set();
-  const branchSel = select([["all", "전체 지국"], ...Object.entries(BRANCH).map(([id, n]) => [id, `${n}지국`])], branchFilter, { class: "input input-sm" });
+  const branchSel = select([["all", "전체 지국"], ...Object.entries(BRANCH).map(([id, n]) => [id, `${n}지국`])], branchFilter, { class: "input input-sm", "aria-label": "결재함 지국" });
   const kpiBar = h("div", { class: "kpis kpis-sm" });
   const bulk = h("div", { class: "bulkbar" });
   const tableWrap = h("div", { class: "table-wrap" }, h("div", { class: "card-loading" }, spinner()));
   const pagerBox = h("div", {});
   const pager = createPager("inbox", () => paint());
-  const order = select([["wait", "오래 기다린 순"], ["amount", "금액 큰 순"], ["reasons", "사유 있는 순"]],
+  const order = select([["wait", "오래된 순"], ["amount", "금액 큰 순"], ["reasons", "사유 있는 순"]],
     queueOrder, { class: "input input-sm", "aria-label": "결재함 정렬" });
   order.addEventListener("change", () => { queueOrder = order.value; pager.reset(); paint(); });
   branchSel.addEventListener("change", () => ((branchFilter = branchSel.value), pager.reset(), paint()));
   periodFilter = savedDateRange() || (isPeriodOf(periodFilter) ? periodFilter : "");
   const periodSel = periodControls(periodFilter, (p) => { periodFilter = p; pager.reset(); load(); });
-  const filters = h("div", { class: "toolbar-filters" }, branchSel, periodSel);
+  const filters = h("div", { class: "toolbar-filters" }, branchSel, periodSel, order);
+  const filterToggle = mobileDisclosure("필터", filters, "inbox-filters", { expanded: true });
 
   el.append(
     pageHeader({
       crumbs: ["본사", ROLE[me.role] || me.role],
       title: "결재함",
       help: `${ROLE_GUIDE[me.role] || ""}\n오래 기다린 순으로 쌓입니다. 여기서 '결재'는 이 시스템 안의 결재(ERP 전표 결재와 별개)입니다.`,
-      actions: [h("button", { class: "btn btn-ghost", type: "button", onclick: () => load() }, icon("refresh"), h("span", {}, "새로고침"))],
+      actions: [filterToggle, h("button", { class: "btn btn-ghost", type: "button", onclick: () => load() }, icon("refresh"), h("span", {}, "새로고침"))],
     }),
     kpiBar,
     h(
       "section",
       { class: "card card-flush" },
-      h("div", { class: "toolbar mobile-toolbar" }, filters, order, mobileDisclosure("필터", filters, "inbox-filters")),
+      h("div", { class: "toolbar mobile-toolbar inbox-toolbar" }, filters),
       bulk,
       tableWrap,
       pagerBox,
@@ -121,7 +131,7 @@ export function renderInbox(el, { me }) {
     clear(kpiBar).append(
       ...stages.map((s) => {
         const n = list.filter((e) => e.status === s.status);
-        return metricTile({ label: displayTeamName(s.label), value: `${n.length}건`, note: money(n.reduce((a, e) => a + (Number(e.amount) || 0), 0), cur),
+        return metricTile({ label: displayTeamName(s.label), value: `${n.length}건`, note: amountSummary(n, cur),
           tone: n.length ? "warn" : "ok", symbol: "clock", compact: true });
       }),
       metricTile({ label: "한도 초과", value: `${list.filter((e) => e.ineligibleAmount > 0).length}건`,
@@ -161,27 +171,30 @@ export function renderInbox(el, { me }) {
           "thead",
           {},
           h("tr", {}, h("th", { class: "cell-check" }, selectAll()), h("th", {}, "지국"), h("th", {}, "사용일"), h("th", {}, "가맹점"), h("th", {}, "계정"),
-            h("th", { class: "num" }, "금액"), h("th", {}, "분류"), h("th", {}, "사유"), h("th", {}, "단계")),
+            h("th", { class: "num" }, "금액"), h("th", {}, "상태"), h("th", {}, "결재 단계"), h("th", {}, "AI 판정")),
         ),
         h(
           "tbody",
           {},
           pageRows.map((e) => {
             const last = (e.approvals || []).at(-1);
-            const elig = e.eligibility ? ELIGIBILITY[e.eligibility] : null;
+            const open = () => openDrawer(e.id, me, load);
             return h(
               "tr",
-              { class: `row-link${selected.has(e.id) ? " selected" : ""}`, onclick: () => openDrawer(e.id, me, load) },
+              { class: `row-link${selected.has(e.id) ? " selected" : ""}`, onclick: open },
               h("td", { class: "cell-check" }, selectOne(e)),
               h("td", {}, `${BRANCH[e.branchId] || e.branchId}`),
               h("td", { class: "mono" }, dateText(e.txnDate), h("div", { class: "cell-sub" }, quarterLabel(periodOfEntry(e)))),
-              h("td", { class: "cell-merchant" }, h("div", { class: "cell-main" }, e.merchantKo || e.merchant || "—"), e.memo ? h("div", { class: "cell-sub" }, e.memo) : null),
+              h("td", { class: "cell-merchant" },
+                h("div", { class: "cell-main" }, h("button", { class: "queue-open", type: "button", onclick: (event) => { event.stopPropagation(); open(); } }, e.merchantKo || e.merchant || "증빙 상세")),
+                e.memo ? h("div", { class: "cell-sub" }, e.memo) : null),
               h("td", {}, e.account || "—"),
               h("td", { class: "num strong" }, money(e.amount, e.currency)),
-              h("td", {}, elig ? chip(elig[0], elig[1]) : e.ineligibleAmount > 0 ? chip("비적격 권장", "bad") : h("span", { class: "muted" }, "—")),
-              h("td", { class: "cell-reason" }, reasonCell(e)),
               // 올라온 시각·직전 결재자는 마우스를 올리면 보인다
-              h("td", { title: `올라온 시각 ${dateTime(last?.at || e.updatedAt)}${last?.roleLabel ? ` · ${displayTeamName(last.roleLabel)}` : ""}` }, statusChip(e.status), resubmittedBadge(e), aiGateMark(e.aiGate) || (e.aiGate?.verdict === "pass" ? h("div", { class: "ai-mark ai-ok" }, "AI 검증 통과") : null)),
+              h("td", { title: `올라온 시각 ${dateTime(last?.at || e.updatedAt)}${last?.roleLabel ? ` · ${displayTeamName(last.roleLabel)}` : ""}` },
+                h("div", { class: "queue-status" }, statusChip(e.status), resubmittedBadge(e), statusDetail(e))),
+              h("td", {}, compactFlow(e)),
+              h("td", { class: "queue-ai" }, aiGateMark(e.aiGate, { all: true })),
             );
           }),
         ),
@@ -191,7 +204,10 @@ export function renderInbox(el, { me }) {
         h("ul", { class: "receipt-cards", "aria-label": "결재할 증빙" }, pageRows.map((e) => mobileReceiptCard(e, {
           selection: bulkable(e) ? selectOne(e) : null,
           open: () => openDrawer(e.id, me, load), branch: BRANCH[e.branchId] || e.branchId,
-          below: reasonParts(e).length ? reasonCell(e) : null,
+          statusDetail: statusDetail(e),
+          below: h("dl", { class: "queue-card-meta" },
+            h("dt", {}, "결재 단계"), h("dd", {}, compactFlow(e)),
+            h("dt", {}, "AI 판정"), h("dd", { class: "queue-ai" }, aiGateMark(e.aiGate, { all: true }))),
         })))),
     );
   }
@@ -201,10 +217,9 @@ export function renderInbox(el, { me }) {
     bulk.classList.toggle("show", selected.size > 0);
     if (!selected.size) return;
     const picked = rows.filter((e) => selected.has(e.id));
-    const cur = picked.find((e) => e.currency)?.currency || "USD";
     const label = BULK[picked[0].status]?.label || "선택 결재";
     bulk.append(
-      h("span", {}, h("b", {}, `${selected.size}건`), ` 선택 · ${money(picked.reduce((a, e) => a + (Number(e.amount) || 0), 0), cur)}`),
+      h("span", {}, h("b", {}, `${selected.size}건`), ` 선택 · ${amountSummary(picked)}`),
       h(
         "div",
         { class: "bulk-actions" },
@@ -215,17 +230,24 @@ export function renderInbox(el, { me }) {
   }
 
   async function bulkApprove(picked) {
+    if (reviewing) return;
+    reviewing = true;
+    const classify = picked[0]?.status === "submitted";
     const chief = picked[0]?.status === "chief_review";
-    const cur = picked.find((e) => e.currency)?.currency || "USD";
+    const action = classify ? "적격 분류" : chief ? "승인" : "최종 결재";
     const ok = await confirmDialog({
-      title: chief ? `비적격 ${picked.length}건 승인` : `증빙 ${picked.length}건 결재`,
+      title: `${picked.length}건 ${action}`,
       message: h("div", {},
-        h("p", {}, `합계 ${money(picked.reduce((a, e) => a + (Number(e.amount) || 0), 0), cur)} · 결재하면 다음 단계(재무팀)로 넘어갑니다.`),
+        h("p", {}, `합계 ${amountSummary(picked)}`),
+        h("p", {}, classify || chief ? "재무팀 최종 검토로 보냅니다." : "선택한 증빙의 결재를 완료합니다."),
         chief ? h("ul", { class: "reason-list" }, picked.slice(0, 8).map((e) => h("li", {}, h("b", {}, `${e.merchantKo || e.merchant || "—"} ${money(e.amount, e.currency)}`), " — ", reasonParts(e).map(([k, v]) => `${k}: ${v}`).join(" · ") || "사유 없음"))) : null,
         chief && picked.length > 8 ? h("p", { class: "muted small" }, `외 ${picked.length - 8}건`) : null),
-      confirm: chief ? "승인" : "결재",
+      confirm: action,
     });
-    if (!ok) return;
+    if (!ok) {
+      reviewing = false;
+      return;
+    }
     let done = 0;
     const failed = [];
     for (const e of picked) {
@@ -236,8 +258,9 @@ export function renderInbox(el, { me }) {
         failed.push(`${e.merchant || e.id}: ${errorText(ex)}`);
       }
     }
-    toast(failed.length ? `${done}건 결재, ${failed.length}건 실패 — ${failed[0]}` : `${done}건을 결재했습니다`, failed.length ? "bad" : "ok", 6000);
-    load();
+    toast(failed.length ? `${done}건 처리, ${failed.length}건 실패 — ${failed[0]}` : `${done}건 ${action} 완료`, failed.length ? "bad" : "ok", 6000);
+    await load();
+    reviewing = false;
   }
 
   load();

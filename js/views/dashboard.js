@@ -1,32 +1,34 @@
 // 본사 홈 — 시범 지국의 증빙 및 한도 현황.
-import { api } from "../api.js?v=44821c9";
-import { branchIcon } from "../branchicons.js?v=44821c9";
-import { compact, gauge, limitBar, toneOfPct } from "../charts.js?v=44821c9";
-import { getPeriod, isDateRange, periodCaption, periodControls, savedDateRange } from "../period.js?v=44821c9";
-import { ACCOUNTS, BRANCH, clear, errorText, h, icon, money, spinner } from "../ui.js?v=44821c9";
-import { pageHeader } from "./shell.js?v=44821c9";
+import { api } from "../api.js?v=135b131";
+import { branchIcon } from "../branchicons.js?v=135b131";
+import { compact, gauge, limitBar, toneOfPct } from "../charts.js?v=135b131";
+import { getPeriod, isDateRange, periodCaption, periodControls, savedDateRange } from "../period.js?v=135b131";
+import { ACCOUNTS, BRANCH, clear, errorText, h, icon, money, spinner } from "../ui.js?v=135b131";
+import { pageHeader } from "./shell.js?v=135b131";
 
 export const LIVE_BRANCHES = Object.keys(BRANCH);
+const PLANNED_BRANCHES = [["paris", "파리"], ["tokyo", "도쿄"], ["beijing", "베이징"]];
 
 const ACC_CLS = { 취재비: "seg-a", 경상비: "seg-b", 차량유지비: "seg-c" };
 
-export function renderDashboard(el, ctx) {
-  draw(el, ctx, savedDateRange() || getPeriod());
+export function renderDashboard(el) {
+  draw(el, savedDateRange() || getPeriod());
 }
 
-function draw(el, ctx, quarter) {
+function draw(el, quarter) {
   clear(el);
   const grid = h("div", { class: "branch-grid" }, h("div", { class: "card-loading" }, spinner()));
-  const again = () => draw(el, ctx, quarter);
+  const again = () => draw(el, quarter);
   el.append(
     pageHeader({
       crumbs: ["본사"],
       title: "홈",
       desc: `${periodCaption(quarter)} 지국별 ${isDateRange(quarter) ? "사용액" : "한도 소진"}`,
-      actions: [periodControls(quarter, (next) => draw(el, ctx, next), { all: false }), h("button", { class: "btn btn-ghost", type: "button", onclick: again }, icon("refresh"), h("span", {}, "새로고침"))],
+      actions: [periodControls(quarter, (next) => draw(el, next), { all: false }), h("button", { class: "btn btn-ghost", type: "button", onclick: again }, icon("refresh"), h("span", {}, "새로고침"))],
     }),
     grid,
-    ["imc", "finance", "admin"].includes(ctx.me.role) ? recognitionStats() : null,
+    h("div", { class: "branch-grid branch-grid-planned", "aria-label": "서비스 예정 지국", role: "group" },
+      PLANNED_BRANCHES.map(([id, name]) => branchCard({ id, name, planned: true }))),
   );
 
   Promise.all(
@@ -41,41 +43,12 @@ function draw(el, ctx, quarter) {
   ).then((branches) => clear(grid).append(...branches.map(branchCard)));
 }
 
-function recognitionStats() {
-  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
-  const month = h("input", { type: "month", class: "input input-sm", "aria-label": "사용량 집계 월", value: today.slice(0, 7) });
-  const content = h("div", {});
-  const el = h("section", { class: "card usage-card desktop-guide" },
-    h("div", { class: "card-head" }, h("h2", { class: "card-title with-symbol" }, icon("shield"), "AI 판독 사용량"), month), content);
-  let revision = 0;
-  async function load() {
-    if (!month.value) return;
-    const current = ++revision;
-    clear(content).append(spinner());
-    try {
-      const { rows } = await api.get(`/settings/recognition-stats?month=${encodeURIComponent(month.value)}`);
-      if (revision !== current) return;
-      const table = h("table", { class: "table" },
-        h("thead", {}, h("tr", {}, ["지국", "모델", "판독 쪽", "오류", "입력 토큰", "출력 토큰", "평균 시간"].map((x) => h("th", {}, x)))),
-        h("tbody", {}, rows.map((row) => h("tr", {}, h("td", {}, BRANCH[row.branchId]), h("td", {}, row.model),
-          h("td", {}, row.pages.toLocaleString()), h("td", {}, row.errors.toLocaleString()),
-          h("td", {}, row.inputTokens.toLocaleString()), h("td", {}, row.outputTokens.toLocaleString()),
-          h("td", {}, `${(row.meanLatencyMs / 1000).toFixed(1)}초`)))));
-      clear(content).append(rows.length ? h("div", { class: "table-wrap" }, table) : h("p", { class: "muted" }, "이달 기록 없음"));
-    } catch (err) {
-      if (revision === current) clear(content).append(h("p", { class: "card-error" }, errorText(err)));
-    }
-  }
-  month.addEventListener("change", load);
-  load();
-  return el;
-}
-
 function branchCard(b) {
   const head = h("div", { class: "card-head bc-head" },
     h("div", { class: "bc-title" }, h("span", { class: "bc-icon" }, branchIcon(b.id)),
-      h("div", {}, h("div", { class: "bc-name" }, h("span", { class: "card-title" }, `${b.name}지국`)),
-        h("div", { class: "bc-sub" }, b.currency || "미국"))));
+      h("div", {}, h("h2", { class: "card-title" }, `${b.name}지국`),
+        h("div", { class: "bc-sub" }, b.planned ? "서비스 예정" : b.currency || "미국"))));
+  if (b.planned) return h("section", { class: "card branch-card is-mock" }, head);
   if (b.error) return h("section", { class: "card branch-card" }, head, h("p", { class: "card-error" }, b.error));
 
   if (b.range) {

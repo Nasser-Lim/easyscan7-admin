@@ -1,12 +1,14 @@
 // AI 1차 적격 검증(gate) 표시 — 증빙 상세 패널, 목록용 작은 표식.
 // 판정은 서버(services/ai_gate.py)가 한다: 업로드 직후 사전 판정, 제출할 때 최종 판정(위반이면 자동 반려, 소명하면 사람 결재로).
-import { AI_VERDICT, aiKey, chip, dateTime, h, icon, policyVer } from "./ui.js?v=44821c9";
+import { AI_VERDICT, aiKey, chip, dateTime, h, icon, policyVer } from "./ui.js?v=135b131";
 
-// 목록 상태 칸 아래 한 줄 — 통과·정책 없음은 조용히, 확인이 필요한 판정만 보인다
-export function aiGateMark(gate) {
+// 결재함은 모든 판정을, 업로드 목록은 확인이 필요한 판정을 표시한다.
+export function aiGateMark(gate, { all = false } = {}) {
   const k = aiKey(gate);
-  if (!k || k === "pass" || k === "skipped") return null;
-  return h("div", { class: `ai-mark ai-${AI_VERDICT[k].tone}` }, icon("shield"), AI_VERDICT[k].label, gate.stale ? " · 재검증 예정" : "");
+  const verdict = AI_VERDICT[k];
+  if (!all && (!verdict || k === "pass" || k === "skipped")) return null;
+  return h("div", { class: `ai-mark ai-${verdict?.tone || "muted"}` }, icon(k === "pass" ? "check" : "shield"),
+    verdict?.label || "미판정", gate?.stale ? h("small", { class: "ai-mark-note" }, "재검증 예정") : null);
 }
 
 // 증빙 상세 맨 위 패널. audience: "staff" | "reviewer"
