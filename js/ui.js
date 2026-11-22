@@ -84,6 +84,11 @@ let bureauCatalog = null;
 export function updateCatalog(branch, accounts) {
   if (branch === "newyork" && accounts) bureauCatalog = accounts;
 }
+export function newYorkOtherAccounts() {
+  return bureauCatalog
+    ? Object.entries(bureauCatalog).filter(([a, item]) => !isCoreAccount(a) && !item.archived).map(([a]) => a)
+    : OTHER_ACCOUNTS;
+}
 export const isCoreAccount = (a) => ACCOUNTS.includes(a);
 export function resubmittedBadge(entry) {
   const resubmission = [...(entry.approvals || [])].reverse().find((a) => a.action === "submit");
@@ -99,7 +104,7 @@ export function accountSelect(value, attrs = {}, { blank, branch } = {}) {
   return h("select", { class: "input", ...attrs },
     blank ? opt("", blank) : null,
     h("optgroup", { label: "결재 대상" }, ACCOUNTS.map((a) => opt(a))),
-    branch === "washington" ? null : h("optgroup", { label: NON_REVIEW_ACCOUNT_LABEL }, other.map((a) => opt(a))));
+    branch === "washington" ? null : h("optgroup", { label: NON_REVIEW_ACCOUNT_LABEL }, other.map((a) => opt(a, bureauCatalog?.[a]?.displayName || a))));
 }
 export const STATUS = {
   // 이름 규칙: 「지금 처리해야 하는 주체 + 행위」 — 누구 차례인지 바로 보이게
@@ -337,7 +342,7 @@ export function toast(message, tone = "info", ms) {
   timer = setTimeout(close, life);
 }
 
-export function confirmDialog({ title, message, confirm = "확인", cancel = "취소", danger = false }) {
+export function confirmDialog({ title, message, confirm = "확인", cancel = "취소", danger = false, validate }) {
   return new Promise((resolve) => {
     const close = (v) => {
       back.remove();
@@ -355,7 +360,9 @@ export function confirmDialog({ title, message, confirm = "확인", cancel = "�
           "div",
           { class: "modal-actions" },
           h("button", { class: "btn btn-ghost", onclick: () => close(false) }, cancel),
-          h("button", { class: danger ? "btn btn-danger" : "btn btn-primary", onclick: () => close(true) }, confirm),
+          h("button", { class: danger ? "btn btn-danger" : "btn btn-primary", onclick: () => {
+            if (!validate || validate()) close(true);
+          } }, confirm),
         ),
       ),
     );

@@ -1,6 +1,6 @@
 // 지국 카드용 대표 랜드마크 아이콘 — 뉴욕 자유의 여신상, 워싱턴 기념탑, 파리 에펠탑, 베이징 천단, 도쿄 후지산.
 // 선 하나로 그린 단색 아이콘(현재 글자색을 따른다). 새 지국은 PATHS 에 항목만 추가하면 된다.
-import { s } from "./charts.js?v=135b131";
+import { s } from "./charts.js?v=8ee2232";
 
 const PATHS = {
   // 자유의 여신상: 받침대·옷자락·머리와 왕관·횃불 든 팔
@@ -20,4 +20,33 @@ export function branchIcon(id) {
   const paths = PATHS[id];
   if (!paths) return null;
   return s("svg", { viewBox: "0 0 48 48", class: "bi-svg", fill: "none", stroke: "currentColor", "stroke-width": "1.7", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, paths.map((d) => s("path", { d })));
+}
+
+const COUNTRIES = { newyork: "US", washington: "US", paris: "FR", tokyo: "JP", beijing: "CN" };
+const star = "M0 -1 .225 -.309 .951 -.309 .363 .118 .588 .809 0 .382 -.588 .809 -.363 .118 -.951 -.309 -.225 -.309Z";
+
+const flags = {
+  US: () => {
+    const stripes = Array.from({ length: 6 }, (_, i) => `M0 ${2 * i + 1.5}h19`).join("");
+    const stars = Array.from({ length: 9 }, (_, row) =>
+      Array.from({ length: row % 2 ? 5 : 6 }, (_, col) => {
+        const x = (col + (row % 2 ? 1 : .5)) * 1.267;
+        return s("path", { d: star, transform: `translate(${x} ${.7 * (row + 1)}) scale(.31)` });
+      })).flat();
+    return [s("path", { d: "M0 0h19v13H0z", fill: "#b31942" }),
+      s("path", { d: stripes, stroke: "#fff" }),
+      s("path", { d: "M0 0h7.6v7H0z", fill: "#0a3161" }), s("g", { fill: "#fff" }, stars)];
+  },
+  FR: () => [s("path", { d: "M0 0h19v13H0z", fill: "#fff" }),
+    s("path", { d: "M0 0h6.33v13H0z", fill: "#002395" }), s("path", { d: "M12.67 0H19v13h-6.33z", fill: "#ed2939" })],
+  JP: () => [s("path", { d: "M0 0h19v13H0z", fill: "#fff" }),
+    s("circle", { cx: 9.5, cy: 6.5, r: 3.8, fill: "#bc002d" })],
+  CN: () => [s("path", { d: "M0 0h19v13H0z", fill: "#de2910" }),
+    s("g", { fill: "#ffde00" }, [[3.2, 3.25, 1.9, 0], [6.4, 1.3, .63, 24], [7.65, 2.6, .63, 46], [7.65, 4.55, .63, 0], [6.4, 5.85, .63, 22]]
+      .map(([x, y, scale, angle]) => s("path", { d: star, transform: `translate(${x} ${y}) rotate(${angle}) scale(${scale})` })))],
+};
+
+export function branchFlag(id) {
+  const draw = flags[COUNTRIES[id]];
+  return draw ? s("svg", { viewBox: "0 0 19 13", class: "branch-flag", "aria-hidden": "true" }, draw()) : null;
 }

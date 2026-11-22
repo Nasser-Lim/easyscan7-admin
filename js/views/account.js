@@ -1,6 +1,8 @@
 // 내 계정 — 역할·지국·계정 종류. 지국 담당자 외 역할은 메뉴가 준비 중임을 안내한다.
-import { ACCT, BRANCH, ROLE, h } from "../ui.js?v=135b131";
-import { pageHeader } from "./shell.js?v=135b131";
+import { api } from "../api.js?v=8ee2232";
+import { ACCT, BRANCH, ROLE, errorText, h } from "../ui.js?v=8ee2232";
+import { motionControl } from "../motion.js?v=8ee2232";
+import { pageHeader } from "./shell.js?v=8ee2232";
 
 const PERMS = {
   staff: ["자기 지국 증빙 업로드(관리웹·촬영앱)", "자기 지국 증빙 조회·수정·제출·제출 취소·삭제", "분기 한도 현황 조회", "정산 출력(자기 지국)"],
@@ -13,8 +15,16 @@ const PERMS = {
 
 export function renderAccount(el, { me }) {
   const ready = Boolean(PERMS[me.role]);
+  const cloudStatus = me.cloudData ? h("p", { class: "card-note", role: "status" }, "운영 클라우드 연결 확인 중") : null;
+  if (cloudStatus) {
+    api.get("/accounts/cloud-profile").then(({ account }) => {
+      cloudStatus.textContent = account
+        ? `운영 계정 연결됨 · ${ROLE[account.role] || account.role} · 읽기 전용`
+        : "운영 클라우드 연결됨 · 읽기 전용";
+    }).catch((err) => { cloudStatus.textContent = errorText(err); });
+  }
   el.append(
-    pageHeader({ title: "내 계정" }),
+    pageHeader({ title: "내 계정", actions: [motionControl()] }),
     h(
       "div",
       { class: "grid-2" },
@@ -33,6 +43,7 @@ export function renderAccount(el, { me }) {
         me.acct === "shared"
           ? h("p", { class: "card-note" }, "임시 운영 중인 지국 공용 계정입니다. 개인 계정(회사 이메일)으로 전환될 예정이며, 비밀번호를 외부에 공유하지 마세요.")
           : null,
+        cloudStatus,
       ),
       h(
         "section",

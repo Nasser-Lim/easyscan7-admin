@@ -1,19 +1,19 @@
 // 증빙 조회 — 필터·정렬 목록, 일괄 제출, 상세 서랍(원본 증빙 대조 + 수정·제출·삭제 / 결재).
 // 지국 담당자: 자기 지국 · 본사 결재자: 전 지국(지국 필터), 결재는 결재함 또는 이 화면의 상세 서랍에서.
-import { api } from "../api.js?v=135b131";
+import { api } from "../api.js?v=8ee2232";
 import {
   ACCOUNTS, ACTION_LABEL, BRANCH, DOC_TYPE, ELIGIBILITY, FINAL, IN_REVIEW, NON_REVIEW_ACCOUNT_LABEL, ROLE, STAFF_EDITABLE, STATUS, WRITING_STATUSES, chip, clear,
   confirmDialog, promptDialog, dateText, dateTime, displayTeamName, empty, errorText, field, h, icon, money, noticeParts,
   ALL_ACCOUNTS, accountSelect, isCoreAccount, metricTile, mobileDisclosure, mobileReceiptCard, periodBadge, quarterLabel, quarterOf, resubmittedBadge, select, spinner, statusChip, tip, toast,
-} from "../ui.js?v=135b131";
+} from "../ui.js?v=8ee2232";
 import { currentPeriod, getMode, isDateRange, isPeriodOf, periodCaption, periodOfEntry, periodOptions, periodControls,
-  savedDateRange, unitName } from "../period.js?v=135b131";
-import { aiGatePanel } from "../aigate.js?v=135b131";
-import { createPager } from "../pager.js?v=135b131";
-import { compactFlow, flowDiagram } from "../flow.js?v=135b131";
-import { fxStrip, loadFx, sumIn } from "../fx.js?v=135b131";
-import { refreshInboxBadge } from "./inbox.js?v=135b131";
-import { pageHeader } from "./shell.js?v=135b131";
+  savedDateRange, unitName } from "../period.js?v=8ee2232";
+import { aiGatePanel } from "../aigate.js?v=8ee2232";
+import { createPager } from "../pager.js?v=8ee2232";
+import { compactFlow, flowDiagram } from "../flow.js?v=8ee2232";
+import { fxStrip, loadFx, sumIn } from "../fx.js?v=8ee2232";
+import { refreshInboxBadge } from "./inbox.js?v=8ee2232";
+import { pageHeader } from "./shell.js?v=8ee2232";
 
 const EDITABLE_STATUS = STAFF_EDITABLE; // 지국 담당자가 고치고 제출할 수 있는 상태
 const STATUS_GROUPS = { writing: WRITING_STATUSES, review: IN_REVIEW };
@@ -32,6 +32,9 @@ const state = { period: "", account: "", status: "", q: "", sort: "txnDate", dir
 
 export function renderEntries(el, { me, params, query }) {
   const isStaff = me.role === "staff";
+  const source = me.cloudData === true ? "cloud" : "local";
+  const canWrite = isStaff && source === "local";
+  const open = (id) => openDrawer(id, me, onChanged, source);
   let rows = [];
   let loadRevision = 0;
   const selected = new Set();
@@ -86,12 +89,13 @@ export function renderEntries(el, { me, params, query }) {
 
   el.append(
     pageHeader({
-      crumbs: isStaff ? [] : ["본사"],
+      crumbs: source === "cloud" ? ["운영 클라우드 · 읽기 전용"] : isStaff ? [] : ["본사"],
       title: isStaff ? "증빙 조회" : "전체 증빙",
-      help: isStaff
+      help: source === "cloud" ? "운영 클라우드에 저장된 증빙과 결재 진행 상황을 조회합니다."
+        : isStaff
         ? "AI 가 읽은 내용을 원본과 대조해 고치고 제출합니다.\n결재 대상(세 계정)은 결재선으로, 기타 계정은 '보관'으로 제출됩니다.\n여기서 '결재'는 이 시스템 안의 결재이며 ERP 전표 결재와 별개입니다."
-        : "전 지국 증빙과 결재 진행 상황입니다. 내 차례인 증빙은 결재함에 모입니다.\n여기서 '결재'는 이 시스템 안의 결재이며 ERP 전표 결재와 별개입니다.",
-      actions: isStaff ? [refreshBtn, h("a", { class: "btn btn-primary", href: "#/upload" }, icon("upload"), h("span", {}, "증빙 업로드"))] : [refreshBtn],
+        : "전 지국 증빙과 결재 진행 상황입니다.\n여기서 '결재'는 이 시스템 안의 결재이며 ERP 전표 결재와 별개입니다.",
+      actions: [refreshBtn, canWrite ? h("a", { class: "btn btn-primary", href: "#/upload" }, icon("upload"), h("span", {}, "증빙 업로드")) : null],
     }),
     fxBar.node,
     presets,
@@ -113,6 +117,7 @@ export function renderEntries(el, { me, params, query }) {
       const params = new URLSearchParams();
       if (state.period) params.set("period", state.period);
       if (!isStaff) params.set("branch", state.branch);
+      if (source === "cloud") params.set("source", source);
       const [loadedRows, loadedFx] = await Promise.all([api.get(`/entries${params.size ? `?${params}` : ""}`).then((r) => r.entries), loadFx()]);
       if (revision !== loadRevision) return;
       rows = loadedRows;
@@ -182,7 +187,7 @@ export function renderEntries(el, { me, params, query }) {
     }
     const pageRows = pager.slice(list); // 선택은 쪽을 넘어서도 유지하고, '전체 선택'은 지금 보이는 쪽만
     pagerBox.append(pager.node(list.length));
-    const selectable = isStaff ? pageRows.filter((e) => EDITABLE_STATUS.has(e.status)) : [];
+    const selectable = canWrite ? pageRows.filter((e) => EDITABLE_STATUS.has(e.status)) : [];
     const selectAll = () => {
       const all = h("input", { type: "checkbox", class: "check", "aria-label": "이 페이지 전체 선택", disabled: !selectable.length });
       all.checked = selectable.length > 0 && selectable.every((e) => selected.has(e.id));
@@ -193,7 +198,7 @@ export function renderEntries(el, { me, params, query }) {
       return all;
     };
     const selectOne = (e) => {
-      const cb = h("input", { type: "checkbox", class: "check", "aria-label": "선택", disabled: !isStaff || !EDITABLE_STATUS.has(e.status) });
+      const cb = h("input", { type: "checkbox", class: "check", "aria-label": "선택", disabled: !EDITABLE_STATUS.has(e.status) });
       cb.checked = selected.has(e.id);
       cb.addEventListener("click", (ev) => ev.stopPropagation());
       cb.addEventListener("change", () => ((cb.checked ? selected.add(e.id) : selected.delete(e.id)), paint()));
@@ -216,7 +221,8 @@ export function renderEntries(el, { me, params, query }) {
           h(
             "tr",
             {},
-            isStaff ? h("th", { class: "cell-check" }, selectAll()) : th("지국", "branchId"),
+            canWrite ? h("th", { class: "cell-check" }, selectAll()) : null,
+            isStaff ? null : th("지국", "branchId"),
             th("사용일", "txnDate"),
             th("가맹점", "merchant"),
             th("계정", "account"),
@@ -225,7 +231,7 @@ export function renderEntries(el, { me, params, query }) {
             th("상태", "status"),
             h("th", { scope: "col" }, "결재 단계"),
             th("등록", "createdAt"),
-            isStaff ? h("th", { class: "cell-del" }) : null,
+            canWrite ? h("th", { class: "cell-del" }) : null,
           ),
         ),
         h(
@@ -237,8 +243,9 @@ export function renderEntries(el, { me, params, query }) {
               e.orderNumber ? `#${e.orderNumber}` : null].filter(Boolean).join(" · ");
             return h(
               "tr",
-              { class: `row-link${selected.has(e.id) ? " selected" : ""}`, onclick: () => openDrawer(e.id, me, onChanged) },
-              isStaff ? h("td", { class: "cell-check" }, selectOne(e)) : h("td", {}, BRANCH[e.branchId] || e.branchId),
+              { class: `row-link${selected.has(e.id) ? " selected" : ""}`, onclick: () => open(e.id) },
+              canWrite ? h("td", { class: "cell-check" }, selectOne(e)) : null,
+              isStaff ? null : h("td", {}, BRANCH[e.branchId] || e.branchId),
               h("td", { class: "mono" }, dateText(e.txnDate), h("div", { class: "q-line" }, periodBadge(periodOfEntry(e), currentPeriod()))),
               h(
                 "td",
@@ -253,7 +260,7 @@ export function renderEntries(el, { me, params, query }) {
               h("td", {}, statusChip(e.status), resubmittedBadge(e)),
               h("td", {}, compactFlow(e)),
               h("td", { class: "cell-sub mono" }, dateTime(e.createdAt)),
-              isStaff ? h("td", { class: "cell-del" }, EDITABLE_STATUS.has(e.status) ? rowDelete(e) : null) : null,
+              canWrite ? h("td", { class: "cell-del" }, EDITABLE_STATUS.has(e.status) ? rowDelete(e) : null) : null,
             );
           }),
         ),
@@ -261,8 +268,8 @@ export function renderEntries(el, { me, params, query }) {
       h("div", { class: "mobile-receipts" },
         selectable.length ? h("label", { class: "receipt-card-select-all" }, selectAll(), "이 페이지 전체 선택") : null,
         h("ul", { class: "receipt-cards", "aria-label": "증빙 목록" }, pageRows.map((e) => mobileReceiptCard(e, {
-          selection: isStaff && EDITABLE_STATUS.has(e.status) ? selectOne(e) : null,
-          open: () => openDrawer(e.id, me, onChanged), branch: isStaff ? null : BRANCH[e.branchId] || e.branchId,
+          selection: canWrite && EDITABLE_STATUS.has(e.status) ? selectOne(e) : null,
+          open: () => open(e.id), branch: isStaff ? null : BRANCH[e.branchId] || e.branchId,
           below: [compactFlow(e), e.ineligibleAmount > 0 ? h("span", { class: "text-bad" }, `한도 초과 ${money(e.ineligibleAmount, e.currency)}`) : null],
         })))),
     );
@@ -425,9 +432,12 @@ export function renderEntries(el, { me, params, query }) {
   }
 
   load();
-  if (params[0] && params[0] !== "returned") {
+  const [entryId] = params;
+  if (entryId && entryId !== "returned") {
     history.replaceState(null, "", "#/entries");
-    openDrawer(params[0], me, onChanged);
+    // 업로드 결과나 정책 의견에서 연 증빙은 해당 작업의 상세로 연결한다.
+    const detailSource = query.get("work") === "1" ? "local" : source;
+    openDrawer(entryId, me, onChanged, detailSource);
   }
 }
 
@@ -447,7 +457,7 @@ function mini(label, value, note, symbol, tone, onClick, pressed) {
 // ── 상세 서랍 ─────────────────────────────────────────────
 let openBack = null;
 
-export function openDrawer(id, me, onChanged) {
+export function openDrawer(id, me, onChanged, source = "local") {
   if (openBack) openBack.close();
   const urls = [];
   const body = h("div", { class: "drawer-body" }, h("div", { class: "card-loading" }, spinner()));
@@ -483,26 +493,31 @@ export function openDrawer(id, me, onChanged) {
   document.body.classList.add("no-scroll");
   document.addEventListener("keydown", onKey);
 
+  const cloud = source === "cloud";
   api
-    .get(`/entries/${id}`)
+    .get(`/entries/${encodeURIComponent(id)}${cloud ? "?source=cloud" : ""}`)
     .then((e) => {
       if (!back.isConnected) return;
       clear(titleEl).append(h("span", { class: "drawer-merchant" }, e.merchantKo || e.merchant || "증빙 상세"), statusChip(e.status));
-      const meta = [e.account, quarterLabel(periodOfEntry(e)), e.orderNumber ? `주문 #${e.orderNumber}` : null].filter(Boolean).join(" · ");
+      const meta = [cloud ? "운영 클라우드 · 조회" : null, e.account, quarterLabel(periodOfEntry(e)), e.orderNumber ? `주문 #${e.orderNumber}` : null].filter(Boolean).join(" · ");
       clear(subEl).append(meta, h("span", { class: "drawer-id" }, `${meta ? " · " : ""}ID ${e.id}`));
-      const form = detailForm(e, me);
-      const review = e.stage?.canAct ? reviewPanel(e) : null;
+      const form = detailForm(e, me, cloud);
+      const review = !cloud && e.stage?.canAct ? reviewPanel(e) : null;
       if (review) form.node.prepend(review.node);
       dirty = form.dirty;
       const details = h("section", { class: "detail-side", "aria-label": "증빙 정보" }, form.node);
-      clear(body).append(h("div", { class: "detail" }, evidenceViewer(e, urls), details));
+      clear(body).append(h("div", { class: "detail" }, evidenceViewer(e, urls, cloud), details));
+      if (cloud) {
+        foot.hidden = true;
+        return;
+      }
       const ctx = { me, close, onChanged: () => (onChanged(), refreshInboxBadge(me)), reopen: () => openDrawer(id, me, onChanged) };
       clear(foot).append(...(review ? reviewFooter(e, form, review, ctx) : footer(e, form, ctx)));
     })
     .catch((ex) => clear(body).append(h("p", { class: "card-error" }, errorText(ex))));
 }
 
-function evidenceViewer(e, urls) {
+function evidenceViewer(e, urls, cloud) {
   const ids = e.uploadIds || [];
   const stage = h("div", { class: "viewer-stage" });
   const tabs = h("div", { class: "viewer-tabs", role: "tablist" });
@@ -538,7 +553,8 @@ function evidenceViewer(e, urls) {
     clear(stage).append(h("div", { class: "card-loading" }, spinner()));
     try {
       if (!cache[uid]) {
-        const blob = await api.blob(`/uploads/${uid}/file`);
+        const params = cloud ? `?source=cloud&entry=${encodeURIComponent(e.id)}` : "";
+        const blob = await api.blob(`/uploads/${encodeURIComponent(uid)}/file${params}`);
         if (mine !== request || !stage.isConnected) return;
         const url = URL.createObjectURL(blob);
         urls.push(url);
@@ -664,8 +680,8 @@ function canEdit(e, me) {
   return false; // 보도BIZ팀·보도국장은 고치지 않고 반려한다
 }
 
-function detailForm(e, me) {
-  const editable = canEdit(e, me);
+function detailForm(e, me, readOnly = false) {
+  const editable = !readOnly && canEdit(e, me);
   const cur = e.currency || "USD";
   const conf = e.fieldConfidence || {};
   // 서버 규칙(lowconf-amount·lowconf-date)과 같은 기준
@@ -761,7 +777,7 @@ function detailForm(e, me) {
     { class: "detail-form" },
     flowDiagram(e),
     aiGatePanel(e.aiGate, me.role === "staff" ? "staff" : "reviewer"),
-    ["pass", "fail", "uncertain"].includes(e.aiGate?.verdict) ? h("button", { class: "btn btn-ghost btn-sm", type: "button",
+    !readOnly && ["pass", "fail", "uncertain"].includes(e.aiGate?.verdict) ? h("button", { class: "btn btn-ghost btn-sm", type: "button",
       onclick: async () => {
         const comment = await promptDialog({ title: "AI 판정 의견", message: "어떤 부분이 원본이나 기준과 다른지 입력해 주세요.", confirm: "의견 저장" });
         if (!comment?.trim()) return;

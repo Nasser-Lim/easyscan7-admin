@@ -1,8 +1,10 @@
-import { health, login } from "../api.js?v=135b131";
-import { h, icon } from "../ui.js?v=135b131";
-import { BUILD, VERSION } from "../version.js?v=135b131";
+import { health, login, setEmulatorPassword } from "../api.js?v=8ee2232";
+import { field, h, icon, toast } from "../ui.js?v=8ee2232";
+import { BUILD, VERSION } from "../version.js?v=8ee2232";
 
 export function renderLogin(root, onSuccess) {
+  const code = window.ES7_CONFIG.firebase.emulator && location.hash.startsWith("#/setup?")
+    ? new URLSearchParams(location.hash.slice("#/setup?".length)).get("code") : null;
   const err = h("div", { class: "form-error", role: "alert" });
   const email = h("input", { class: "input input-lg", name: "email", type: "email", autocomplete: "username", required: true });
   const pw = h("input", { class: "input input-lg", name: "password", type: "password", autocomplete: "current-password", required: true });
@@ -76,7 +78,33 @@ export function renderLogin(root, onSuccess) {
     h("small", { class: "login-version" }, `v${VERSION} · ${BUILD}`),
   );
 
-  root.append(h("div", { class: "login" }, brand, h("main", { class: "login-main" }, form)));
+  root.append(h("div", { class: "login" }, brand, h("main", { class: "login-main" }, code ? setupForm(code, onSuccess) : form)));
 
   health().catch(() => { status.textContent = "서버에 연결할 수 없습니다."; });
+}
+
+function setupForm(code, onSuccess) {
+  const password = h("input", { class: "input input-lg", type: "password", required: true, minlength: 8, autocomplete: "new-password" });
+  const confirmation = h("input", { class: "input input-lg", type: "password", required: true, minlength: 8, autocomplete: "new-password" });
+  const err = h("div", { class: "form-error", role: "alert" });
+  const submit = h("button", { class: "btn btn-primary btn-lg btn-block", type: "submit" }, "비밀번호 저장");
+  return h("form", { class: "login-form", onsubmit: async (event) => {
+    event.preventDefault();
+    if (password.value !== confirmation.value) {
+      err.textContent = "두 비밀번호가 일치하는지 확인해 주세요.";
+      return;
+    }
+    submit.disabled = true;
+    err.textContent = "";
+    try {
+      await setEmulatorPassword(code, password.value);
+      location.replace("#/master");
+      onSuccess();
+      toast("비밀번호를 저장했습니다. 다시 로그인해 주세요.", "ok");
+    } catch (error) {
+      err.textContent = error.message;
+      submit.disabled = false;
+    }
+  } }, h("h2", { class: "login-title" }, "테스트 비밀번호 설정"),
+  field("새 비밀번호", password), field("새 비밀번호 확인", confirmation), err, submit);
 }

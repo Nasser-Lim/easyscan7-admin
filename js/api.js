@@ -1,7 +1,8 @@
 // 인증(Firebase Auth REST) + 백엔드 호출. SDK 없이 fetch 만 쓴다.
 // 세션은 sessionStorage(탭을 닫으면 사라짐). ID 토큰은 1시간이라 만료 1분 전에 refresh 토큰으로 갱신한다.
 const C = window.ES7_CONFIG;
-const KEY = "es7.session";
+const KEY = C.firebase.emulator ? "es7.session.emulator" : "es7.session";
+const authBase = (host) => C.firebase.emulator ? `http://localhost:9099/${host}` : `https://${host}`;
 const listeners = new Set();
 
 let session = load();
@@ -48,7 +49,7 @@ const AUTH_ERR = {
 
 export async function login(email, password) {
   const r = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(C.firebase.apiKey)}`,
+    `${authBase("identitytoolkit.googleapis.com")}/v1/accounts:signInWithPassword?key=${encodeURIComponent(C.firebase.apiKey)}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -68,13 +69,30 @@ export async function login(email, password) {
   });
 }
 
+export function passwordSetupUrl(url) {
+  if (!C.firebase.emulator) return url;
+  const code = new URL(url).searchParams.get("oobCode");
+  if (!code) throw new Error("테스트 비밀번호 설정 코드를 확인할 수 없습니다.");
+  return `${location.origin}${location.pathname}?auth=emulator#/setup?code=${encodeURIComponent(code)}`;
+}
+
+export async function setEmulatorPassword(oobCode, newPassword) {
+  if (!C.firebase.emulator) throw new Error("이 환경에서는 비밀번호 설정 링크를 사용할 수 없습니다.");
+  const url = `${authBase("identitytoolkit.googleapis.com")}/v1/accounts:resetPassword?key=${encodeURIComponent(C.firebase.apiKey)}`;
+  const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ oobCode, newPassword }) });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, "비밀번호 설정 링크가 만료되었거나 이미 사용되었습니다.");
+  return data;
+}
+
 export function logout() {
   save(null);
   listeners.forEach((fn) => fn());
 }
 
 async function refresh() {
-  const r = await fetch(`https://securetoken.googleapis.com/v1/token?key=${encodeURIComponent(C.firebase.apiKey)}`, {
+  const r = await fetch(`${authBase("securetoken.googleapis.com")}/v1/token?key=${encodeURIComponent(C.firebase.apiKey)}`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: session.refreshToken }),

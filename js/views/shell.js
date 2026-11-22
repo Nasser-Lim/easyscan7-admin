@@ -1,7 +1,7 @@
 // 앱 셸 — 상단 헤더(SBS EASY SCAN 로고), 왼쪽 메뉴, 본문.
-import { logout } from "../api.js?v=135b131";
-import { ACCT, BRANCH, ROLE, h, icon, tip } from "../ui.js?v=135b131";
-import { BUILD, VERSION } from "../version.js?v=135b131";
+import { logout } from "../api.js?v=8ee2232";
+import { ACCT, BRANCH, ROLE, h, icon, tip } from "../ui.js?v=8ee2232";
+import { BUILD, VERSION } from "../version.js?v=8ee2232";
 
 let navLinks = [];
 let activeIcon = "home";
@@ -10,7 +10,7 @@ let mobileMore;
 export function renderShell(root, me, nav) {
   const branch = me.branchId ? `${BRANCH[me.branchId] || me.branchId}지국` : "본사";
   const accountType = me.acct === "personal" ? null : ACCT[me.acct] || me.acct;
-  const userRole = [ROLE[me.role] || me.role, accountType].filter(Boolean).join(" · ");
+  const userRole = [me.master === true ? "통합관리 마스터" : ROLE[me.role] || me.role, accountType].filter(Boolean).join(" · ");
   const header = h(
     "header",
     { class: "topbar" },
@@ -39,7 +39,7 @@ export function renderShell(root, me, nav) {
   const workLinks = nav.map((n) => h("a", { class: "nav-link", href: `#/${n.route}`, dataset: { route: n.route, icon: n.icon } }, icon(n.icon), h("span", {}, n.label)));
   const accountLink = h("a", { class: "nav-link", href: "#/account", dataset: { route: "account", icon: "user" } }, icon("user"), h("span", {}, "내 계정"));
   const helpLink = h("a", { class: "nav-link", href: "#/help", dataset: { route: "help", icon: "info" } }, icon("info"), h("span", {}, "도움말"));
-  const shortLabels = { upload: "업로드", entries: "증빙", settle: "정산" };
+  const shortLabels = { upload: "업로드", entries: "증빙", settle: "정산", policy: "AI 정책" };
   const mobileLink = (item, short = false) => h("a", { class: "mobile-nav-link", href: `#/${item.route}`, dataset: { route: item.route }, "aria-label": item.label },
     icon(item.icon), h("span", {}, (short && shortLabels[item.route]) || item.label));
   const primary = nav.slice(0, 4).map((item) => mobileLink(item, true));

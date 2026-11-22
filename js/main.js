@@ -1,20 +1,21 @@
 // 관리웹 진입점 — 세션 확인 → 로그인 화면 또는 앱 셸 + 해시 라우터.
-import { api, hasSession, logout, onSignedOut } from "./api.js?v=135b131";
-import { clear, h, spinner, toast, errorText, updateCatalog, workSummaryDialog } from "./ui.js?v=135b131";
-import { renderLogin } from "./views/login.js?v=135b131";
-import { renderShell, setActiveNav } from "./views/shell.js?v=135b131";
-import { renderHome } from "./views/home.js?v=135b131";
-import { renderUpload } from "./views/upload.js?v=135b131";
-import { renderEntries } from "./views/entries.js?v=135b131";
-import { renderAccount } from "./views/account.js?v=135b131";
-import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=135b131";
-import { renderHelp } from "./views/help.js?v=135b131";
-import { renderLimitSettings } from "./views/limitcfg.js?v=135b131";
-import { renderPolicy } from "./views/policy.js?v=135b131";
-import { renderSettle } from "./views/settle.js?v=135b131";
-import { renderBureau } from "./views/bureau.js?v=135b131";
-import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=135b131";
-import { loadMode } from "./period.js?v=135b131";
+import { api, hasSession, logout, onSignedOut } from "./api.js?v=8ee2232";
+import { clear, h, spinner, toast, errorText, updateCatalog, workSummaryDialog } from "./ui.js?v=8ee2232";
+import { renderLogin } from "./views/login.js?v=8ee2232";
+import { renderShell, setActiveNav } from "./views/shell.js?v=8ee2232";
+import { renderHome } from "./views/home.js?v=8ee2232";
+import { renderUpload } from "./views/upload.js?v=8ee2232";
+import { renderEntries } from "./views/entries.js?v=8ee2232";
+import { renderAccount } from "./views/account.js?v=8ee2232";
+import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=8ee2232";
+import { renderHelp } from "./views/help.js?v=8ee2232";
+import { renderLimitSettings } from "./views/limitcfg.js?v=8ee2232";
+import { renderPolicy } from "./views/policy.js?v=8ee2232";
+import { renderSettle } from "./views/settle.js?v=8ee2232";
+import { renderBureau } from "./views/bureau.js?v=8ee2232";
+import { renderMaster } from "./views/master.js?v=8ee2232";
+import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=8ee2232";
+import { loadMode } from "./period.js?v=8ee2232";
 
 const app = document.getElementById("app");
 let me = null;
@@ -22,10 +23,11 @@ let content = null;
 
 // 역할별 메뉴 — 실제 권한 검사는 서버(deps.py·workflow.py)가 한다. 메뉴는 편의.
 const HOME_NAV = { route: "home", label: "홈", icon: "home" };
+const ENTRIES_NAV = { route: "entries", label: "전체 증빙", icon: "list" };
 const REVIEWER_NAV = [
   HOME_NAV,
   { route: "inbox", label: "결재함", icon: "check" },
-  { route: "entries", label: "전체 증빙", icon: "list" },
+  ENTRIES_NAV,
 ];
 // 분기 한도 설정 — 서버 권한(deps.require_limit_admin)과 같은 역할: 보도BIZ팀·재무팀·관리자
 // 정산 출력 — 서버 권한(settlements.require_export)과 같은 역할: 지국 담당자·보도BIZ팀·재무팀·관리자
@@ -34,6 +36,7 @@ const LIMIT_NAV = { route: "limits", label: "한도·정산 설정", icon: "slid
 // AI 적격 정책 — 서버 권한(deps.require_policy_admin)과 같은 역할: 보도BIZ팀·재무팀·관리자 공용
 const POLICY_NAV = { route: "policy", label: "AI 적격 정책", icon: "shield" };
 const BUREAU_NAV = { route: "bureau", label: "지국 관리", icon: "user" };
+const MASTER_NAV = { route: "master", label: "통합관리", icon: "sliders" };
 export const NAV = {
   staff: [
     { route: "home", label: "홈", icon: "home" },
@@ -59,7 +62,14 @@ const ROUTES = {
   policy: (el, ctx) => renderPolicy(el, ctx),
   settle: (el, ctx) => renderSettle(el, ctx),
   bureau: (el, ctx) => renderBureau(el, ctx),
+  master: (el, ctx) => renderMaster(el, ctx),
 };
+
+function accountNav() {
+  const navigation = NAV[me.role] || [];
+  if (me.role !== "admin" || me.master !== true) return navigation;
+  return [MASTER_NAV, HOME_NAV, ENTRIES_NAV, POLICY_NAV, SETTLE_NAV, LIMIT_NAV, BUREAU_NAV];
+}
 
 function parseHash() {
   const [path, search] = location.hash.replace(/^#\/?/, "").split("?", 2);
@@ -69,14 +79,14 @@ function parseHash() {
 
 function allowed(route) {
   if (route === "account" || route === "help") return true;
-  return (NAV[me.role] || []).some((n) => n.route === route);
+  return accountNav().some((n) => n.route === route);
 }
 
 function navigate() {
   if (!me || !content) return;
   const { route, params, query } = parseHash();
   if (!route || !allowed(route)) {
-    const first = (NAV[me.role] || [])[0];
+    const first = accountNav()[0];
     location.replace(`#/${first ? first.route : "account"}`);
     return;
   }
@@ -88,7 +98,7 @@ function navigate() {
 
 async function boot() {
   clear(app);
-  if (!hasSession()) {
+  if (!hasSession() || (window.ES7_CONFIG.firebase.emulator && location.hash.startsWith("#/setup?"))) {
     renderLogin(app, boot);
     return;
   }
@@ -103,11 +113,13 @@ async function boot() {
     return;
   }
   clear(app);
-  content = renderShell(app, me, NAV[me.role] || []);
+  const nav = accountNav();
+  content = renderShell(app, me, nav);
   initUploadQueue(me);
   navigate();
-  refreshInboxBadge(me);
-  dailyWorkSummary(me);
+  const hasInbox = nav.some((item) => item.route === "inbox");
+  if (hasInbox) refreshInboxBadge(me);
+  if (hasInbox || me.role === "staff") dailyWorkSummary(me);
 }
 
 async function dailyWorkSummary(user) {
@@ -116,7 +128,9 @@ async function dailyWorkSummary(user) {
   try {
     if (localStorage.getItem(key) === day) return;
     const staff = user.role === "staff";
-    const { entries } = await api.get(staff ? "/entries?status=returned" : "/entries/queue");
+    const { entries } = await api.get(staff
+      ? `/entries?status=returned${user.cloudData ? "&source=cloud" : ""}`
+      : "/entries/queue");
     if (user !== me) return;
     localStorage.setItem(key, day);
     if (!entries.length) return;

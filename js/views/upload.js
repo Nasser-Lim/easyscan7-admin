@@ -3,13 +3,13 @@
 import {
   DOC_TYPE, accountSelect, bytes, chip, clear, currentQuarter, field, h, icon, money, noticeParts,
   quarterLabel, select, statusChip, tip, toast,
-} from "../ui.js?v=135b131";
-import { aiGateMark } from "../aigate.js?v=135b131";
-import { api } from "../api.js?v=135b131";
-import { currentPeriod, periodOfEntry, periodOptions, unitName } from "../period.js?v=135b131";
-import { dismiss, dismissAll, getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js?v=135b131";
-import { limitsCard } from "./limits.js?v=135b131";
-import { pageHeader } from "./shell.js?v=135b131";
+} from "../ui.js?v=8ee2232";
+import { aiGateMark } from "../aigate.js?v=8ee2232";
+import { api } from "../api.js?v=8ee2232";
+import { currentPeriod, periodOfEntry, periodOptions, unitName } from "../period.js?v=8ee2232";
+import { dismiss, dismissAll, getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js?v=8ee2232";
+import { limitsCard } from "./limits.js?v=8ee2232";
+import { pageHeader } from "./shell.js?v=8ee2232";
 
 const MAX_FILES = 20;
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -250,7 +250,7 @@ function batchView(b, go, live) {
               const gone = !!live && !c; // 목록에 없으면 삭제된 증빙
               return h(
                 "tr",
-                { class: gone ? "" : "row-link", onclick: gone ? null : () => go(`entries/${e.entryId}`) },
+                { class: gone ? "" : "row-link", onclick: gone ? null : () => go(`entries/${e.entryId}?work=1`) },
                 h("td", { class: "mono" }, e.txnDate || "—"),
                 h("td", { class: "cell-sub" }, quarterLabel(periodOfEntry(e))),
                 h("td", {}, h("div", { class: "cell-main" }, e.merchantKo || e.merchant || "—"), h("div", { class: "cell-sub" }, DOC_TYPE[e.docType] || e.docType || "")),
@@ -278,7 +278,7 @@ function batchView(b, go, live) {
   else if (qs.length > 1 || (qs.length === 1 && qs[0] !== currentPeriod()))
     notes.push(note("info", `정산 ${unitName()}`, `영수증 날짜에 따라 ${qs.map((q) => `${quarterLabel(q)} ${r.entries.filter((e) => periodOfEntry(e) === q).length}건`).join(", ")}`));
   for (const m of r.merged)
-    notes.push(note("info", "중복 병합", `${m.merchant || "기존 증빙"} ${money(m.amount, cur)} (주문 ${m.orderNumber}) — ${m.fileNames.join(", ")}`, () => go(`entries/${m.entryId}`)));
+    notes.push(note("info", "중복 병합", `${m.merchant || "기존 증빙"} ${money(m.amount, cur)} (주문 ${m.orderNumber}) — ${m.fileNames.join(", ")}`, () => go(`entries/${m.entryId}?work=1`)));
   for (const s of r.skippedFiles) notes.push(note("warn", SKIP_REASON[s.reason] || "건너뜀", `${s.fileName} — ${s.message}`));
   for (const g of r.ignored) notes.push(note("neutral", "제외된 쪽", `${g.fileName} ${g.page}쪽 — 증빙이 아닌 쪽으로 판단`));
   for (const e of r.entries)
@@ -293,7 +293,7 @@ function batchView(b, go, live) {
     const e = c ? { ...x, aiGate: c.aiGate ?? x.aiGate } : x;
     const g = e.aiGate;
     if (g?.verdict === "fail")
-      notes.push(note("bad", "AI 정책 위반", `${e.merchantKo || e.merchant || "증빙"}: ${(g.violations || []).map((v) => v.reason).join(" · ") || g.summary} — 그대로 제출하면 자동 반려됩니다. 고치거나 제출할 때 소명을 적어 주세요.`, () => go(`entries/${e.entryId}`)));
+      notes.push(note("bad", "AI 정책 위반", `${e.merchantKo || e.merchant || "증빙"}: ${(g.violations || []).map((v) => v.reason).join(" · ") || g.summary} — 그대로 제출하면 자동 반려됩니다. 고치거나 제출할 때 소명을 적어 주세요.`, () => go(`entries/${e.entryId}?work=1`)));
     else if (g?.verdict === "uncertain")
       notes.push(note("warn", "AI 판단 보류", `${e.merchantKo || e.merchant || "증빙"}: ${g.summary || "정책 위반 여부를 판단하지 못했습니다"} — 결재자가 직접 확인합니다.`));
   }

@@ -1,10 +1,10 @@
 // 본사 홈 — 시범 지국의 증빙 및 한도 현황.
-import { api } from "../api.js?v=135b131";
-import { branchIcon } from "../branchicons.js?v=135b131";
-import { compact, gauge, limitBar, toneOfPct } from "../charts.js?v=135b131";
-import { getPeriod, isDateRange, periodCaption, periodControls, savedDateRange } from "../period.js?v=135b131";
-import { ACCOUNTS, BRANCH, clear, errorText, h, icon, money, spinner } from "../ui.js?v=135b131";
-import { pageHeader } from "./shell.js?v=135b131";
+import { api } from "../api.js?v=8ee2232";
+import { branchFlag, branchIcon } from "../branchicons.js?v=8ee2232";
+import { compact, gauge, limitBar, toneOfPct } from "../charts.js?v=8ee2232";
+import { getPeriod, isDateRange, periodCaption, periodControls, savedDateRange } from "../period.js?v=8ee2232";
+import { ACCOUNTS, BRANCH, clear, errorText, h, icon, money, spinner } from "../ui.js?v=8ee2232";
+import { pageHeader } from "./shell.js?v=8ee2232";
 
 export const LIVE_BRANCHES = Object.keys(BRANCH);
 const PLANNED_BRANCHES = [["paris", "파리"], ["tokyo", "도쿄"], ["beijing", "베이징"]];
@@ -46,7 +46,7 @@ function draw(el, quarter) {
 function branchCard(b) {
   const head = h("div", { class: "card-head bc-head" },
     h("div", { class: "bc-title" }, h("span", { class: "bc-icon" }, branchIcon(b.id)),
-      h("div", {}, h("h2", { class: "card-title" }, `${b.name}지국`),
+      h("div", {}, h("h2", { class: "card-title branch-name" }, branchFlag(b.id), `${b.name}지국`),
         h("div", { class: "bc-sub" }, b.planned ? "서비스 예정" : b.currency || "미국"))));
   if (b.planned) return h("section", { class: "card branch-card is-mock" }, head);
   if (b.error) return h("section", { class: "card branch-card" }, head, h("p", { class: "card-error" }, b.error));

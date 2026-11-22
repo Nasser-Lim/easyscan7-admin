@@ -6,9 +6,11 @@
   var PROD_API = "https://easyscan7-api-1059112315055.asia-northeast3.run.app";
   var isLocal = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   var override = new URLSearchParams(location.search).get("api");
+  var emulator = isLocal && new URLSearchParams(location.search).get("auth") === "emulator";
   window.ES7_CONFIG = {
-    apiBase: override || (isLocal ? "http://localhost:8799" : PROD_API),
+    apiBase: emulator ? "http://localhost:18799" : override || (isLocal ? "http://localhost:8799" : PROD_API),
     firebase: {
+      emulator: emulator,
       apiKey: "AIzaSyAnyTxCajb2JQjRWHfM9QTdE6tMKlpXCNM",
       projectId: "gen-lang-client-0598304740",
       authDomain: "gen-lang-client-0598304740.firebaseapp.com",

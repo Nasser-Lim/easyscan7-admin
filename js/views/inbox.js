@@ -1,15 +1,15 @@
 // 결재함 — 내 역할이 결재할 단계의 증빙(전 지국). 행을 열어 원본 대조 후 결재, 단순 승인 단계는 일괄 처리.
-import { api } from "../api.js?v=135b131";
+import { api } from "../api.js?v=8ee2232";
 import {
   BRANCH, ELIGIBILITY, ROLE, chip, clear, confirmDialog, dateText, dateTime, displayTeamName, empty, errorText, h, icon, metricTile, mobileDisclosure, mobileReceiptCard, money,
   quarterLabel, resubmittedBadge, select, spinner, statusChip, tip, toast,
-} from "../ui.js?v=135b131";
-import { isPeriodOf, periodOfEntry, periodControls, savedDateRange, unitName } from "../period.js?v=135b131";
-import { aiGateMark } from "../aigate.js?v=135b131";
-import { compactFlow } from "../flow.js?v=135b131";
-import { createPager } from "../pager.js?v=135b131";
-import { openDrawer } from "./entries.js?v=135b131";
-import { pageHeader, setNavBadge } from "./shell.js?v=135b131";
+} from "../ui.js?v=8ee2232";
+import { isPeriodOf, periodOfEntry, periodControls, savedDateRange, unitName } from "../period.js?v=8ee2232";
+import { aiGateMark } from "../aigate.js?v=8ee2232";
+import { compactFlow } from "../flow.js?v=8ee2232";
+import { createPager } from "../pager.js?v=8ee2232";
+import { openDrawer } from "./entries.js?v=8ee2232";
+import { pageHeader, setNavBadge } from "./shell.js?v=8ee2232";
 
 const ROLE_GUIDE = {
   imc: "제출된 증빙을 원본과 대조해 적격 / 비적격으로 분류합니다. 적격은 재무팀으로, 비적격(사유 필수)은 보도국장 전결로 올라갑니다.",
@@ -171,7 +171,7 @@ export function renderInbox(el, { me }) {
           "thead",
           {},
           h("tr", {}, h("th", { class: "cell-check" }, selectAll()), h("th", {}, "지국"), h("th", {}, "사용일"), h("th", {}, "가맹점"), h("th", {}, "계정"),
-            h("th", { class: "num" }, "금액"), h("th", {}, "상태"), h("th", {}, "결재 단계"), h("th", {}, "AI 판정")),
+            h("th", { class: "queue-amount" }, "금액"), h("th", {}, "상태"), h("th", {}, "결재 단계"), h("th", {}, "AI 판정")),
         ),
         h(
           "tbody",
@@ -189,7 +189,7 @@ export function renderInbox(el, { me }) {
                 h("div", { class: "cell-main" }, h("button", { class: "queue-open", type: "button", onclick: (event) => { event.stopPropagation(); open(); } }, e.merchantKo || e.merchant || "증빙 상세")),
                 e.memo ? h("div", { class: "cell-sub" }, e.memo) : null),
               h("td", {}, e.account || "—"),
-              h("td", { class: "num strong" }, money(e.amount, e.currency)),
+              h("td", { class: "queue-amount mono strong" }, money(e.amount, e.currency)),
               // 올라온 시각·직전 결재자는 마우스를 올리면 보인다
               h("td", { title: `올라온 시각 ${dateTime(last?.at || e.updatedAt)}${last?.roleLabel ? ` · ${displayTeamName(last.roleLabel)}` : ""}` },
                 h("div", { class: "queue-status" }, statusChip(e.status), resubmittedBadge(e), statusDetail(e))),
