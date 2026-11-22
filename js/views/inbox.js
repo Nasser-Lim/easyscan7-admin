@@ -1,15 +1,15 @@
-// 결재함 — 내 역할이 결재할 단계의 증빙(전 지국). 행을 열어 원본 대조 후 결재, 단순 승인 단계는 일괄 처리.
-import { api } from "../api.js?v=49218f7";
+// 결재함 — 내 역할이 처리할 단계의 증빙(전 지국). 건별 또는 선택한 여러 건을 결재한다.
+import { api } from "../api.js?v=4609e37";
 import {
-  BRANCH, ELIGIBILITY, ROLE, chip, clear, confirmDialog, dateText, dateTime, displayTeamName, empty, errorText, h, icon, metricTile, mobileDisclosure, mobileReceiptCard, money,
-  quarterLabel, resubmittedBadge, select, spinner, statusChip, tip, toast,
-} from "../ui.js?v=49218f7";
-import { isPeriodOf, periodOfEntry, periodControls, savedDateRange, unitName } from "../period.js?v=49218f7";
-import { aiGateMark } from "../aigate.js?v=49218f7";
-import { compactFlow } from "../flow.js?v=49218f7";
-import { createPager } from "../pager.js?v=49218f7";
-import { openDrawer } from "./entries.js?v=49218f7";
-import { pageHeader, setNavBadge } from "./shell.js?v=49218f7";
+  BRANCH, ELIGIBILITY, REVIEW_OUTCOME, ROLE, chip, clear, confirmDialog, dateText, dateTime, displayTeamName, empty, errorText, h, icon, metricTile, mobileDisclosure, mobileReceiptCard, money,
+  promptDialog, quarterLabel, resubmittedBadge, select, spinner, statusChip, toast,
+} from "../ui.js?v=4609e37";
+import { isPeriodOf, periodOfEntry, periodControls, savedDateRange, unitName } from "../period.js?v=4609e37";
+import { aiGateMark } from "../aigate.js?v=4609e37";
+import { compactFlow } from "../flow.js?v=4609e37";
+import { createPager } from "../pager.js?v=4609e37";
+import { openDrawer } from "./entries.js?v=4609e37";
+import { pageHeader, setNavBadge } from "./shell.js?v=4609e37";
 
 const ROLE_GUIDE = {
   imc: "제출된 증빙을 원본과 대조해 적격 / 비적격으로 분류합니다. 적격은 재무팀으로, 비적격(사유 필수)은 보도국장 전결로 올라갑니다.",
@@ -18,12 +18,28 @@ const ROLE_GUIDE = {
   finance: "결재선을 거친 증빙을 최종 검토하고 결재합니다. 문제가 있으면 사유를 적어 지국으로 반려합니다.",
   admin: "재무팀 최종 검토 단계 증빙입니다.",
 };
-// 열어 보지 않고 일괄 처리해도 되는 단계: 재무팀 최종 결재, 보도BIZ팀의 적격 분류(한도 초과가 없는 증빙만),
-// 보도국장·보도본부장의 비적격 전결 승인은 확인 창에서 사유를 보여 준다. 불승인·반려는 사유가 필수라 건별로 한다
+const APPROVE_TO_FINANCE = "재무팀 최종 검토로 보냅니다.";
+const RETURN = {
+  label: "반려 판정", icon: "return", body: { action: "return" }, reason: "반려 사유",
+  outcome: REVIEW_OUTCOME.return, danger: true,
+};
 const BULK = {
-  finance_review: { roles: ["finance", "admin"], label: "선택 최종 결재", body: () => ({ action: "approve" }) },
-  submitted: { roles: ["imc"], label: "선택 적격 분류", body: () => ({ action: "approve", eligibility: "eligible" }), ok: (e) => !(e.ineligibleAmount > 0) },
-  chief_review: { roles: ["bureau_chief", "division_head"], label: "선택 승인", body: () => ({ action: "approve" }) },
+  submitted: { roles: ["imc"], actions: [
+    { label: "적격 판정", icon: "check", primary: true, body: { action: "approve", eligibility: "eligible" }, outcome: APPROVE_TO_FINANCE },
+    { label: "비적격 판정", icon: "alert", body: { action: "approve", eligibility: "ineligible" }, reason: "비적격 사유",
+      outcome: "보도국장·보도본부장 전결 단계로 보냅니다." },
+    RETURN,
+  ] },
+  chief_review: { roles: ["bureau_chief", "division_head"], actions: [
+    { label: "승인", icon: "check", primary: true, body: { action: "approve" }, outcome: APPROVE_TO_FINANCE },
+    { label: "불승인", icon: "x", body: { action: "reject" }, reason: "불승인 사유",
+      outcome: REVIEW_OUTCOME.reject, danger: true },
+    RETURN,
+  ] },
+  finance_review: { roles: ["finance", "admin"], actions: [
+    { label: "최종 결재", icon: "check", primary: true, body: { action: "approve" }, outcome: "선택한 증빙의 결재를 완료합니다." },
+    RETURN,
+  ] },
 };
 
 // 결재 판단에 필요한 사유 한 줄 — 보도BIZ팀의 비적격 사유, 지국 소명, AI 위반 근거, 한도 초과
@@ -70,10 +86,12 @@ export function renderInbox(el, { me }) {
   let rows = [];
   let stages = [];
   let reviewing = false;
+  let loadRevision = 0;
   const selected = new Set();
   const branchSel = select([["all", "전체 지국"], ...Object.entries(BRANCH).map(([id, n]) => [id, `${n}지국`])], branchFilter, { class: "input input-sm", "aria-label": "결재함 지국" });
   const kpiBar = h("div", { class: "kpis kpis-sm" });
-  const bulk = h("div", { class: "bulkbar" });
+  const bulk = h("div", { class: "bulkbar inbox-bulkbar" });
+  const result = h("div", { class: "inbox-bulk-result", "aria-live": "polite", hidden: true });
   const tableWrap = h("div", { class: "table-wrap" }, h("div", { class: "card-loading" }, spinner()));
   const pagerBox = h("div", {});
   const pager = createPager("inbox", () => paint());
@@ -99,28 +117,39 @@ export function renderInbox(el, { me }) {
       { class: "card card-flush" },
       h("div", { class: "toolbar mobile-toolbar inbox-toolbar" }, filters),
       bulk,
+      result,
       tableWrap,
       pagerBox,
     ),
   );
 
-  async function load() {
+  async function load({ keepSelection = false } = {}) {
+    const revision = ++loadRevision;
     clear(tableWrap).append(h("div", { class: "card-loading" }, spinner()));
-    selected.clear();
+    if (!keepSelection) {
+      selected.clear();
+      result.hidden = true;
+    }
+    paintBulk();
     try {
       const r = await api.get(`/entries/queue${periodFilter ? `?period=${encodeURIComponent(periodFilter)}` : ""}`);
+      if (revision !== loadRevision) return;
       rows = r.entries;
       stages = r.stages;
       if (!periodFilter) setNavBadge("inbox", rows.length);
       paint();
     } catch (e) {
-      clear(tableWrap).append(h("p", { class: "card-error" }, errorText(e)));
+      if (revision === loadRevision) {
+        selected.clear();
+        paintBulk();
+        clear(tableWrap).append(h("p", { class: "card-error" }, errorText(e)));
+      }
     }
   }
 
   const bulkable = (e) => {
     const b = BULK[e.status];
-    return !!b && b.roles.includes(me.role) && (!b.ok || b.ok(e));
+    return b?.roles.includes(me.role);
   };
 
   function paint() {
@@ -214,53 +243,88 @@ export function renderInbox(el, { me }) {
 
   function paintBulk() {
     clear(bulk);
-    bulk.classList.toggle("show", selected.size > 0);
+    bulk.classList.remove("show");
     if (!selected.size) return;
-    const picked = rows.filter((e) => selected.has(e.id));
-    const label = BULK[picked[0].status]?.label || "선택 결재";
+    const picked = rows.filter((e) => selected.has(e.id) && bulkable(e));
+    const stage = picked[0]?.status;
+    if (!stage || picked.some((e) => e.status !== stage)) return;
+    bulk.classList.add("show");
+    const overLimit = stage === "submitted" && picked.some((e) => e.ineligibleAmount > 0);
     bulk.append(
-      h("span", {}, h("b", {}, `${selected.size}건`), ` 선택 · ${amountSummary(picked)}`),
+      h("div", { class: "inbox-bulk-selection" },
+        h("span", {}, h("b", {}, `${picked.length}건`), ` 선택 · ${amountSummary(picked)}`),
+        overLimit ? h("small", {}, "적격 판정은 한도 초과 증빙의 선택을 해제한 뒤 진행하세요.") : null),
       h(
         "div",
         { class: "bulk-actions" },
-        h("button", { class: "btn btn-ghost btn-sm", type: "button", onclick: () => (selected.clear(), paint()) }, "선택 해제"),
-        h("button", { class: "btn btn-primary btn-sm", type: "button", onclick: () => bulkApprove(picked) }, icon("check"), h("span", {}, label)),
+        h("button", { class: "btn btn-ghost btn-sm", type: "button", disabled: reviewing, onclick: () => (selected.clear(), paint()) }, "선택 해제"),
+        BULK[stage].actions.map((action) => h("button", {
+          class: `btn btn-${action.primary ? "primary" : action.danger ? "danger" : "ghost"} btn-sm`,
+          type: "button",
+          disabled: reviewing || (overLimit && action.body.eligibility === "eligible"),
+          onclick: () => bulkReview(picked, action),
+        }, icon(action.icon), h("span", {}, action.label))),
       ),
     );
   }
 
-  async function bulkApprove(picked) {
+  async function bulkReview(picked, action) {
     if (reviewing) return;
     reviewing = true;
-    const classify = picked[0]?.status === "submitted";
-    const chief = picked[0]?.status === "chief_review";
-    const action = classify ? "적격 분류" : chief ? "승인" : "최종 결재";
-    const ok = await confirmDialog({
-      title: `${picked.length}건 ${action}`,
-      message: h("div", {},
-        h("p", {}, `합계 ${amountSummary(picked)}`),
-        h("p", {}, classify || chief ? "재무팀 최종 검토로 보냅니다." : "선택한 증빙의 결재를 완료합니다."),
-        chief ? h("ul", { class: "reason-list" }, picked.slice(0, 8).map((e) => h("li", {}, h("b", {}, `${e.merchantKo || e.merchant || "—"} ${money(e.amount, e.currency)}`), " — ", reasonParts(e).map(([k, v]) => `${k}: ${v}`).join(" · ") || "사유 없음"))) : null,
-        chief && picked.length > 8 ? h("p", { class: "muted small" }, `외 ${picked.length - 8}건`) : null),
-      confirm: action,
-    });
-    if (!ok) {
-      reviewing = false;
-      return;
-    }
-    let done = 0;
-    const failed = [];
-    for (const e of picked) {
-      try {
-        await api.post(`/entries/${e.id}/review`, { ...BULK[e.status].body(), expectedStatus: e.status });
-        done++;
-      } catch (ex) {
-        failed.push(`${e.merchant || e.id}: ${errorText(ex)}`);
+    try {
+      const showReasons = picked[0].status === "chief_review";
+      const dialog = {
+        title: `${picked.length}건 ${action.label}`,
+        message: h("div", {},
+          h("p", {}, `합계 ${amountSummary(picked)}`),
+          h("p", {}, action.outcome),
+          action.reason ? h("p", {}, "입력한 사유가 선택한 증빙에 모두 기록됩니다.") : null,
+          h("details", { class: "inbox-selection-preview", open: showReasons },
+            h("summary", {}, `선택한 증빙 ${picked.length}건`),
+            h("ul", { class: "reason-list" }, picked.map((e) => {
+              const reasons = showReasons ? reasonParts(e).map(([k, v]) => `${k}: ${v}`).join(" · ") : "";
+              return h("li", {}, h("b", {}, `${e.merchantKo || e.merchant || "증빙"} · ${money(e.amount, e.currency)}`),
+                ` · ${BRANCH[e.branchId] || e.branchId} · ${dateText(e.txnDate)}`, reasons ? h("div", {}, reasons) : null);
+            })))),
+        confirm: action.label,
+        danger: action.danger,
+      };
+      let comment;
+      if (action.reason) {
+        comment = await promptDialog({ ...dialog, label: `공통 ${action.reason}` });
+        if (comment === null) return;
+      } else if (!(await confirmDialog(dialog))) return;
+
+      paintBulk();
+      result.hidden = true;
+      const failed = [];
+      for (const e of picked) {
+        try {
+          await api.post(`/entries/${encodeURIComponent(e.id)}/review`, {
+            ...action.body, comment, expectedStatus: e.status,
+          });
+          selected.delete(e.id);
+        } catch (ex) {
+          failed.push({ entry: e, error: errorText(ex) });
+        }
       }
+      const done = picked.length - failed.length;
+      await load({ keepSelection: true });
+      if (failed.length) {
+        const summary = `${done}건 처리 · ${failed.length}건 실패`;
+        result.hidden = false;
+        clear(result).append(h("details", { open: true },
+          h("summary", {}, summary),
+          h("ul", { class: "reason-list" }, failed.map(({ entry, error }) =>
+            h("li", {}, h("b", {}, entry.merchantKo || entry.merchant || entry.id), ` · ${error}`)))));
+        toast(summary, done ? "warn" : "bad");
+      } else {
+        toast(`${done}건 ${action.label} 완료`, "ok");
+      }
+    } finally {
+      reviewing = false;
+      paintBulk();
     }
-    toast(failed.length ? `${done}건 처리, ${failed.length}건 실패 — ${failed[0]}` : `${done}건 ${action} 완료`, failed.length ? "bad" : "ok", 6000);
-    await load();
-    reviewing = false;
   }
 
   load();

@@ -127,6 +127,10 @@ export const FINAL = new Set(["approved", "rejected", "deleted"]);
 export const ELIGIBILITY = { eligible: ["적격", "ok"], ineligible: ["비적격", "bad"] };
 export const REVIEWER_ROLES = new Set(["imc", "bureau_chief", "division_head", "finance", "admin"]);
 export const ACTION_LABEL = { submit: "제출", withdraw: "제출 취소", approve: "승인", return: "반려", reject: "불승인", cancel: "결재 취소" };
+export const REVIEW_OUTCOME = {
+  reject: "지급 대상에서 제외하고 결재를 종료합니다.",
+  return: "증빙을 지국으로 돌려보냅니다. 지국 담당자가 보완해 다시 제출할 수 있습니다.",
+};
 // AI 1차 적격 검증(gate) 판정 — 백엔드 services/ai_gate.py 와 같은 값
 export const AI_VERDICT = {
   pass: { label: "AI 검증 통과", tone: "ok" },

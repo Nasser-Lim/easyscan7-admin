@@ -1,19 +1,19 @@
 // 증빙 조회 — 필터·정렬 목록, 일괄 제출, 상세 서랍(원본 증빙 대조 + 수정·제출·삭제 / 결재).
 // 지국 담당자: 자기 지국 · 본사 결재자: 전 지국(지국 필터), 결재는 결재함 또는 이 화면의 상세 서랍에서.
-import { api } from "../api.js?v=49218f7";
+import { api } from "../api.js?v=4609e37";
 import {
-  ACCOUNTS, ACTION_LABEL, BRANCH, DOC_TYPE, ELIGIBILITY, FINAL, IN_REVIEW, NON_REVIEW_ACCOUNT_LABEL, ROLE, STAFF_EDITABLE, STATUS, WRITING_STATUSES, chip, clear,
+  ACCOUNTS, ACTION_LABEL, BRANCH, DOC_TYPE, ELIGIBILITY, FINAL, IN_REVIEW, NON_REVIEW_ACCOUNT_LABEL, REVIEW_OUTCOME, ROLE, STAFF_EDITABLE, STATUS, WRITING_STATUSES, chip, clear,
   confirmDialog, promptDialog, dateText, dateTime, displayTeamName, empty, errorText, field, h, icon, money, noticeParts,
   ALL_ACCOUNTS, accountSelect, isCoreAccount, metricTile, mobileDisclosure, mobileReceiptCard, periodBadge, quarterLabel, quarterOf, resubmittedBadge, select, spinner, statusChip, tip, toast,
-} from "../ui.js?v=49218f7";
+} from "../ui.js?v=4609e37";
 import { currentPeriod, getMode, isDateRange, isPeriodOf, periodCaption, periodOfEntry, periodOptions, periodControls,
-  savedDateRange, unitName } from "../period.js?v=49218f7";
-import { aiGatePanel } from "../aigate.js?v=49218f7";
-import { createPager } from "../pager.js?v=49218f7";
-import { compactFlow, flowDiagram } from "../flow.js?v=49218f7";
-import { fxStrip, loadFx, sumIn } from "../fx.js?v=49218f7";
-import { refreshInboxBadge } from "./inbox.js?v=49218f7";
-import { pageHeader } from "./shell.js?v=49218f7";
+  savedDateRange, unitName } from "../period.js?v=4609e37";
+import { aiGatePanel } from "../aigate.js?v=4609e37";
+import { createPager } from "../pager.js?v=4609e37";
+import { compactFlow, flowDiagram } from "../flow.js?v=4609e37";
+import { fxStrip, loadFx, sumIn } from "../fx.js?v=4609e37";
+import { refreshInboxBadge } from "./inbox.js?v=4609e37";
+import { pageHeader } from "./shell.js?v=4609e37";
 
 const EDITABLE_STATUS = STAFF_EDITABLE; // 지국 담당자가 고치고 제출할 수 있는 상태
 const STATUS_GROUPS = { writing: WRITING_STATUSES, review: IN_REVIEW };
@@ -927,7 +927,7 @@ function reviewFooter(e, form, { close, onChanged }) {
     return b;
   };
   const returnBtn = btn("btn-danger", "x", "반려", () =>
-    send("return", "지국으로 반려", "작성한 사유와 함께 지국 담당자에게 돌려보냅니다.", { reason: "반려 사유" }));
+    send("return", "지국으로 반려", REVIEW_OUTCOME.return, { reason: "반려 사유" }));
   const right = [];
   if (e.status === "submitted") {
     right.push(
@@ -938,7 +938,7 @@ function reviewFooter(e, form, { close, onChanged }) {
     );
   } else if (e.status === "chief_review") {
     right.push(btn("btn-ghost", "x", "불승인", () =>
-      send("reject", "불승인", "이 증빙을 지급 대상에서 제외합니다.", { reason: "불승인 사유" })));
+      send("reject", "불승인", REVIEW_OUTCOME.reject, { reason: "불승인 사유" })));
     right.push(btn("btn-primary", "check", "승인", () => send("approve", "비적격 증빙 승인", "재무팀 최종 검토로 보냅니다.")));
   } else {
     right.push(btn("btn-primary", "check", "최종 결재", () => send("approve", "증빙 최종 결재", "이 증빙의 결재를 완료합니다.")));

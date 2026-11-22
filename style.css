@@ -424,6 +424,14 @@ select.input { padding-right: 28px; }
 .bulkbar .btn-ghost:hover:not(:disabled) { background: rgba(255, 255, 255, .08); border-color: rgba(255, 255, 255, .6); }
 .bulkbar.show { display: flex; }
 .bulk-actions { display: flex; gap: 8px; }
+.inbox-bulkbar { flex-wrap: wrap; gap: 7px 14px; }
+.inbox-bulkbar .bulk-actions { flex-wrap: wrap; gap: 5px; }
+.inbox-bulk-selection { display: grid; gap: 2px; }
+.inbox-bulk-selection small { color: #dbe7f2; }
+.inbox-selection-preview { margin-top: 8px; }
+.inbox-selection-preview .reason-list { max-height: min(220px, 30vh); overflow: auto; }
+.inbox-selection-preview summary, .inbox-bulk-result summary { cursor: pointer; font-weight: 650; }
+.inbox-bulk-result { padding: 8px 16px; border-bottom: 1px solid var(--line); color: var(--bad); background: var(--bad-50); }
 
 /* ── 빈 상태 ── */
 .empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 44px 20px; color: var(--text-2); }
