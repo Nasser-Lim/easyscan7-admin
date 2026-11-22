@@ -79,6 +79,7 @@ export const OTHER_ACCOUNTS = [
   "현지채용인 급여.시간외수당.상여", "현지채용인 의료비지원", "현지채용인 교통비지원", "급여조정표", "소방서 연납 비용",
 ];
 export const ALL_ACCOUNTS = [...ACCOUNTS, ...OTHER_ACCOUNTS];
+export const NON_REVIEW_ACCOUNT_LABEL = "비결재 · 기타";
 let bureauCatalog = null;
 export function updateCatalog(branch, accounts) {
   if (branch === "newyork" && accounts) bureauCatalog = accounts;
@@ -89,7 +90,7 @@ export function resubmittedBadge(entry) {
   if (resubmission?.from !== "returned" || entry.status === "returned") return null;
   return h("span", { class: "resubmitted", title: resubmission.comment || "반려 후 다시 제출했습니다" }, "재제출");
 }
-// 계정 선택 상자 — 세 계정 먼저, 그 밖은 '기타 계정(보관)' 묶음
+// 계정 선택 상자 — 세 계정 먼저, 그 밖은 비결재 계정 묶음
 export function accountSelect(value, attrs = {}, { blank, branch } = {}) {
   const opt = (a, label = a) => h("option", { value: a, selected: a === value }, label);
   const other = bureauCatalog
@@ -98,7 +99,7 @@ export function accountSelect(value, attrs = {}, { blank, branch } = {}) {
   return h("select", { class: "input", ...attrs },
     blank ? opt("", blank) : null,
     h("optgroup", { label: "결재 대상" }, ACCOUNTS.map((a) => opt(a))),
-    branch === "washington" ? null : h("optgroup", { label: "기타 계정 · 보관" }, other.map((a) => opt(a))));
+    branch === "washington" ? null : h("optgroup", { label: NON_REVIEW_ACCOUNT_LABEL }, other.map((a) => opt(a))));
 }
 export const STATUS = {
   // 이름 규칙: 「지금 처리해야 하는 주체 + 행위」 — 누구 차례인지 바로 보이게
@@ -114,7 +115,8 @@ export const STATUS = {
   deleted: { label: "삭제됨", cls: "chip-muted" },
 };
 // 상태 묶음 — 백엔드 services/workflow.py 와 같은 규칙
-export const STAFF_EDITABLE = new Set(["draft", "flagged", "returned"]);
+export const WRITING_STATUSES = new Set(["draft", "flagged"]);
+export const STAFF_EDITABLE = new Set([...WRITING_STATUSES, "returned"]);
 export const IN_REVIEW = new Set(["submitted", "chief_review", "finance_review"]);
 export const FINAL = new Set(["approved", "rejected", "deleted"]);
 export const ELIGIBILITY = { eligible: ["적격", "ok"], ineligible: ["비적격", "bad"] };

@@ -1,20 +1,20 @@
 // 관리웹 진입점 — 세션 확인 → 로그인 화면 또는 앱 셸 + 해시 라우터.
-import { api, hasSession, logout, onSignedOut } from "./api.js?v=2d39515";
-import { clear, h, spinner, toast, errorText, updateCatalog, workSummaryDialog } from "./ui.js?v=2d39515";
-import { renderLogin } from "./views/login.js?v=2d39515";
-import { renderShell, setActiveNav } from "./views/shell.js?v=2d39515";
-import { renderHome } from "./views/home.js?v=2d39515";
-import { renderUpload } from "./views/upload.js?v=2d39515";
-import { renderEntries } from "./views/entries.js?v=2d39515";
-import { renderAccount } from "./views/account.js?v=2d39515";
-import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=2d39515";
-import { renderHelp } from "./views/help.js?v=2d39515";
-import { renderLimitSettings } from "./views/limitcfg.js?v=2d39515";
-import { renderPolicy } from "./views/policy.js?v=2d39515";
-import { renderSettle } from "./views/settle.js?v=2d39515";
-import { renderBureau } from "./views/bureau.js?v=2d39515";
-import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=2d39515";
-import { loadMode } from "./period.js?v=2d39515";
+import { api, hasSession, logout, onSignedOut } from "./api.js?v=892dfa9";
+import { clear, h, spinner, toast, errorText, updateCatalog, workSummaryDialog } from "./ui.js?v=892dfa9";
+import { renderLogin } from "./views/login.js?v=892dfa9";
+import { renderShell, setActiveNav } from "./views/shell.js?v=892dfa9";
+import { renderHome } from "./views/home.js?v=892dfa9";
+import { renderUpload } from "./views/upload.js?v=892dfa9";
+import { renderEntries } from "./views/entries.js?v=892dfa9";
+import { renderAccount } from "./views/account.js?v=892dfa9";
+import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=892dfa9";
+import { renderHelp } from "./views/help.js?v=892dfa9";
+import { renderLimitSettings } from "./views/limitcfg.js?v=892dfa9";
+import { renderPolicy } from "./views/policy.js?v=892dfa9";
+import { renderSettle } from "./views/settle.js?v=892dfa9";
+import { renderBureau } from "./views/bureau.js?v=892dfa9";
+import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=892dfa9";
+import { loadMode } from "./period.js?v=892dfa9";
 
 const app = document.getElementById("app");
 let me = null;
@@ -62,8 +62,9 @@ const ROUTES = {
 };
 
 function parseHash() {
-  const [route, ...rest] = (location.hash.replace(/^#\/?/, "") || "").split("/");
-  return { route: route || "", params: rest };
+  const [path, search] = location.hash.replace(/^#\/?/, "").split("?", 2);
+  const [route, ...params] = path.split("/");
+  return { route, params, query: new URLSearchParams(search) };
 }
 
 function allowed(route) {
@@ -73,7 +74,7 @@ function allowed(route) {
 
 function navigate() {
   if (!me || !content) return;
-  let { route, params } = parseHash();
+  const { route, params, query } = parseHash();
   if (!route || !allowed(route)) {
     const first = (NAV[me.role] || [])[0];
     location.replace(`#/${first ? first.route : "account"}`);
@@ -81,7 +82,7 @@ function navigate() {
   }
   setActiveNav(route);
   clear(content);
-  ROUTES[route](content, { me, params, go: (r) => (location.hash = `#/${r}`) });
+  ROUTES[route](content, { me, params, query, go: (r) => (location.hash = `#/${r}`) });
   window.scrollTo(0, 0);
 }
 

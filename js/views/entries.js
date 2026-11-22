@@ -1,48 +1,63 @@
 // 증빙 조회 — 필터·정렬 목록, 일괄 제출, 상세 서랍(원본 증빙 대조 + 수정·제출·삭제 / 결재).
 // 지국 담당자: 자기 지국 · 본사 결재자: 전 지국(지국 필터), 결재는 결재함 또는 이 화면의 상세 서랍에서.
-import { api } from "../api.js?v=2d39515";
+import { api } from "../api.js?v=892dfa9";
 import {
-  ACCOUNTS, ACTION_LABEL, BRANCH, DOC_TYPE, ELIGIBILITY, FINAL, IN_REVIEW, ROLE, STAFF_EDITABLE, STATUS, chip, clear,
+  ACCOUNTS, ACTION_LABEL, BRANCH, DOC_TYPE, ELIGIBILITY, FINAL, IN_REVIEW, NON_REVIEW_ACCOUNT_LABEL, ROLE, STAFF_EDITABLE, STATUS, WRITING_STATUSES, chip, clear,
   confirmDialog, promptDialog, dateText, dateTime, displayTeamName, empty, errorText, field, h, icon, money, noticeParts,
   ALL_ACCOUNTS, accountSelect, isCoreAccount, metricTile, mobileDisclosure, mobileReceiptCard, periodBadge, quarterLabel, quarterOf, resubmittedBadge, select, spinner, statusChip, tip, toast,
-} from "../ui.js?v=2d39515";
-import { currentPeriod, getMode, isPeriodOf, periodCaption, periodOfEntry, periodOptions, periodControls,
-  savedDateRange, unitName } from "../period.js?v=2d39515";
-import { aiGatePanel } from "../aigate.js?v=2d39515";
-import { createPager } from "../pager.js?v=2d39515";
-import { compactFlow, flowDiagram } from "../flow.js?v=2d39515";
-import { fxStrip, loadFx, sumIn } from "../fx.js?v=2d39515";
-import { refreshInboxBadge } from "./inbox.js?v=2d39515";
-import { pageHeader } from "./shell.js?v=2d39515";
+} from "../ui.js?v=892dfa9";
+import { currentPeriod, getMode, isDateRange, isPeriodOf, periodCaption, periodOfEntry, periodOptions, periodControls,
+  savedDateRange, unitName } from "../period.js?v=892dfa9";
+import { aiGatePanel } from "../aigate.js?v=892dfa9";
+import { createPager } from "../pager.js?v=892dfa9";
+import { compactFlow, flowDiagram } from "../flow.js?v=892dfa9";
+import { fxStrip, loadFx, sumIn } from "../fx.js?v=892dfa9";
+import { refreshInboxBadge } from "./inbox.js?v=892dfa9";
+import { pageHeader } from "./shell.js?v=892dfa9";
 
 const EDITABLE_STATUS = STAFF_EDITABLE; // 지국 담당자가 고치고 제출할 수 있는 상태
-const STATUS_GROUPS = { writing: new Set(["draft", "flagged"]), review: IN_REVIEW };
-const ACCOUNT_PRESETS = ["경상비", "취재비", "차량유지비"];
+const STATUS_GROUPS = { writing: WRITING_STATUSES, review: IN_REVIEW };
+const STATUS_OPTIONS = [["", "전체 상태"], ["writing", "작성중"], ["review", "결재 대기"],
+  ...Object.keys(STATUS).filter((key) => key !== "deleted").map((key) => [key, STATUS[key].label])];
+const NON_REVIEW_ACCOUNTS = Symbol("non-review accounts");
+const ACCOUNT_PRESETS = [["", "전체 계정"], ["경상비", "경상비"], ["취재비", "취재비"], ["차량유지비", "차량유지비"],
+  [NON_REVIEW_ACCOUNTS, NON_REVIEW_ACCOUNT_LABEL]];
 // 화면을 옮겨 다녀도 필터는 유지(세션 동안)
 // 정산 기간(월/분기)은 영수증 날짜로 자동 지정되므로 방금 올린 증빙이 이번 기간이 아닐 수 있다 — 기본은 전체("")
 // 기간 선택지: 정산 방식에 따라 최근 12개월 또는 최근 4분기
 const state = { period: "", account: "", status: "", q: "", sort: "txnDate", dir: -1, branch: "all" };
 
-export function renderEntries(el, { me, params }) {
+export function renderEntries(el, { me, params, query }) {
   const isStaff = me.role === "staff";
   let rows = [];
   const selected = new Set();
 
-  if (params[0] === "returned") state.status = "returned";
-  state.period = savedDateRange() || (isPeriodOf(state.period) ? state.period : "");
+  const linkedPeriod = query.get("period");
+  const validLinkedPeriod = isPeriodOf(linkedPeriod) || isDateRange(linkedPeriod);
+  state.period = validLinkedPeriod ? linkedPeriod : savedDateRange() || (isPeriodOf(state.period) ? state.period : "");
+  if (validLinkedPeriod || query.has("status")) {
+    const linkedStatus = query.get("status");
+    state.status = STATUS_OPTIONS.some(([value]) => value === linkedStatus) ? linkedStatus : "";
+    state.account = "";
+    state.q = "";
+  } else if (params[0] === "returned") {
+    state.status = "returned";
+  }
   const quarter = periodControls(state.period, (p) => { state.period = p; pager.reset(); load(); });
-  const account = accountSelect(state.account, { class: "input input-sm", "aria-label": "계정 필터" }, { blank: "전체 계정", branch: me.branchId });
-  const status = select([["", "전체 상태"], ["writing", "작성중"], ["review", "결재 대기"],
-    ...Object.keys(STATUS).filter((s) => s !== "deleted").map((s) => [s, STATUS[s].label])], state.status, { class: "input input-sm" });
+  const account = accountSelect(state.account, { class: "input input-sm", "aria-label": "계정 필터" }, { blank: ACCOUNT_PRESETS[0][1], branch: me.branchId });
+  // 필터의 묶음 선택지는 실제 계정 이름과 구분한다.
+  const nonReviewOption = h("option", { value: "", selected: state.account === NON_REVIEW_ACCOUNTS }, NON_REVIEW_ACCOUNT_LABEL);
+  account.insertBefore(nonReviewOption, account.firstElementChild.nextElementSibling);
+  const status = select(STATUS_OPTIONS, state.status, { class: "input input-sm", "aria-label": "상태 필터" });
   const branchSel = isStaff ? null : select([["all", "전체 지국"], ...Object.entries(BRANCH).map(([id, n]) => [id, `${n}지국`])], state.branch, { class: "input input-sm" });
   branchSel?.addEventListener("change", () => ((state.branch = branchSel.value), pager.reset(), load()));
   const search = h("input", { class: "input input-sm", type: "search", placeholder: "가맹점·주문번호·적요 검색", value: state.q });
   const kpiBar = h("div", { class: "kpis kpis-sm entries-kpis" });
-  const accountButtons = ACCOUNT_PRESETS.map((value) => h("button", {
+  const accountButtons = new Map(ACCOUNT_PRESETS.map(([value, label]) => [value, h("button", {
     class: "btn btn-ghost btn-sm", type: "button", "aria-pressed": String(state.account === value),
     onclick: () => applyAccount(state.account === value ? "" : value),
-  }, value));
-  const accountPresets = h("div", { class: "entry-account-presets", role: "group", "aria-label": "계정 빠른 필터" }, accountButtons);
+  }, label)]));
+  const accountPresets = h("div", { class: "entry-account-presets", role: "group", "aria-label": "계정 빠른 필터" }, [...accountButtons.values()]);
   const fxBar = fxStrip();
   let fx = null;
   const bulk = h("div", { class: "bulkbar" });
@@ -51,7 +66,7 @@ export function renderEntries(el, { me, params }) {
   const pagerBox = h("div", {});
   const refreshBtn = h("button", { class: "btn btn-ghost", type: "button", onclick: () => load() }, icon("refresh"), h("span", {}, "새로고침"));
 
-  account.addEventListener("change", () => applyAccount(account.value));
+  account.addEventListener("change", () => applyAccount(nonReviewOption.selected ? NON_REVIEW_ACCOUNTS : account.value));
   status.addEventListener("change", () => ((state.status = status.value), pager.reset(), paint()));
   search.addEventListener("input", () => ((state.q = search.value), pager.reset(), paint()));
   const filters = h("div", { class: "toolbar-filters" }, branchSel, quarter, account, status);
@@ -95,9 +110,12 @@ export function renderEntries(el, { me, params }) {
   function visible() {
     const q = state.q.trim().toLowerCase();
     const statusGroup = STATUS_GROUPS[state.status];
+    const accountMatches = state.account === NON_REVIEW_ACCOUNTS
+      ? (name) => Boolean(name?.trim()) && !isCoreAccount(name)
+      : (name) => !state.account || name === state.account;
     const out = rows.filter(
       (e) =>
-        (!state.account || e.account === state.account) &&
+        accountMatches(e.account) &&
         (!state.status || (statusGroup ? statusGroup.has(e.status) : e.status === state.status)) &&
         (!q || [e.merchant, e.merchantKo, e.orderNumber, e.memo, e.purpose].some((v) => v && String(v).toLowerCase().includes(q))),
     );
@@ -295,8 +313,9 @@ export function renderEntries(el, { me, params }) {
 
   function applyAccount(value) {
     state.account = value;
-    account.value = value;
-    accountButtons.forEach((button, index) => button.setAttribute("aria-pressed", String(ACCOUNT_PRESETS[index] === value)));
+    if (value === NON_REVIEW_ACCOUNTS) nonReviewOption.selected = true;
+    else account.value = value;
+    for (const [key, button] of accountButtons) button.setAttribute("aria-pressed", String(key === value));
     pager.reset();
     paint();
   }

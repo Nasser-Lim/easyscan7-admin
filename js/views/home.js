@@ -1,12 +1,12 @@
 // 홈 — 고른 정산 분기(현분기·전분기)의 요약 지표, 한도 현황, 최근 증빙, 바로가기.
-import { api } from "../api.js?v=2d39515";
-import { clear, dateText, empty, errorText, h, icon, metricTile, money, spinner, statusChip } from "../ui.js?v=2d39515";
-import { compactFlow } from "../flow.js?v=2d39515";
-import { loadFx, sumIn } from "../fx.js?v=2d39515";
-import { getPeriod, periodCaption, periodControls, savedDateRange } from "../period.js?v=2d39515";
-import { limitsCard } from "./limits.js?v=2d39515";
-import { renderDashboard } from "./dashboard.js?v=2d39515";
-import { pageHeader } from "./shell.js?v=2d39515";
+import { api } from "../api.js?v=892dfa9";
+import { IN_REVIEW, WRITING_STATUSES, clear, dateText, empty, errorText, h, icon, metricTile, money, spinner, statusChip } from "../ui.js?v=892dfa9";
+import { compactFlow } from "../flow.js?v=892dfa9";
+import { loadFx, sumIn } from "../fx.js?v=892dfa9";
+import { getPeriod, periodCaption, periodControls, savedDateRange } from "../period.js?v=892dfa9";
+import { limitsCard } from "./limits.js?v=892dfa9";
+import { renderDashboard } from "./dashboard.js?v=892dfa9";
+import { pageHeader } from "./shell.js?v=892dfa9";
 
 export function renderHome(el, ctx) {
   if (ctx.me.role !== "staff") return renderDashboard(el, ctx); // 본사(보도BIZ팀·보도국장·재무팀): 전 지국 대시보드
@@ -17,6 +17,7 @@ export function renderHome(el, ctx) {
 function draw(el, { me, go }, quarter) {
   clear(el);
   const qName = periodCaption(quarter).replace(/^\d{4}년 /, "");
+  const openEntries = (status) => go(`entries?${new URLSearchParams({ period: quarter, status })}`);
   const kpis = h("div", { class: "kpis" }, h("div", { class: "card-loading" }, spinner(true)));
   const recent = h("div", { class: "card-body-flush" }, h("div", { class: "card-loading" }, spinner(true)));
 
@@ -49,20 +50,24 @@ function draw(el, { me, go }, quarter) {
       // 합계는 지국 통화로 환산(현재 환율) — 원화·외화 증빙이 섞여 있어도 한 통화로
       const fx = await loadFx();
       const cur = fx.branchCurrency?.[me.branchId] || entries.find((e) => e.currency)?.currency || "USD";
-      const count = (s) => entries.filter((e) => s.includes(e.status)).length;
-      const todo = count(["draft", "flagged", "returned"]);
-      const inReview = count(["submitted", "chief_review", "finance_review"]);
-      const inel = sumIn(entries, "ineligibleAmount", fx, cur).total;
-      const totalSum = sumIn(entries, "amount", fx, cur);
-      const total = totalSum.total;
+      const count = (status) => entries.filter((e) => e.status === status).length;
+      const writing = entries.filter((e) => WRITING_STATUSES.has(e.status));
+      const returned = entries.filter((e) => e.status === "returned");
+      const inReview = entries.filter((e) => IN_REVIEW.has(e.status)).length;
+      const approved = count("approved");
+      const rejected = count("rejected");
+      const amountNote = (rows) => {
+        const { total, converted, skipped } = sumIn(rows, "amount", fx, cur);
+        return [money(total, cur), converted ? "참고 환산" : null, skipped ? `환율 미확인 ${skipped}건 제외` : null].filter(Boolean).join(" · ");
+      };
       clear(kpis).append(
-        metricTile({ label: `${qName} 증빙`, value: `${entries.length}건`, note: `${money(total, cur)}${totalSum.converted ? " · 참고 환산" : ""}` }),
-        metricTile({ label: "미제출", value: `${todo}건`, symbol: "edit", tone: todo ? "warn" : "ok",
-          note: count(["returned"]) ? `반려 ${count(["returned"])}건` : count(["flagged"]) ? `검토 필요 ${count(["flagged"])}건` : null,
-          onClick: () => go(count(["returned"]) ? "entries/returned" : "entries") }),
-        metricTile({ label: "결재 진행·완료", value: `${inReview + count(["approved"])}건`, symbol: "clock", tone: "info",
-          note: `진행 ${inReview} · 완료 ${count(["approved"])}${count(["rejected"]) ? ` · 불승인 ${count(["rejected"])}` : ""}` }),
-        metricTile({ label: "한도 초과 비적격", value: money(inel, cur), symbol: "sliders", tone: inel > 0 ? "bad" : "ok" }),
+        metricTile({ label: `${qName} 증빙`, value: `${entries.length}건`, note: amountNote(entries),
+          onClick: () => openEntries("") }),
+        metricTile({ label: "작성중", value: `${writing.length}건`, note: amountNote(writing), symbol: "edit", onClick: () => openEntries("writing") }),
+        metricTile({ label: "반려됨", value: `${returned.length}건`, note: amountNote(returned), symbol: "return", tone: returned.length ? "bad" : "neutral",
+          onClick: () => openEntries("returned") }),
+        metricTile({ label: "결재 진행·완료", value: `${inReview + approved}건`, symbol: "clock", tone: "info",
+          note: `진행 ${inReview} · 완료 ${approved}${rejected ? ` · 불승인 ${rejected}` : ""}` }),
       );
       const rows = [...entries].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))).slice(0, 8);
       clear(recent).append(

@@ -1,7 +1,7 @@
-// 앱 셸 — 상단 헤더(SBS 컬러 로고·인쇄 시 검정 로고), 왼쪽 메뉴, 본문.
-import { logout } from "../api.js?v=2d39515";
-import { ACCT, BRANCH, ROLE, h, icon, tip } from "../ui.js?v=2d39515";
-import { BUILD, VERSION } from "../version.js?v=2d39515";
+// 앱 셸 — 상단 헤더(SBS EASY SCAN 로고), 왼쪽 메뉴, 본문.
+import { logout } from "../api.js?v=892dfa9";
+import { ACCT, BRANCH, ROLE, h, icon, tip } from "../ui.js?v=892dfa9";
+import { BUILD, VERSION } from "../version.js?v=892dfa9";
 
 let navLinks = [];
 let activeIcon = "home";
@@ -17,8 +17,8 @@ export function renderShell(root, me, nav) {
     h(
       "a",
       { class: "brand", href: "#/" },
-      h("img", { class: "brand-logo", src: "assets/sbs-logo.png", alt: "SBS" }),
-      h("img", { class: "brand-logo-print", src: "assets/sbs-logo-b.png", alt: "SBS" }),
+      h("img", { class: "brand-logo", src: "assets/sbs-easyscan.png", alt: "SBS EASY SCAN", width: 735, height: 110 }),
+      h("img", { class: "brand-logo-print", src: "assets/sbs-easyscan-b.png", alt: "SBS EASY SCAN", width: 735, height: 110 }),
       h("span", { class: "brand-divider", "aria-hidden": "true" }),
       h("span", { class: "brand-name" }, "해외지국 AI 정산관리"),
     ),

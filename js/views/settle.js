@@ -2,11 +2,11 @@
 // 지국 담당자용 정산 요청서와 본사 정산내역서를 내려받는다.
 //   · 결재 대상(취재비·경상비·차량유지비): 최종 결재 완료분 → 세부내역 시트
 //   · 기타 계정: 보관(제출 완료)분 → 정산서 시트에 계정별 합계
-import { api } from "../api.js?v=2d39515";
-import { LIVE_BRANCHES } from "./dashboard.js?v=2d39515";
-import { getPeriod, periodCaption, periodControls, savedDateRange } from "../period.js?v=2d39515";
-import { BRANCH, clear, confirmDialog, empty, errorText, field, h, icon, mobileDisclosure, money, select, spinner, toast } from "../ui.js?v=2d39515";
-import { pageHeader } from "./shell.js?v=2d39515";
+import { api } from "../api.js?v=892dfa9";
+import { LIVE_BRANCHES } from "./dashboard.js?v=892dfa9";
+import { getPeriod, periodCaption, periodControls, savedDateRange } from "../period.js?v=892dfa9";
+import { BRANCH, NON_REVIEW_ACCOUNT_LABEL, clear, confirmDialog, empty, errorText, field, h, icon, mobileDisclosure, money, select, spinner, toast } from "../ui.js?v=892dfa9";
+import { pageHeader } from "./shell.js?v=892dfa9";
 
 const ACCOUNT_ORDER = ["취재비", "경상비", "차량유지비"];
 const SHEET = { 취재비: "취재비", 경상비: "지국경상비", 차량유지비: "차량유지비" };
@@ -141,7 +141,7 @@ export function renderSettle(el, { me }) {
     const ledger = p.rows ? h("div", { class: "settle-ledger" },
       h("table", { class: "table ledger" },
         h("thead", {}, h("tr", {}, h("th", {}, "계정"), h("th", { class: "num" }, "건수"), h("th", { class: "num" }, `합계 (${cur})`), h("th", {}))),
-        h("tbody", {}, core, other.length ? [h("tr", { class: "tr-group" }, h("td", { colspan: "4" }, "기타 계정")), ...other] : null),
+        h("tbody", {}, core, other.length ? [h("tr", { class: "tr-group" }, h("td", { colspan: "4" }, NON_REVIEW_ACCOUNT_LABEL)), ...other] : null),
         h("tfoot", {}, h("tr", { class: "tr-total" }, h("td", {}, "합계"), h("td", { class: "num" }, `${p.rows}건`), h("td", { class: "num" }, money(p.sum, cur)), h("td", {}))))) : null;
 
     clear(body).append(

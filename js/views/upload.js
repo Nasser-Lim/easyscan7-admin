@@ -3,13 +3,13 @@
 import {
   DOC_TYPE, accountSelect, bytes, chip, clear, currentQuarter, field, h, icon, money, noticeParts,
   quarterLabel, select, statusChip, tip, toast,
-} from "../ui.js?v=2d39515";
-import { aiGateMark } from "../aigate.js?v=2d39515";
-import { api } from "../api.js?v=2d39515";
-import { currentPeriod, periodOfEntry, periodOptions, unitName } from "../period.js?v=2d39515";
-import { dismiss, dismissAll, getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js?v=2d39515";
-import { limitsCard } from "./limits.js?v=2d39515";
-import { pageHeader } from "./shell.js?v=2d39515";
+} from "../ui.js?v=892dfa9";
+import { aiGateMark } from "../aigate.js?v=892dfa9";
+import { api } from "../api.js?v=892dfa9";
+import { currentPeriod, periodOfEntry, periodOptions, unitName } from "../period.js?v=892dfa9";
+import { dismiss, dismissAll, getQueue, isBusy, startUpload, subscribe } from "../uploadjob.js?v=892dfa9";
+import { limitsCard } from "./limits.js?v=892dfa9";
+import { pageHeader } from "./shell.js?v=892dfa9";
 
 const MAX_FILES = 20;
 const MAX_BYTES = 20 * 1024 * 1024;
