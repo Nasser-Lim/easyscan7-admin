@@ -1,10 +1,10 @@
 // AI 적격 정책 — 보도BIZ팀·재무팀이 계정별로 '이런 경우 비적격' 문장을 적는다(공용 설정).
 // 이 정책으로 AI 가 지국 증빙의 1차 적격 검증(gate)을 한다: 업로드 직후 사전 판정, 제출할 때 위반이면 자동 반려.
-import { api } from "../api.js?v=8ee2232";
-import { aiGatePanel } from "../aigate.js?v=8ee2232";
-import { motionControl } from "../motion.js?v=8ee2232";
-import { ACCOUNTS, BRANCH, clear, confirmDialog, dateTime, displayTeamName, errorText, h, icon, money, policyVer, select, spinner, toast } from "../ui.js?v=8ee2232";
-import { pageHeader } from "./shell.js?v=8ee2232";
+import { api } from "../api.js?v=511206f";
+import { aiGatePanel } from "../aigate.js?v=511206f";
+import { motionControl } from "../motion.js?v=511206f";
+import { ACCOUNTS, BRANCH, clear, confirmDialog, dateTime, displayTeamName, errorText, h, icon, money, policyVer, select, spinner, toast } from "../ui.js?v=511206f";
+import { pageHeader } from "./shell.js?v=511206f";
 
 const EXAMPLE = {
   취재비: "- 주류만 단독으로 구매한 영수증은 비적격(식사와 함께면 가능)\n- 취재와 무관한 개인 식사(1인 식사)는 비적격\n- 적요에 만난 사람·취재 건명이 없으면 비적격",
@@ -128,7 +128,6 @@ export function renderPolicy(el) {
         ),
       )),
       testCard(forms),
-      feedbackCard(),
       historyCard(),
     );
     refreshLive(); // 카드가 화면에 붙은 뒤 감시 표시를 다시 그린다
@@ -143,19 +142,6 @@ export function renderPolicy(el) {
       foot.prepend(cnt);
     }
   }
-}
-
-function feedbackCard() {
-  const list = h("div", { class: "stack" }, spinner());
-  const panel = h("section", { class: "card" },
-    h("div", { class: "card-head" }, h("div", { class: "card-title" }, "AI 판정 의견")), list);
-  api.get("/policies/feedback").then(({ items }) => {
-    clear(list).append(...(items.length ? items.map((item) => h("div", {},
-      h("a", { href: `#/entries/${item.entryId}?work=1` }, `${BRANCH[item.branchId]} · ${item.account || "미분류"} 증빙`),
-      h("small", { class: "muted" }, ` · ${dateTime(item.updatedAt)}`),
-      h("p", {}, item.comment))) : [h("p", { class: "muted" }, "접수된 의견이 없습니다.")]));
-  }).catch((err) => clear(list).append(h("p", { class: "card-error" }, errorText(err))));
-  return panel;
 }
 
 const LIVE = { on: "감시 중", idle: "기준 없음", off: "꺼짐" };

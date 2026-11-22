@@ -398,10 +398,10 @@ export function workSummaryDialog({ title, count, days }) {
 }
 
 // 한 줄 입력이 필요한 확인 창(소명·사유 등). 확인하면 입력한 문자열, 취소하면 null. required 면 빈 값으로 확인할 수 없다.
-export function promptDialog({ title, message, placeholder = "", confirm = "확인", required = true }) {
+export function promptDialog({ title, message, placeholder = "", label, value = "", confirm = "확인", required = true, danger = false }) {
   return new Promise((resolve) => {
-    const area = h("textarea", { class: "input", rows: "3", placeholder });
-    const ok = h("button", { class: "btn btn-primary", type: "button", disabled: required }, confirm);
+    const area = h("textarea", { class: "input", rows: "3", placeholder, "aria-required": String(required) }, value);
+    const ok = h("button", { class: danger ? "btn btn-danger" : "btn btn-primary", type: "button", disabled: required && !value.trim() }, confirm);
     area.addEventListener("input", () => (ok.disabled = required && !area.value.trim()));
     const close = (v) => {
       back.remove();
@@ -416,7 +416,7 @@ export function promptDialog({ title, message, placeholder = "", confirm = "확�
         { class: "modal modal-wide", role: "dialog", "aria-modal": "true" },
         h("div", { class: "modal-title" }, title),
         h("div", { class: "modal-body" }, message),
-        h("div", { class: "field modal-field" }, area),
+        h("div", { class: "field modal-field" }, label ? field(label, area) : area),
         h("div", { class: "modal-actions" }, h("button", { class: "btn btn-ghost", type: "button", onclick: () => close(null) }, "취소"), ok),
       ),
     );

@@ -1,19 +1,19 @@
 // 증빙 조회 — 필터·정렬 목록, 일괄 제출, 상세 서랍(원본 증빙 대조 + 수정·제출·삭제 / 결재).
 // 지국 담당자: 자기 지국 · 본사 결재자: 전 지국(지국 필터), 결재는 결재함 또는 이 화면의 상세 서랍에서.
-import { api } from "../api.js?v=8ee2232";
+import { api } from "../api.js?v=511206f";
 import {
   ACCOUNTS, ACTION_LABEL, BRANCH, DOC_TYPE, ELIGIBILITY, FINAL, IN_REVIEW, NON_REVIEW_ACCOUNT_LABEL, ROLE, STAFF_EDITABLE, STATUS, WRITING_STATUSES, chip, clear,
   confirmDialog, promptDialog, dateText, dateTime, displayTeamName, empty, errorText, field, h, icon, money, noticeParts,
   ALL_ACCOUNTS, accountSelect, isCoreAccount, metricTile, mobileDisclosure, mobileReceiptCard, periodBadge, quarterLabel, quarterOf, resubmittedBadge, select, spinner, statusChip, tip, toast,
-} from "../ui.js?v=8ee2232";
+} from "../ui.js?v=511206f";
 import { currentPeriod, getMode, isDateRange, isPeriodOf, periodCaption, periodOfEntry, periodOptions, periodControls,
-  savedDateRange, unitName } from "../period.js?v=8ee2232";
-import { aiGatePanel } from "../aigate.js?v=8ee2232";
-import { createPager } from "../pager.js?v=8ee2232";
-import { compactFlow, flowDiagram } from "../flow.js?v=8ee2232";
-import { fxStrip, loadFx, sumIn } from "../fx.js?v=8ee2232";
-import { refreshInboxBadge } from "./inbox.js?v=8ee2232";
-import { pageHeader } from "./shell.js?v=8ee2232";
+  savedDateRange, unitName } from "../period.js?v=511206f";
+import { aiGatePanel } from "../aigate.js?v=511206f";
+import { createPager } from "../pager.js?v=511206f";
+import { compactFlow, flowDiagram } from "../flow.js?v=511206f";
+import { fxStrip, loadFx, sumIn } from "../fx.js?v=511206f";
+import { refreshInboxBadge } from "./inbox.js?v=511206f";
+import { pageHeader } from "./shell.js?v=511206f";
 
 const EDITABLE_STATUS = STAFF_EDITABLE; // 지국 담당자가 고치고 제출할 수 있는 상태
 const STATUS_GROUPS = { writing: WRITING_STATUSES, review: IN_REVIEW };
@@ -502,8 +502,6 @@ export function openDrawer(id, me, onChanged, source = "local") {
       const meta = [cloud ? "운영 클라우드 · 조회" : null, e.account, quarterLabel(periodOfEntry(e)), e.orderNumber ? `주문 #${e.orderNumber}` : null].filter(Boolean).join(" · ");
       clear(subEl).append(meta, h("span", { class: "drawer-id" }, `${meta ? " · " : ""}ID ${e.id}`));
       const form = detailForm(e, me, cloud);
-      const review = !cloud && e.stage?.canAct ? reviewPanel(e) : null;
-      if (review) form.node.prepend(review.node);
       dirty = form.dirty;
       const details = h("section", { class: "detail-side", "aria-label": "증빙 정보" }, form.node);
       clear(body).append(h("div", { class: "detail" }, evidenceViewer(e, urls, cloud), details));
@@ -512,7 +510,7 @@ export function openDrawer(id, me, onChanged, source = "local") {
         return;
       }
       const ctx = { me, close, onChanged: () => (onChanged(), refreshInboxBadge(me)), reopen: () => openDrawer(id, me, onChanged) };
-      clear(foot).append(...(review ? reviewFooter(e, form, review, ctx) : footer(e, form, ctx)));
+      clear(foot).append(...(e.stage?.canAct ? reviewFooter(e, form, ctx) : footer(e, form, ctx)));
     })
     .catch((ex) => clear(body).append(h("p", { class: "card-error" }, errorText(ex))));
 }
@@ -777,15 +775,6 @@ function detailForm(e, me, readOnly = false) {
     { class: "detail-form" },
     flowDiagram(e),
     aiGatePanel(e.aiGate, me.role === "staff" ? "staff" : "reviewer"),
-    !readOnly && ["pass", "fail", "uncertain"].includes(e.aiGate?.verdict) ? h("button", { class: "btn btn-ghost btn-sm", type: "button",
-      onclick: async () => {
-        const comment = await promptDialog({ title: "AI 판정 의견", message: "어떤 부분이 원본이나 기준과 다른지 입력해 주세요.", confirm: "의견 저장" });
-        if (!comment?.trim()) return;
-        try {
-          await api.post(`/entries/${e.id}/ai-feedback`, { comment: comment.trim() });
-          toast("판정 의견을 저장했습니다", "ok");
-        } catch (err) { toast(errorText(err), "bad"); }
-      } }, "AI 판정 의견 보내기") : null,
     banners.length ? h("div", { class: "banners" }, banners) : null,
     h("div", { class: "section-label" }, "증빙 정보"),
     h(
@@ -899,53 +888,28 @@ function approvalTimeline(e) {
   ];
 }
 
-function reviewPanel(e) {
-  const atImc = e.status === "submitted";
-  const overLimit = e.ineligibleAmount > 0;
-  const comment = h("textarea", { class: "input", rows: "2", placeholder: "의견 또는 사유" });
-  const guide = {
-    submitted: "적격이면 재무팀 최종 검토로, 비적격이면 보도국장 전결로 올립니다.",
-    chief_review: "보도BIZ팀이 비적격으로 분류한 증빙입니다. 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않습니다.",
-    finance_review: "결재선을 거친 증빙입니다. 원본과 대조해 최종 검토하고 결재합니다.",
-  }[e.status];
-  const panel = h(
-    "section",
-    { class: "review-panel" },
-    h("div", { class: "review-panel-head" }, icon("check"), h("b", {}, displayTeamName(e.stage.label)), h("span", { class: "muted small" }, "내 결재 차례")),
-    h("p", { class: "small" }, guide),
-    overLimit ? h("p", { class: "small text-bad" }, `분기 한도 초과로 ${money(e.ineligibleAmount, e.currency)} 가 비적격 — 보도국장 전결이 필요합니다.`) : null,
-    !atImc && ELIGIBILITY[e.eligibility] ? h("p", { class: "small" }, "보도BIZ팀 분류: ", chip(...ELIGIBILITY[e.eligibility])) : null,
-    field("의견", comment),
-  );
-  return { node: panel, comment, atImc, overLimit };
-}
-
-function reviewFooter(e, form, review, { close, onChanged }) {
+function reviewFooter(e, form, { close, onChanged }) {
   const buttons = [];
+  const reasons = new Map();
   let pending = false;
-  const send = async (action, confirmText, { danger = false, eligibility } = {}) => {
+  const send = async (action, confirmText, outcome, { eligibility, reason } = {}) => {
     if (pending) return;
-    let comment = review.comment.value.trim();
-    if (action !== "approve" && !comment) {
-      review.comment.focus();
-      return toast(action === "return" ? "반려 사유를 입력하세요" : "불승인 사유를 입력하세요", "warn");
-    }
-    const next = eligibility === "ineligible" ? "보도국장 전결로 보냅니다." : "재무팀 최종 검토로 보냅니다.";
-    const message = eligibility ? h("div", {},
+    const message = h("div", {},
       h("p", {}, h("b", {}, e.merchantKo || e.merchant || "증빙"), ` · ${money(e.amount, e.currency)}`),
-      h("p", {}, next),
-      comment ? h("p", { class: "small" }, `의견: ${comment}`) : null)
-      : comment ? `의견: ${comment}` : e.status === "finance_review" ? "이 증빙의 결재를 완료합니다." : next;
+      h("p", {}, outcome));
+    const dialog = { title: confirmText, message, confirm: confirmText, danger: action !== "approve" };
     pending = true;
     try {
-      if (eligibility === "ineligible" && !comment) {
-        comment = await promptDialog({ title: confirmText, message, placeholder: "비적격 사유를 입력하세요", confirm: confirmText });
+      let comment;
+      if (reason) {
+        comment = await promptDialog({ ...dialog, label: reason, value: reasons.get(reason) });
         if (comment === null) return;
-        review.comment.value = comment;
-      } else if (!(await confirmDialog({ title: confirmText, message, confirm: confirmText, danger }))) return;
+        reasons.set(reason, comment);
+      } else if (!(await confirmDialog(dialog))) return;
       buttons.forEach((b) => (b.disabled = true));
-      if (form.editable && Object.keys(form.diff()).length) await api.patch(`/entries/${e.id}`, form.diff()); // 재무팀 정정분 먼저 저장
-      const r = await api.post(`/entries/${e.id}/review`, { action, eligibility, comment: comment || undefined, expectedStatus: e.status });
+      const changes = form.editable ? form.diff() : {};
+      if (Object.keys(changes).length) await api.patch(`/entries/${e.id}`, changes);
+      const r = await api.post(`/entries/${e.id}/review`, { action, eligibility, comment, expectedStatus: e.status });
       toast(`${eligibility ? confirmText : ACTION_LABEL[action]} — ${STATUS[r.status]?.label || r.status}`, action === "approve" ? "ok" : "warn");
       onChanged();
       close(true);
@@ -962,18 +926,22 @@ function reviewFooter(e, form, review, { close, onChanged }) {
     if (!disabled) buttons.push(b);
     return b;
   };
-  const returnBtn = btn("btn-danger-ghost", "x", "반려", () => send("return", "지국으로 반려", { danger: true }));
+  const returnBtn = btn("btn-danger", "x", "반려", () =>
+    send("return", "지국으로 반려", "작성한 사유와 함께 지국 담당자에게 돌려보냅니다.", { reason: "반려 사유" }));
   const right = [];
-  if (review.atImc) {
+  if (e.status === "submitted") {
     right.push(
-      btn("btn-ghost", "alert", "비적격 분류", () => send("approve", "비적격 분류", { eligibility: "ineligible" })),
-      btn("btn-primary", "check", "적격 분류", () => send("approve", "적격 분류", { eligibility: "eligible" }), review.overLimit),
+      btn("btn-ghost", "alert", "비적격 분류", () =>
+        send("approve", "비적격 분류", "보도국장 전결로 보냅니다.", { eligibility: "ineligible", reason: "비적격 사유" })),
+      btn("btn-primary", "check", "적격 분류", () =>
+        send("approve", "적격 분류", "재무팀 최종 검토로 보냅니다.", { eligibility: "eligible" }), e.ineligibleAmount > 0),
     );
   } else if (e.status === "chief_review") {
-    right.push(btn("btn-ghost", "x", "불승인", () => send("reject", "불승인(지급하지 않음)", { danger: true })));
-    right.push(btn("btn-primary", "check", "승인", () => send("approve", "비적격 증빙 승인")));
+    right.push(btn("btn-ghost", "x", "불승인", () =>
+      send("reject", "불승인", "이 증빙을 지급 대상에서 제외합니다.", { reason: "불승인 사유" })));
+    right.push(btn("btn-primary", "check", "승인", () => send("approve", "비적격 증빙 승인", "재무팀 최종 검토로 보냅니다.")));
   } else {
-    right.push(btn("btn-primary", "check", "최종 결재", () => send("approve", "증빙 최종 결재")));
+    right.push(btn("btn-primary", "check", "최종 결재", () => send("approve", "증빙 최종 결재", "이 증빙의 결재를 완료합니다.")));
   }
   return [returnBtn, h("div", { class: "foot-right" }, right)];
 }

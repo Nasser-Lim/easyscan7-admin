@@ -1,8 +1,8 @@
 // 도움말 — 결재 흐름, 역할별 안내, 자주 묻는 질문, 현재 AI 적격 정책.
-import { api } from "../api.js?v=8ee2232";
-import { ACCOUNTS, NON_REVIEW_ACCOUNT_LABEL, ROLE, chip, clear, dateTime, displayTeamName, h, icon, spinner, policyVer } from "../ui.js?v=8ee2232";
-import { BUILD, VERSION } from "../version.js?v=8ee2232";
-import { pageHeader } from "./shell.js?v=8ee2232";
+import { api } from "../api.js?v=511206f";
+import { ACCOUNTS, NON_REVIEW_ACCOUNT_LABEL, ROLE, chip, clear, dateTime, displayTeamName, h, icon, spinner, policyVer } from "../ui.js?v=511206f";
+import { BUILD, VERSION } from "../version.js?v=511206f";
+import { pageHeader } from "./shell.js?v=511206f";
 
 // ── 역할 → 다이어그램 레인 ──
 const LANES = [
