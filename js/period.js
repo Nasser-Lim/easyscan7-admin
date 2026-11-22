@@ -1,8 +1,8 @@
 // 정산 기간 — 정산 방식(월별/분기별, 서버 설정 /settings/settlement)에 맞춰 기간을 고른다.
 // 분기 '2026Q4', 월 '2026-10'. 한 기간의 정산은 다음 기간 초에 하므로 [직전 · 지금] 두 칸을 오간다.
 // 조회·출력 화면에서 고른 값은 이 탭에서 기억한다.
-import { api } from "./api.js?v=6927aa5";
-import { currentQuarter, h, quarterLabel, quarterOf } from "./ui.js?v=6927aa5";
+import { api } from "./api.js?v=2d39515";
+import { currentQuarter, h, quarterLabel, quarterOf } from "./ui.js?v=2d39515";
 
 const KEY = "es7.period";
 const RANGE_KEY = "es7.period.range";

@@ -1,23 +1,23 @@
 // 결재함 — 내 역할이 결재할 단계의 증빙(전 지국). 행을 열어 원본 대조 후 결재, 단순 승인 단계는 일괄 처리.
-import { api } from "../api.js?v=6927aa5";
+import { api } from "../api.js?v=2d39515";
 import {
-  BRANCH, ELIGIBILITY, ROLE, chip, clear, confirmDialog, dateText, dateTime, empty, errorText, h, icon, metricTile, mobileDisclosure, mobileReceiptCard, money,
+  BRANCH, ELIGIBILITY, ROLE, chip, clear, confirmDialog, dateText, dateTime, displayTeamName, empty, errorText, h, icon, metricTile, mobileDisclosure, mobileReceiptCard, money,
   quarterLabel, resubmittedBadge, select, spinner, statusChip, tip, toast,
-} from "../ui.js?v=6927aa5";
-import { isPeriodOf, periodOfEntry, periodControls, savedDateRange, unitName } from "../period.js?v=6927aa5";
-import { aiGateMark } from "../aigate.js?v=6927aa5";
-import { createPager } from "../pager.js?v=6927aa5";
-import { openDrawer } from "./entries.js?v=6927aa5";
-import { pageHeader, setNavBadge } from "./shell.js?v=6927aa5";
+} from "../ui.js?v=2d39515";
+import { isPeriodOf, periodOfEntry, periodControls, savedDateRange, unitName } from "../period.js?v=2d39515";
+import { aiGateMark } from "../aigate.js?v=2d39515";
+import { createPager } from "../pager.js?v=2d39515";
+import { openDrawer } from "./entries.js?v=2d39515";
+import { pageHeader, setNavBadge } from "./shell.js?v=2d39515";
 
 const ROLE_GUIDE = {
   imc: "제출된 증빙을 원본과 대조해 적격 / 비적격으로 분류합니다. 적격은 재무팀으로, 비적격(사유 필수)은 보도국장 전결로 올라갑니다.",
-  bureau_chief: "보도IMC팀이 비적격으로 분류한 증빙입니다. 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않고 종결됩니다.",
-  division_head: "보도IMC팀이 비적격으로 분류한 증빙입니다. 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않고 종결됩니다.",
+  bureau_chief: "보도BIZ팀이 비적격으로 분류한 증빙입니다. 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않고 종결됩니다.",
+  division_head: "보도BIZ팀이 비적격으로 분류한 증빙입니다. 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않고 종결됩니다.",
   finance: "결재선을 거친 증빙을 최종 검토하고 결재합니다. 문제가 있으면 사유를 적어 지국으로 반려합니다.",
   admin: "재무팀 최종 검토 단계 증빙입니다.",
 };
-// 열어 보지 않고 일괄 처리해도 되는 단계: 재무팀 최종 결재, 보도IMC팀의 적격 분류(한도 초과가 없는 증빙만),
+// 열어 보지 않고 일괄 처리해도 되는 단계: 재무팀 최종 결재, 보도BIZ팀의 적격 분류(한도 초과가 없는 증빙만),
 // 보도국장·보도본부장의 비적격 전결 승인(목록의 '사유' 열로 판단). 불승인·반려는 사유가 필수라 건별로 한다
 const BULK = {
   finance_review: { roles: ["finance", "admin"], label: "선택 최종 결재", body: () => ({ action: "approve" }) },
@@ -25,11 +25,11 @@ const BULK = {
   chief_review: { roles: ["bureau_chief", "division_head"], label: "선택 승인", body: () => ({ action: "approve" }) },
 };
 
-// 결재 판단에 필요한 사유 한 줄 — 보도IMC팀의 비적격 사유, 지국 소명, AI 위반 근거, 한도 초과
+// 결재 판단에 필요한 사유 한 줄 — 보도BIZ팀의 비적격 사유, 지국 소명, AI 위반 근거, 한도 초과
 function reasonParts(e) {
   const out = [];
   const imc = [...(e.approvals || [])].reverse().find((a) => a.from === "submitted" && a.action === "approve" && a.eligibility === "ineligible");
-  if (imc?.comment) out.push(["IMC", imc.comment]);
+  if (imc?.comment) out.push([ROLE.imc, imc.comment]);
   const just = e.aiGate?.override?.justification;
   if (just) out.push(["소명", just]);
   const viol = (e.aiGate?.violations || []).map((v) => v.reason).filter(Boolean).join(" · ");
@@ -41,7 +41,7 @@ function reasonCell(e) {
   const parts = reasonParts(e);
   if (!parts.length) return h("span", { class: "muted" }, "—");
   const text = parts.map(([k, v]) => `${k}: ${v}`).join("\n");
-  return h("div", { class: "reason", title: text }, parts.map(([k, v]) => h("div", { class: "reason-line" }, h("span", { class: `reason-tag rt-${k === "IMC" ? "imc" : k === "소명" ? "just" : k === "AI" ? "ai" : "limit"}` }, k), h("span", {}, v))));
+  return h("div", { class: "reason", title: text }, parts.map(([k, v]) => h("div", { class: "reason-line" }, h("span", { class: `reason-tag rt-${k === ROLE.imc ? "imc" : k === "소명" ? "just" : k === "AI" ? "ai" : "limit"}` }, k), h("span", {}, v))));
 }
 
 export async function refreshInboxBadge(me) {
@@ -121,7 +121,7 @@ export function renderInbox(el, { me }) {
     clear(kpiBar).append(
       ...stages.map((s) => {
         const n = list.filter((e) => e.status === s.status);
-        return metricTile({ label: s.label, value: `${n.length}건`, note: money(n.reduce((a, e) => a + (Number(e.amount) || 0), 0), cur),
+        return metricTile({ label: displayTeamName(s.label), value: `${n.length}건`, note: money(n.reduce((a, e) => a + (Number(e.amount) || 0), 0), cur),
           tone: n.length ? "warn" : "ok", symbol: "clock", compact: true });
       }),
       metricTile({ label: "한도 초과", value: `${list.filter((e) => e.ineligibleAmount > 0).length}건`,
@@ -181,7 +181,7 @@ export function renderInbox(el, { me }) {
               h("td", {}, elig ? chip(elig[0], elig[1]) : e.ineligibleAmount > 0 ? chip("비적격 권장", "bad") : h("span", { class: "muted" }, "—")),
               h("td", { class: "cell-reason" }, reasonCell(e)),
               // 올라온 시각·직전 결재자는 마우스를 올리면 보인다
-              h("td", { title: `올라온 시각 ${dateTime(last?.at || e.updatedAt)}${last ? ` · ${last.roleLabel || ""}` : ""}` }, statusChip(e.status), resubmittedBadge(e), aiGateMark(e.aiGate) || (e.aiGate?.verdict === "pass" ? h("div", { class: "ai-mark ai-ok" }, "AI 검증 통과") : null)),
+              h("td", { title: `올라온 시각 ${dateTime(last?.at || e.updatedAt)}${last?.roleLabel ? ` · ${displayTeamName(last.roleLabel)}` : ""}` }, statusChip(e.status), resubmittedBadge(e), aiGateMark(e.aiGate) || (e.aiGate?.verdict === "pass" ? h("div", { class: "ai-mark ai-ok" }, "AI 검증 통과") : null)),
             );
           }),
         ),

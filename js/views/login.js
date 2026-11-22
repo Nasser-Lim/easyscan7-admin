@@ -1,6 +1,6 @@
-import { health, login } from "../api.js?v=6927aa5";
-import { h, icon } from "../ui.js?v=6927aa5";
-import { BUILD, VERSION } from "../version.js?v=6927aa5";
+import { health, login } from "../api.js?v=2d39515";
+import { h, icon } from "../ui.js?v=2d39515";
+import { BUILD, VERSION } from "../version.js?v=2d39515";
 
 export function renderLogin(root, onSuccess) {
   const err = h("div", { class: "form-error", role: "alert" });
@@ -46,7 +46,7 @@ export function renderLogin(root, onSuccess) {
     h("label", { class: "field" }, h("span", { class: "field-label" }, "비밀번호"), pw),
     err,
     btn,
-    h("p", { class: "login-help" }, "계정·비밀번호 문의는 보도IMC팀에 연락해 주세요."),
+    h("p", { class: "login-help" }, "계정·비밀번호 문의는 보도BIZ팀에 연락해 주세요."),
     status,
   );
 

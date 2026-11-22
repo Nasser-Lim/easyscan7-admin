@@ -1,10 +1,10 @@
-// 한도·정산 설정 — 정산 방식(월별/분기별)과 지국별·계정별 한도·통화. 보도IMC팀·재무팀·관리자.
+// 한도·정산 설정 — 정산 방식(월별/분기별)과 지국별·계정별 한도·통화. 보도BIZ팀·재무팀·관리자.
 // 한도는 분기 값으로 저장하고, 월별 정산이면 산술 비례(분기 ÷ 3)로 쓴다 — 입력은 지금 정산 방식의 단위로 받는다.
 // 저장하면 서버가 영향받는 그룹을 다시 계산한다. 결재선에 오른 증빙의 배분은 고정(services/limits.py).
-import { api } from "../api.js?v=6927aa5";
-import { getMode, setMode, unitName } from "../period.js?v=6927aa5";
-import { ROLE, chip, clear, confirmDialog, dateTime, errorText, h, icon, select, spinner, tip, toast } from "../ui.js?v=6927aa5";
-import { pageHeader } from "./shell.js?v=6927aa5";
+import { api } from "../api.js?v=2d39515";
+import { getMode, setMode, unitName } from "../period.js?v=2d39515";
+import { ROLE, chip, clear, confirmDialog, dateTime, displayTeamName, errorText, h, icon, select, spinner, tip, toast } from "../ui.js?v=2d39515";
+import { pageHeader } from "./shell.js?v=2d39515";
 
 const SYMBOL = { USD: "$", KRW: "₩", JPY: "¥", EUR: "€", CNY: "¥" };
 const ACCOUNT_ORDER = ["취재비", "경상비", "차량유지비"];
@@ -15,7 +15,7 @@ const fmt = (n, cur) => (n === undefined || n === null ? "한도 없음" : `${SY
 const toView = (q) => (q === undefined || q === null ? undefined : getMode() === "month" ? r2(q / 3) : q);
 const toStore = (v) => (getMode() === "month" ? r2(v * 3) : v);
 
-const HELP_LIMIT = "한도를 넘는 금액은 제출은 되지만 비적격입니다.\n· 작성 중·반려·보도IMC 분류 전 증빙은 새 한도로 다시 계산\n· 보도국장·재무팀 단계와 결재 완료 증빙은 금액 고정(재무팀 정정 시 재계산)\n· 빈칸 = 한도 없음, 0 = 전액 비적격\n· 지국 통화와 다른 영수증은 한도 판정 제외(현황에는 참고용 환산)";
+const HELP_LIMIT = "한도를 넘는 금액은 제출은 되지만 비적격입니다.\n· 작성 중·반려·보도BIZ팀 분류 전 증빙은 새 한도로 다시 계산\n· 보도국장·재무팀 단계와 결재 완료 증빙은 금액 고정(재무팀 정정 시 재계산)\n· 빈칸 = 한도 없음, 0 = 전액 비적격\n· 지국 통화와 다른 영수증은 한도 판정 제외(현황에는 참고용 환산)";
 const HELP_MODE = "정산과 한도를 월 단위로 볼지, 분기 단위로 볼지 정합니다.\n· 한도는 분기 값으로 저장되고 월별이면 분기 ÷ 3\n· 바꾸면 모든 지국의 한도 배분을 새 단위로 다시 계산(결재선에 오른 증빙은 고정)\n· 기간은 영수증 사용일 기준(증빙에서 직접 바꿀 수 있음)";
 
 export function renderLimitSettings(el, ctx) {
@@ -144,7 +144,7 @@ function draw(el, { me }) {
       h("td", {}, h("div", { class: "cell-main" }, `${b.name}지국`), src ? h("div", { class: "cell-sub" }, chip(src[0], src[1])) : null),
       h("td", {}, cur),
       ...accounts.map((a) => h("td", { class: "num" }, inputs[a], other[a])),
-      h("td", { class: "cell-sub" }, b.updatedAt ? [b.updatedTeam || "", b.updatedTeam ? h("br", {}) : "", dateTime(b.updatedAt)] : "—"),
+      h("td", { class: "cell-sub" }, b.updatedAt ? [displayTeamName(b.updatedTeam), b.updatedTeam ? h("br", {}) : "", dateTime(b.updatedAt)] : "—"),
       h("td", { class: "cell-action" }, save),
     );
     syncAlt();
@@ -184,7 +184,7 @@ function modeCard(onChanged) {
   const seg = (m, label) =>
     h("button", { type: "button", class: `period-seg${m === cur ? " on" : ""}`, role: "radio", "aria-checked": m === cur ? "true" : "false", onclick: () => change(m) }, h("span", { class: "period-q" }, label));
   const meta = h("span", { class: "card-meta" });
-  api.get("/settings/settlement").then((r) => (meta.textContent = r.updatedAt ? `${r.updatedTeam || ""} · ${dateTime(r.updatedAt)}` : "기본값"), () => {});
+  api.get("/settings/settlement").then((r) => (meta.textContent = r.updatedAt ? `${displayTeamName(r.updatedTeam)} · ${dateTime(r.updatedAt)}` : "기본값"), () => {});
   async function change(m) {
     if (m === cur) return;
     const label = m === "month" ? "월별" : "분기별";

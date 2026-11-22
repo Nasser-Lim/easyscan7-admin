@@ -1,20 +1,20 @@
 // 관리웹 진입점 — 세션 확인 → 로그인 화면 또는 앱 셸 + 해시 라우터.
-import { api, hasSession, logout, onSignedOut } from "./api.js?v=6927aa5";
-import { clear, h, spinner, toast, errorText, updateCatalog, workSummaryDialog } from "./ui.js?v=6927aa5";
-import { renderLogin } from "./views/login.js?v=6927aa5";
-import { renderShell, setActiveNav } from "./views/shell.js?v=6927aa5";
-import { renderHome } from "./views/home.js?v=6927aa5";
-import { renderUpload } from "./views/upload.js?v=6927aa5";
-import { renderEntries } from "./views/entries.js?v=6927aa5";
-import { renderAccount } from "./views/account.js?v=6927aa5";
-import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=6927aa5";
-import { renderHelp } from "./views/help.js?v=6927aa5";
-import { renderLimitSettings } from "./views/limitcfg.js?v=6927aa5";
-import { renderPolicy } from "./views/policy.js?v=6927aa5";
-import { renderSettle } from "./views/settle.js?v=6927aa5";
-import { renderBureau } from "./views/bureau.js?v=6927aa5";
-import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=6927aa5";
-import { loadMode } from "./period.js?v=6927aa5";
+import { api, hasSession, logout, onSignedOut } from "./api.js?v=2d39515";
+import { clear, h, spinner, toast, errorText, updateCatalog, workSummaryDialog } from "./ui.js?v=2d39515";
+import { renderLogin } from "./views/login.js?v=2d39515";
+import { renderShell, setActiveNav } from "./views/shell.js?v=2d39515";
+import { renderHome } from "./views/home.js?v=2d39515";
+import { renderUpload } from "./views/upload.js?v=2d39515";
+import { renderEntries } from "./views/entries.js?v=2d39515";
+import { renderAccount } from "./views/account.js?v=2d39515";
+import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=2d39515";
+import { renderHelp } from "./views/help.js?v=2d39515";
+import { renderLimitSettings } from "./views/limitcfg.js?v=2d39515";
+import { renderPolicy } from "./views/policy.js?v=2d39515";
+import { renderSettle } from "./views/settle.js?v=2d39515";
+import { renderBureau } from "./views/bureau.js?v=2d39515";
+import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=2d39515";
+import { loadMode } from "./period.js?v=2d39515";
 
 const app = document.getElementById("app");
 let me = null;
@@ -27,11 +27,11 @@ const REVIEWER_NAV = [
   { route: "inbox", label: "결재함", icon: "check" },
   { route: "entries", label: "전체 증빙", icon: "list" },
 ];
-// 분기 한도 설정 — 서버 권한(deps.require_limit_admin)과 같은 역할: 보도IMC팀·재무팀·관리자
-// 정산 출력 — 서버 권한(settlements.require_export)과 같은 역할: 지국 담당자·보도IMC팀·재무팀·관리자
+// 분기 한도 설정 — 서버 권한(deps.require_limit_admin)과 같은 역할: 보도BIZ팀·재무팀·관리자
+// 정산 출력 — 서버 권한(settlements.require_export)과 같은 역할: 지국 담당자·보도BIZ팀·재무팀·관리자
 const SETTLE_NAV = { route: "settle", label: "정산 출력", icon: "file" };
 const LIMIT_NAV = { route: "limits", label: "한도·정산 설정", icon: "sliders" };
-// AI 적격 정책 — 서버 권한(deps.require_policy_admin)과 같은 역할: 보도IMC팀·재무팀·관리자 공용
+// AI 적격 정책 — 서버 권한(deps.require_policy_admin)과 같은 역할: 보도BIZ팀·재무팀·관리자 공용
 const POLICY_NAV = { route: "policy", label: "AI 적격 정책", icon: "shield" };
 const BUREAU_NAV = { route: "bureau", label: "지국 관리", icon: "user" };
 export const NAV = {

@@ -1,11 +1,11 @@
 // 결재 흐름 도식 — 증빙 상세 상단에 '지금 어디까지 왔는지'를 한눈에 보여 준다.
-// 지국 제출 → AI 1차 검증 → 보도IMC팀 분류 → 보도국장 전결(비적격일 때) → 재무팀 최종 결재
-import { h, icon, isCoreAccount } from "./ui.js?v=6927aa5";
+// 지국 제출 → AI 1차 검증 → 보도BIZ팀 분류 → 보도국장 전결(비적격일 때) → 재무팀 최종 결재
+import { h, icon, isCoreAccount } from "./ui.js?v=2d39515";
 
 const NODES = [
   { key: "staff", label: "지국", sub: "작성 · 제출" },
   { key: "ai", label: "AI 검증", sub: "1차 적격" },
-  { key: "imc", label: "보도IMC팀", sub: "적격 분류", from: "submitted" },
+  { key: "imc", label: "보도BIZ팀", sub: "적격 분류", from: "submitted" },
   { key: "chief", label: "보도국장", sub: "전결", from: "chief_review" },
   { key: "fin", label: "재무팀", sub: "최종 결재", from: "finance_review" },
 ];
@@ -71,7 +71,7 @@ export function flowState(e) {
       draft: ["작성중", "지국 담당자가 작성 중입니다", "muted"],
       flagged: ["작성중", "검토 필요 항목이 있어 지국에서 확인 중입니다", "muted"],
       returned: ["반려", aiReturned ? "AI 1차 검증에서 자동 반려되었습니다 — 소명하거나 고쳐서 다시 제출" : "반려되었습니다 — 지국에서 고쳐서 다시 제출", "bad"],
-      submitted: ["보도IMC팀 적격 분류 대기", "다음: 보도IMC팀이 적격 · 비적격을 분류합니다", "info"],
+      submitted: ["보도BIZ팀 적격 분류 대기", "다음: 보도BIZ팀이 적격 · 비적격을 분류합니다", "info"],
       chief_review: ["보도국장 전결 대기", "비적격 증빙이라 보도국장 전결이 필요합니다", "info"],
       finance_review: ["재무팀 최종 결재 대기", "다음: 재무팀이 최종 결재합니다", "info"],
       approved: ["결재 완료", "재무팀 최종 결재까지 끝났습니다", "ok"],

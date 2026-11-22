@@ -105,7 +105,7 @@ export const STATUS = {
   draft: { label: "지국 작성중", cls: "chip-neutral" },
   flagged: { label: "지국 검토 필요", cls: "chip-neutral" },
   returned: { label: "지국 수정 필요(반려)", cls: "chip-bad" },
-  submitted: { label: "보도IMC 결재중", cls: "chip-info" },
+  submitted: { label: "보도BIZ팀 결재중", cls: "chip-info" },
   chief_review: { label: "보도국장 결재중", cls: "chip-info" },
   finance_review: { label: "재무팀 결재중", cls: "chip-info" },
   approved: { label: "결재 완료", cls: "chip-ok" },
@@ -136,9 +136,11 @@ export function aiKey(gate) {
   return gate.verdict === "fail" && gate.override ? "override" : gate.verdict;
 }
 export const ROLE = {
-  staff: "지국 담당자", imc: "보도IMC팀", bureau_chief: "보도국장",
+  staff: "지국 담당자", imc: "보도BIZ팀", bureau_chief: "보도국장",
   division_head: "보도본부장", finance: "재무팀", admin: "관리자",
 };
+// 저장된 결재 이력과 구버전 API의 팀 표기도 화면에서는 현재 이름으로 보인다.
+export const displayTeamName = (text) => String(text ?? "").replace(/보도[ \t]*IMC(?:[ \t]*팀)?|IMC[ \t]*팀/g, ROLE.imc);
 export const ACCT = { shared: "지국 공용 계정", personal: "개인 계정", anon: "익명" };
 export const DOC_TYPE = {
   CARD_SLIP: "카드 결제 영수증", ITEMIZED_GUEST_CHECK: "식당 계산서", ONLINE_ORDER_INVOICE: "온라인 주문",
@@ -415,6 +417,5 @@ export function promptDialog({ title, message, placeholder = "", confirm = "확�
 
 export function errorText(e) {
   if (!e) return "알 수 없는 오류";
-  if (e.detail && typeof e.detail === "object" && e.detail.message) return e.detail.message;
-  return e.message || String(e);
+  return displayTeamName(e.detail?.message || e.message || e);
 }

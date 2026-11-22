@@ -1,22 +1,23 @@
 // 증빙 조회 — 필터·정렬 목록, 일괄 제출, 상세 서랍(원본 증빙 대조 + 수정·제출·삭제 / 결재).
 // 지국 담당자: 자기 지국 · 본사 결재자: 전 지국(지국 필터), 결재는 결재함 또는 이 화면의 상세 서랍에서.
-import { api } from "../api.js?v=6927aa5";
+import { api } from "../api.js?v=2d39515";
 import {
   ACCOUNTS, ACTION_LABEL, BRANCH, DOC_TYPE, ELIGIBILITY, FINAL, IN_REVIEW, ROLE, STAFF_EDITABLE, STATUS, chip, clear,
-  confirmDialog, promptDialog, dateText, dateTime, empty, errorText, field, h, icon, money, noticeParts,
+  confirmDialog, promptDialog, dateText, dateTime, displayTeamName, empty, errorText, field, h, icon, money, noticeParts,
   ALL_ACCOUNTS, accountSelect, isCoreAccount, metricTile, mobileDisclosure, mobileReceiptCard, periodBadge, quarterLabel, quarterOf, resubmittedBadge, select, spinner, statusChip, tip, toast,
-} from "../ui.js?v=6927aa5";
+} from "../ui.js?v=2d39515";
 import { currentPeriod, getMode, isPeriodOf, periodCaption, periodOfEntry, periodOptions, periodControls,
-  savedDateRange, unitName } from "../period.js?v=6927aa5";
-import { aiGatePanel } from "../aigate.js?v=6927aa5";
-import { createPager } from "../pager.js?v=6927aa5";
-import { compactFlow, flowDiagram } from "../flow.js?v=6927aa5";
-import { fxStrip, loadFx, sumIn } from "../fx.js?v=6927aa5";
-import { refreshInboxBadge } from "./inbox.js?v=6927aa5";
-import { pageHeader } from "./shell.js?v=6927aa5";
+  savedDateRange, unitName } from "../period.js?v=2d39515";
+import { aiGatePanel } from "../aigate.js?v=2d39515";
+import { createPager } from "../pager.js?v=2d39515";
+import { compactFlow, flowDiagram } from "../flow.js?v=2d39515";
+import { fxStrip, loadFx, sumIn } from "../fx.js?v=2d39515";
+import { refreshInboxBadge } from "./inbox.js?v=2d39515";
+import { pageHeader } from "./shell.js?v=2d39515";
 
 const EDITABLE_STATUS = STAFF_EDITABLE; // 지국 담당자가 고치고 제출할 수 있는 상태
 const STATUS_GROUPS = { writing: new Set(["draft", "flagged"]), review: IN_REVIEW };
+const ACCOUNT_PRESETS = ["경상비", "취재비", "차량유지비"];
 // 화면을 옮겨 다녀도 필터는 유지(세션 동안)
 // 정산 기간(월/분기)은 영수증 날짜로 자동 지정되므로 방금 올린 증빙이 이번 기간이 아닐 수 있다 — 기본은 전체("")
 // 기간 선택지: 정산 방식에 따라 최근 12개월 또는 최근 4분기
@@ -30,13 +31,18 @@ export function renderEntries(el, { me, params }) {
   if (params[0] === "returned") state.status = "returned";
   state.period = savedDateRange() || (isPeriodOf(state.period) ? state.period : "");
   const quarter = periodControls(state.period, (p) => { state.period = p; pager.reset(); load(); });
-  const account = accountSelect(state.account, { class: "input input-sm" }, { blank: "전체 계정", branch: me.branchId });
+  const account = accountSelect(state.account, { class: "input input-sm", "aria-label": "계정 필터" }, { blank: "전체 계정", branch: me.branchId });
   const status = select([["", "전체 상태"], ["writing", "작성중"], ["review", "결재 대기"],
     ...Object.keys(STATUS).filter((s) => s !== "deleted").map((s) => [s, STATUS[s].label])], state.status, { class: "input input-sm" });
   const branchSel = isStaff ? null : select([["all", "전체 지국"], ...Object.entries(BRANCH).map(([id, n]) => [id, `${n}지국`])], state.branch, { class: "input input-sm" });
   branchSel?.addEventListener("change", () => ((state.branch = branchSel.value), pager.reset(), load()));
   const search = h("input", { class: "input input-sm", type: "search", placeholder: "가맹점·주문번호·적요 검색", value: state.q });
   const kpiBar = h("div", { class: "kpis kpis-sm entries-kpis" });
+  const accountButtons = ACCOUNT_PRESETS.map((value) => h("button", {
+    class: "btn btn-ghost btn-sm", type: "button", "aria-pressed": String(state.account === value),
+    onclick: () => applyAccount(state.account === value ? "" : value),
+  }, value));
+  const accountPresets = h("div", { class: "entry-account-presets", role: "group", "aria-label": "계정 빠른 필터" }, accountButtons);
   const fxBar = fxStrip();
   let fx = null;
   const bulk = h("div", { class: "bulkbar" });
@@ -45,7 +51,7 @@ export function renderEntries(el, { me, params }) {
   const pagerBox = h("div", {});
   const refreshBtn = h("button", { class: "btn btn-ghost", type: "button", onclick: () => load() }, icon("refresh"), h("span", {}, "새로고침"));
 
-  account.addEventListener("change", () => ((state.account = account.value), pager.reset(), paint()));
+  account.addEventListener("change", () => applyAccount(account.value));
   status.addEventListener("change", () => ((state.status = status.value), pager.reset(), paint()));
   search.addEventListener("input", () => ((state.q = search.value), pager.reset(), paint()));
   const filters = h("div", { class: "toolbar-filters" }, branchSel, quarter, account, status);
@@ -61,6 +67,7 @@ export function renderEntries(el, { me, params }) {
     }),
     fxBar.node,
     kpiBar,
+    accountPresets,
     h(
       "section",
       { class: "card card-flush" },
@@ -284,6 +291,14 @@ export function renderEntries(el, { me, params }) {
     pager.reset();
     paint();
     kpiBar.querySelector("[aria-pressed='true']")?.focus();
+  }
+
+  function applyAccount(value) {
+    state.account = value;
+    account.value = value;
+    accountButtons.forEach((button, index) => button.setAttribute("aria-pressed", String(ACCOUNT_PRESETS[index] === value)));
+    pager.reset();
+    paint();
   }
 
   function paintBulk() {
@@ -608,7 +623,7 @@ function openReceiptPhoto(viewer, url, filename) {
 function canEdit(e, me) {
   if (me.role === "staff") return EDITABLE_STATUS.has(e.status);
   if (me.role === "finance" || me.role === "admin") return e.status === "finance_review"; // 최종 검토 중 정정
-  return false; // 보도IMC팀·보도국장은 고치지 않고 반려한다
+  return false; // 보도BIZ팀·보도국장은 고치지 않고 반려한다
 }
 
 function detailForm(e, me) {
@@ -698,7 +713,7 @@ function detailForm(e, me) {
   if (e.status === "returned")
     banners.unshift(banner("bad", "alert", "반려됨 — 고쳐서 다시 제출하세요", e.returnedReason || "사유 없음"));
   if (IN_REVIEW.has(e.status) && !e.stage?.canAct)
-    banners.push(banner("info", "info", STATUS[e.status].label, me.role === "staff" ? (e.status === "submitted" ? "보도IMC팀이 아직 분류하기 전입니다. 아래 [제출 취소]로 되돌려 다시 고칠 수 있습니다." : "결재 진행 중입니다. 반려되면 다시 고칠 수 있습니다.") : "다른 단계의 결재를 기다리는 증빙입니다."));
+    banners.push(banner("info", "info", STATUS[e.status].label, me.role === "staff" ? (e.status === "submitted" ? "보도BIZ팀이 아직 분류하기 전입니다. 아래 [제출 취소]로 되돌려 다시 고칠 수 있습니다." : "결재 진행 중입니다. 반려되면 다시 고칠 수 있습니다.") : "다른 단계의 결재를 기다리는 증빙입니다."));
   if (e.status === "approved") banners.push(banner("ok", "check", "결재 완료", "재무팀 결재까지 끝난 증빙이라 수정할 수 없습니다."));
   if (e.status === "rejected") banners.push(banner("bad", "x", "불승인", "비적격 증빙으로 지급하지 않기로 결재되었습니다(한도에서도 빠짐)."));
 
@@ -819,9 +834,9 @@ function approvalTimeline(e) {
           h(
             "div",
             {},
-            h("div", { class: "tl-head" }, h("b", {}, a.step || ""), " · ", ACTION_LABEL[a.action] || a.action,
+            h("div", { class: "tl-head" }, h("b", {}, displayTeamName(a.step)), " · ", ACTION_LABEL[a.action] || a.action,
               a.eligibility && a.action === "approve" ? [" · ", ELIGIBILITY[a.eligibility]?.[0] || a.eligibility] : null),
-            h("div", { class: "tl-meta" }, `${a.roleLabel || ROLE[a.role] || a.role} ${a.email || ""} · ${dateTime(a.at)}`),
+            h("div", { class: "tl-meta" }, `${displayTeamName(a.roleLabel || ROLE[a.role] || a.role)} ${a.email || ""} · ${dateTime(a.at)}`),
             a.comment ? h("div", { class: "tl-comment" }, a.comment) : null,
           ),
         ),
@@ -854,16 +869,16 @@ function reviewPanel(e, me) {
     : null;
   const guide = {
     submitted: "적격이면 재무팀 최종 검토로, 비적격이면 보도국장 전결로 올립니다.",
-    chief_review: "보도IMC팀이 비적격으로 분류한 증빙입니다. 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않습니다.",
+    chief_review: "보도BIZ팀이 비적격으로 분류한 증빙입니다. 승인하면 재무팀 최종 검토로, 불승인하면 지급하지 않습니다.",
     finance_review: "결재선을 거친 증빙입니다. 원본과 대조해 최종 검토하고 결재합니다.",
   }[e.status];
   const panel = h(
     "section",
     { class: "review-panel" },
-    h("div", { class: "review-panel-head" }, icon("check"), h("b", {}, e.stage.label), h("span", { class: "muted small" }, "내 결재 차례")),
+    h("div", { class: "review-panel-head" }, icon("check"), h("b", {}, displayTeamName(e.stage.label)), h("span", { class: "muted small" }, "내 결재 차례")),
     h("p", { class: "small" }, guide),
     overLimit ? h("p", { class: "small text-bad" }, `분기 한도 초과로 ${money(e.ineligibleAmount, e.currency)} 가 비적격 — 보도국장 전결이 필요합니다.`) : null,
-    radios ? h("div", { class: "field" }, h("span", { class: "field-label" }, "적격 분류"), radios) : e.eligibility ? h("p", { class: "small" }, "보도IMC팀 분류: ", chip(ELIGIBILITY[e.eligibility][0], ELIGIBILITY[e.eligibility][1])) : null,
+    radios ? h("div", { class: "field" }, h("span", { class: "field-label" }, "적격 분류"), radios) : e.eligibility ? h("p", { class: "small" }, "보도BIZ팀 분류: ", chip(ELIGIBILITY[e.eligibility][0], ELIGIBILITY[e.eligibility][1])) : null,
     field("의견", comment),
   );
   return { node: panel, comment, eligibility: () => eligibility, atImc };
@@ -875,7 +890,7 @@ function reviewFooter(e, me, form, review, { close, onChanged }) {
     const c = review.comment.value.trim();
     const elig = review.eligibility();
     if (review.atImc && action === "approve" && !elig) return toast("적격 / 비적격을 선택하세요", "warn");
-    // 의견 필수: 반려·불승인, 그리고 보도IMC팀이 비적격으로 분류할 때(사유). 보도국장·재무팀 승인은 선택
+    // 의견 필수: 반려·불승인, 그리고 보도BIZ팀이 비적격으로 분류할 때(사유). 보도국장·재무팀 승인은 선택
     if ((action !== "approve" || (review.atImc && elig === "ineligible")) && !c) {
       review.comment.focus();
       return toast(action === "return" ? "반려 사유를 입력하세요" : action === "reject" ? "불승인 사유를 입력하세요" : "비적격 사유를 입력하세요", "warn");
@@ -929,7 +944,7 @@ function withdrawFooter(e, { close, onChanged }) {
   btn.addEventListener("click", async () => {
     const ok = await confirmDialog({
       title: "제출 취소",
-      message: h("div", {}, h("p", {}, "제출을 취소하면 '지국 작성중'으로 돌아가 다시 수정할 수 있습니다. 고친 뒤 다시 제출하세요."), h("p", { class: "muted small" }, "보도IMC팀이 이미 분류했다면 취소되지 않습니다.")),
+      message: h("div", {}, h("p", {}, "제출을 취소하면 '지국 작성중'으로 돌아가 다시 수정할 수 있습니다. 고친 뒤 다시 제출하세요."), h("p", { class: "muted small" }, "보도BIZ팀이 이미 분류했다면 취소되지 않습니다.")),
       confirm: "제출 취소",
     });
     if (!ok) return;
@@ -944,10 +959,10 @@ function withdrawFooter(e, { close, onChanged }) {
       btn.disabled = false;
     }
   });
-  return [h("span", { class: "muted small" }, "보도IMC팀 결재 대기 중 — 취소하면 다시 수정할 수 있습니다"), h("div", { class: "foot-right" }, h("button", { class: "btn btn-ghost", type: "button", onclick: () => close() }, "닫기"), btn)];
+  return [h("span", { class: "muted small" }, "보도BIZ팀 결재 대기 중 — 취소하면 다시 수정할 수 있습니다"), h("div", { class: "foot-right" }, h("button", { class: "btn btn-ghost", type: "button", onclick: () => close() }, "닫기"), btn)];
 }
 
-const CANCEL_LABEL = { submitted: "보도IMC팀 분류", chief_review: "보도국장 전결", finance_review: "재무팀 최종 결재" };
+const CANCEL_LABEL = { submitted: "보도BIZ팀 분류", chief_review: "보도국장 전결", finance_review: "재무팀 최종 결재" };
 function cancelReviewFooter(e, { close, onChanged }) {
   const from = e.approvals[e.approvals.length - 1].from;
   const btn = h("button", { class: "btn btn-ghost btn-cancel-review", type: "button" }, icon("refresh"), h("span", {}, "내 결재 취소"));
@@ -978,7 +993,7 @@ function cancelReviewFooter(e, { close, onChanged }) {
 function footer(e, form, { me, close, onChanged, reopen }) {
   if (!form.editable) {
     if (e.canCancel) return cancelReviewFooter(e, { close, onChanged });
-    // 보도IMC팀이 아직 분류하지 않은 증빙은 지국 담당자가 제출을 취소하고 다시 고칠 수 있다
+    // 보도BIZ팀이 아직 분류하지 않은 증빙은 지국 담당자가 제출을 취소하고 다시 고칠 수 있다
     if ((e.status === "submitted" || e.status === "filed") && me.role === "staff") return withdrawFooter(e, { close, onChanged });
     const canSplit = ["imc", "finance", "admin"].includes(me.role) && EDITABLE_STATUS.has(e.status) && !e.splitFrom && e.amount > 0.01;
     return [canSplit ? h("button", { class: "btn btn-ghost", type: "button",
@@ -988,9 +1003,9 @@ function footer(e, form, { me, close, onChanged, reopen }) {
 
   const saveBtn = h("button", { class: "btn btn-ghost", type: "button" }, icon("check"), h("span", {}, "저장"));
   const core = () => isCoreAccount(form.inputs.account.value);
-  const submitLabel = h("span", {}, core() ? "IMC팀에 제출" : "제출(보관)");
+  const submitLabel = h("span", {}, core() ? "보도BIZ팀에 제출" : "제출(보관)");
   const submitBtn = h("button", { class: "btn btn-primary", type: "button", title: "기타 계정은 결재 없이 보관됩니다" }, icon("send"), submitLabel);
-  form.inputs.account.addEventListener("change", () => (submitLabel.textContent = core() ? "IMC팀에 제출" : "제출(보관)"));
+  form.inputs.account.addEventListener("change", () => (submitLabel.textContent = core() ? "보도BIZ팀에 제출" : "제출(보관)"));
   const delBtn = h("button", { class: "btn btn-danger-ghost", type: "button" }, icon("trash"), h("span", {}, "삭제"));
   const lock = (v) => [saveBtn, submitBtn, delBtn].forEach((b) => (b.disabled = v));
 
@@ -1035,11 +1050,11 @@ function footer(e, form, { me, close, onChanged, reopen }) {
       return;
     }
     const ok = await confirmDialog({
-      title: core() ? "보도IMC팀에 제출" : "제출(보관)",
+      title: core() ? "보도BIZ팀에 제출" : "제출(보관)",
       message: h("div", {},
         submitCheck([{ amount: money(form.inputs.amount.value === "" ? null : Number(form.inputs.amount.value), e.currency), merchant: form.inputs.merchantKo.value || form.inputs.merchant.value, date: form.inputs.txnDate.value, account: form.inputs.account.value }]),
         e.status === "flagged" ? h("p", { class: "text-warn" }, "검토 필요 항목이 남아 있습니다.") : null),
-      confirm: core() ? "IMC팀에 제출" : "제출",
+      confirm: core() ? "보도BIZ팀에 제출" : "제출",
     });
     if (!ok) return;
     // AI 가 이미 정책 위반으로 판정했고 판정에 쓰인 내용을 고치지 않았다면, 소명 없이는 자동 반려된다 → 미리 소명을 받는다
@@ -1051,7 +1066,7 @@ function footer(e, form, { me, close, onChanged, reopen }) {
         title: "AI 1차 검증 — 소명 후 제출",
         message: h("div", {}, h("p", {}, "AI 가 이 증빙을 정책 위반으로 판단했습니다. 소명 없이 제출하면 자동 반려됩니다."),
           h("ul", { class: "ai-viol" }, (e.aiGate.violations || []).map((x) => h("li", {}, h("span", { class: "ai-viol-rule" }, x.rule), h("span", { class: "ai-viol-why" }, x.reason)))),
-          h("p", { class: "small" }, "업무상 필요한 지출이라면 사유를 적어 주세요. 소명과 함께 보도IMC팀으로 넘어가 사람이 판단합니다.")),
+          h("p", { class: "small" }, "업무상 필요한 지출이라면 사유를 적어 주세요. 소명과 함께 보도BIZ팀으로 넘어가 사람이 판단합니다.")),
         placeholder: "예) 지국 사무실 청소용품 — 업무용 비품으로 구매",
         confirm: "소명하고 제출",
       });
@@ -1068,7 +1083,7 @@ function footer(e, form, { me, close, onChanged, reopen }) {
         reopen(); // 반려 사유와 AI 판정을 바로 보여 준다
         return;
       }
-      toast(r.status === "filed" ? "보관으로 제출했습니다" : justification ? "소명과 함께 보도IMC팀에 제출했습니다" : "보도IMC팀에 제출했습니다", "ok");
+      toast(r.status === "filed" ? "보관으로 제출했습니다" : justification ? "소명과 함께 보도BIZ팀에 제출했습니다" : "보도BIZ팀에 제출했습니다", "ok");
       onChanged();
       close(true);
     } catch (ex) {
