@@ -1,6 +1,6 @@
-import { api } from "../api.js?v=892dfa9";
-import { ACCOUNTS, BRANCH, clear, confirmDialog, errorText, field, h, select, spinner, toast, updateCatalog } from "../ui.js?v=892dfa9";
-import { pageHeader } from "./shell.js?v=892dfa9";
+import { api } from "../api.js?v=44821c9";
+import { ACCOUNTS, BRANCH, clear, confirmDialog, errorText, field, h, select, spinner, toast, updateCatalog } from "../ui.js?v=44821c9";
+import { pageHeader } from "./shell.js?v=44821c9";
 
 const control = (attrs) => h("input", { class: "input", ...attrs });
 const button = (label, action, primary = false) => h("button", {

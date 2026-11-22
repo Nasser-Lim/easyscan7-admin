@@ -266,10 +266,11 @@ export function mobileReceiptCard(entry, { open, selection, branch, below }) {
     below ? h("div", { class: "receipt-card-extra" }, below) : null);
 }
 
-export function mobileDisclosure(label, panel, id) {
+export function mobileDisclosure(label, panel, id, { expanded = false } = {}) {
   panel.id = id;
   panel.classList.add("mobile-disclosure-panel");
-  const button = h("button", { class: "btn btn-ghost mobile-disclosure", type: "button", "aria-controls": id, "aria-expanded": "false" },
+  panel.classList.toggle("mobile-expanded", expanded);
+  const button = h("button", { class: "btn btn-ghost mobile-disclosure", type: "button", "aria-controls": id, "aria-expanded": String(expanded) },
     h("span", {}, label), icon("chevron"));
   button.addEventListener("click", () => button.setAttribute("aria-expanded", String(panel.classList.toggle("mobile-expanded"))));
   return button;

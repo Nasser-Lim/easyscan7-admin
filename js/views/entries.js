@@ -1,19 +1,19 @@
 // 증빙 조회 — 필터·정렬 목록, 일괄 제출, 상세 서랍(원본 증빙 대조 + 수정·제출·삭제 / 결재).
 // 지국 담당자: 자기 지국 · 본사 결재자: 전 지국(지국 필터), 결재는 결재함 또는 이 화면의 상세 서랍에서.
-import { api } from "../api.js?v=892dfa9";
+import { api } from "../api.js?v=44821c9";
 import {
   ACCOUNTS, ACTION_LABEL, BRANCH, DOC_TYPE, ELIGIBILITY, FINAL, IN_REVIEW, NON_REVIEW_ACCOUNT_LABEL, ROLE, STAFF_EDITABLE, STATUS, WRITING_STATUSES, chip, clear,
   confirmDialog, promptDialog, dateText, dateTime, displayTeamName, empty, errorText, field, h, icon, money, noticeParts,
   ALL_ACCOUNTS, accountSelect, isCoreAccount, metricTile, mobileDisclosure, mobileReceiptCard, periodBadge, quarterLabel, quarterOf, resubmittedBadge, select, spinner, statusChip, tip, toast,
-} from "../ui.js?v=892dfa9";
+} from "../ui.js?v=44821c9";
 import { currentPeriod, getMode, isDateRange, isPeriodOf, periodCaption, periodOfEntry, periodOptions, periodControls,
-  savedDateRange, unitName } from "../period.js?v=892dfa9";
-import { aiGatePanel } from "../aigate.js?v=892dfa9";
-import { createPager } from "../pager.js?v=892dfa9";
-import { compactFlow, flowDiagram } from "../flow.js?v=892dfa9";
-import { fxStrip, loadFx, sumIn } from "../fx.js?v=892dfa9";
-import { refreshInboxBadge } from "./inbox.js?v=892dfa9";
-import { pageHeader } from "./shell.js?v=892dfa9";
+  savedDateRange, unitName } from "../period.js?v=44821c9";
+import { aiGatePanel } from "../aigate.js?v=44821c9";
+import { createPager } from "../pager.js?v=44821c9";
+import { compactFlow, flowDiagram } from "../flow.js?v=44821c9";
+import { fxStrip, loadFx, sumIn } from "../fx.js?v=44821c9";
+import { refreshInboxBadge } from "./inbox.js?v=44821c9";
+import { pageHeader } from "./shell.js?v=44821c9";
 
 const EDITABLE_STATUS = STAFF_EDITABLE; // 지국 담당자가 고치고 제출할 수 있는 상태
 const STATUS_GROUPS = { writing: WRITING_STATUSES, review: IN_REVIEW };
@@ -22,6 +22,9 @@ const STATUS_OPTIONS = [["", "전체 상태"], ["writing", "작성중"], ["revie
 const NON_REVIEW_ACCOUNTS = Symbol("non-review accounts");
 const ACCOUNT_PRESETS = [["", "전체 계정"], ["경상비", "경상비"], ["취재비", "취재비"], ["차량유지비", "차량유지비"],
   [NON_REVIEW_ACCOUNTS, NON_REVIEW_ACCOUNT_LABEL]];
+const matchesAccount = (filter, account) => filter === NON_REVIEW_ACCOUNTS
+  ? Boolean(account?.trim()) && !isCoreAccount(account)
+  : !filter || account === filter;
 // 화면을 옮겨 다녀도 필터는 유지(세션 동안)
 // 정산 기간(월/분기)은 영수증 날짜로 자동 지정되므로 방금 올린 증빙이 이번 기간이 아닐 수 있다 — 기본은 전체("")
 // 기간 선택지: 정산 방식에 따라 최근 12개월 또는 최근 4분기
@@ -30,6 +33,7 @@ const state = { period: "", account: "", status: "", q: "", sort: "txnDate", dir
 export function renderEntries(el, { me, params, query }) {
   const isStaff = me.role === "staff";
   let rows = [];
+  let loadRevision = 0;
   const selected = new Set();
 
   const linkedPeriod = query.get("period");
@@ -52,12 +56,21 @@ export function renderEntries(el, { me, params, query }) {
   const branchSel = isStaff ? null : select([["all", "전체 지국"], ...Object.entries(BRANCH).map(([id, n]) => [id, `${n}지국`])], state.branch, { class: "input input-sm" });
   branchSel?.addEventListener("change", () => ((state.branch = branchSel.value), pager.reset(), load()));
   const search = h("input", { class: "input input-sm", type: "search", placeholder: "가맹점·주문번호·적요 검색", value: state.q });
-  const kpiBar = h("div", { class: "kpis kpis-sm entries-kpis" });
-  const accountButtons = new Map(ACCOUNT_PRESETS.map(([value, label]) => [value, h("button", {
-    class: "btn btn-ghost btn-sm", type: "button", "aria-pressed": String(state.account === value),
-    onclick: () => applyAccount(state.account === value ? "" : value),
-  }, label)]));
-  const accountPresets = h("div", { class: "entry-account-presets", role: "group", "aria-label": "계정 빠른 필터" }, [...accountButtons.values()]);
+  const kpiBar = h("div", { class: "kpis kpis-sm entries-kpis", role: "group", "aria-label": "상태 빠른 필터" });
+  const accountButtons = ACCOUNT_PRESETS.map(([value, label]) => {
+    const count = h("span", { class: "account-preset-count", "aria-hidden": "true" });
+    const button = h("button", {
+      class: "btn btn-ghost btn-sm", type: "button", "aria-pressed": String(state.account === value),
+      onclick: () => applyAccount(state.account === value ? "" : value),
+    }, label, count);
+    return { value, label, count, button };
+  });
+  const accountPresets = h("div", { class: "entry-account-presets", role: "group", "aria-label": "계정 빠른 필터" }, accountButtons.map(({ button }) => button));
+  const statusSelection = h("span", { class: "entry-preset-selection" });
+  const accountSelection = h("span", { class: "entry-preset-selection" });
+  const presets = h("div", { class: "entry-presets" },
+    h("div", { class: "entry-preset-section" }, mobileDisclosure(["상태별", statusSelection], kpiBar, "entry-status-presets", { expanded: true }), kpiBar),
+    h("div", { class: "entry-preset-section" }, mobileDisclosure(["계정별", accountSelection], accountPresets, "entry-account-presets"), accountPresets));
   const fxBar = fxStrip();
   let fx = null;
   const bulk = h("div", { class: "bulkbar" });
@@ -81,8 +94,7 @@ export function renderEntries(el, { me, params, query }) {
       actions: isStaff ? [refreshBtn, h("a", { class: "btn btn-primary", href: "#/upload" }, icon("upload"), h("span", {}, "증빙 업로드"))] : [refreshBtn],
     }),
     fxBar.node,
-    kpiBar,
-    accountPresets,
+    presets,
     h(
       "section",
       { class: "card card-flush" },
@@ -94,28 +106,33 @@ export function renderEntries(el, { me, params, query }) {
   );
 
   async function load() {
+    const revision = ++loadRevision;
     clear(tableWrap).append(h("div", { class: "card-loading" }, spinner()));
     selected.clear();
     try {
       const params = new URLSearchParams();
       if (state.period) params.set("period", state.period);
       if (!isStaff) params.set("branch", state.branch);
-      [rows, fx] = await Promise.all([api.get(`/entries${params.size ? `?${params}` : ""}`).then((r) => r.entries), loadFx()]);
+      const [loadedRows, loadedFx] = await Promise.all([api.get(`/entries${params.size ? `?${params}` : ""}`).then((r) => r.entries), loadFx()]);
+      if (revision !== loadRevision) return;
+      rows = loadedRows;
+      fx = loadedFx;
+      for (const { value, label, count, button } of accountButtons) {
+        count.textContent = rows.filter((entry) => matchesAccount(value, entry.account)).length.toLocaleString("ko-KR");
+        button.setAttribute("aria-label", `${label} ${count.textContent}건`);
+      }
       paint();
     } catch (e) {
-      clear(tableWrap).append(h("p", { class: "card-error" }, errorText(e)));
+      if (revision === loadRevision) clear(tableWrap).append(h("p", { class: "card-error" }, errorText(e)));
     }
   }
 
   function visible() {
     const q = state.q.trim().toLowerCase();
     const statusGroup = STATUS_GROUPS[state.status];
-    const accountMatches = state.account === NON_REVIEW_ACCOUNTS
-      ? (name) => Boolean(name?.trim()) && !isCoreAccount(name)
-      : (name) => !state.account || name === state.account;
     const out = rows.filter(
       (e) =>
-        accountMatches(e.account) &&
+        matchesAccount(state.account, e.account) &&
         (!state.status || (statusGroup ? statusGroup.has(e.status) : e.status === state.status)) &&
         (!q || [e.merchant, e.merchantKo, e.orderNumber, e.memo, e.purpose].some((v) => v && String(v).toLowerCase().includes(q))),
     );
@@ -128,6 +145,8 @@ export function renderEntries(el, { me, params, query }) {
   }
 
   function paint() {
+    statusSelection.textContent = state.status ? STATUS_OPTIONS.find(([key]) => key === state.status)?.[1] || "" : "";
+    accountSelection.textContent = state.account ? accountButtons.find(({ value }) => value === state.account)?.label || state.account : "";
     // 합계는 지국 통화로 환산(현재 환율). 지국 담당자=자기 지국 통화, 본사: 한 지국을 고르면 그 지국 통화, 전체 지국이면 원화
     const cur = displayCurrency();
     const by = (set) => rows.filter((e) => set.has(e.status));
@@ -315,7 +334,7 @@ export function renderEntries(el, { me, params, query }) {
     state.account = value;
     if (value === NON_REVIEW_ACCOUNTS) nonReviewOption.selected = true;
     else account.value = value;
-    for (const [key, button] of accountButtons) button.setAttribute("aria-pressed", String(key === value));
+    for (const preset of accountButtons) preset.button.setAttribute("aria-pressed", String(preset.value === value));
     pager.reset();
     paint();
   }

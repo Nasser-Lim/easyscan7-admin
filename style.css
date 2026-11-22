@@ -336,6 +336,12 @@ select.input { padding-right: 28px; }
 .entry-account-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .entry-account-presets .btn { border-radius: 20px; color: var(--text-2); box-shadow: var(--shadow-1); }
 .entry-account-presets .btn[aria-pressed="true"] { background: var(--sbs-sky-50); border-color: #86a9bf; color: var(--sbs-blue-700); }
+.account-preset-count {
+  min-width: 16px; padding: 1px 4px; border-radius: 10px; background: var(--surface-2); color: var(--text-3);
+  font-size: 10px; font-weight: 750; line-height: 1.25; font-variant-numeric: tabular-nums; text-align: center;
+}
+.account-preset-count:empty { display: none; }
+.entry-account-presets .btn[aria-pressed="true"] .account-preset-count { background: #dcecf6; color: var(--sbs-blue-900); }
 .kpi {
   --kpi-mark: var(--sbs-blue); --kpi-wash: var(--sbs-sky-50);
   display: grid; grid-template-columns: 32px minmax(0, 1fr); align-content: start; align-items: center; gap: 3px 10px;
@@ -776,12 +782,21 @@ select.input { padding-right: 28px; }
   .page-symbol .ic { width: 18px; height: 18px; }
   .page-actions > a:is([href='#/entries'], [href='#/upload']) { display: none; }
   .home-receipts tbody tr:nth-child(n+5) { display: none; }
+  .entry-presets { margin-bottom: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+  .entry-preset-section + .entry-preset-section { border-top: 1px solid var(--line); }
+  .entry-preset-section > .mobile-disclosure {
+    width: 100%; min-height: 38px; padding-inline: 9px; border: 0; color: var(--text-2); font-size: 12px;
+  }
+  .entry-preset-section > .mobile-disclosure > span:first-child { display: flex; align-items: center; min-width: 0; gap: 8px; }
+  .entry-preset-selection { color: var(--sbs-blue-700); font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+  .entry-preset-selection:empty, .entry-preset-section > .mobile-disclosure[aria-expanded="true"] .entry-preset-selection { display: none; }
+  .entries-kpis, .entry-account-presets { margin-bottom: 0; padding: 0 8px 8px; }
   .entries-kpis { display: flex; flex-wrap: wrap; gap: 5px; }
-  .entries-kpis .kpi { display: flex; align-items: center; gap: 5px; min-height: 32px; padding: 5px 8px; box-shadow: none; }
+  .entries-kpis .kpi { display: flex; align-items: center; gap: 4px; min-height: 32px; padding: 5px 6px; box-shadow: none; }
   .entries-kpis :is(.kpi-icon, .kpi-sub), .entries-kpis .kpi:last-child { display: none; }
   .entries-kpis .kpi-value { font-size: 13px; }
   .entry-account-presets { gap: 4px; }
-  .entry-account-presets .btn { min-height: 32px; padding-inline: 6px; font-size: 11.5px; }
+  .entry-account-presets .btn { min-height: 32px; padding-inline: 6px; font-size: 11.5px; gap: 4px; }
 
   .mobile-nav { display: flex; position: fixed; z-index: 30; inset: auto 0 0; gap: 2px;
     padding: 3px 8px calc(3px + env(safe-area-inset-bottom)); background: var(--surface);
