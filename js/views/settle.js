@@ -2,12 +2,12 @@
 // 지국 담당자용 정산 요청서와 본사 정산내역서를 내려받는다.
 //   · 결재 대상(취재비·경상비·차량유지비): 최종 결재 완료분 → 세부내역 시트
 //   · 기타 계정: 보관(제출 완료)분 → 정산서 시트에 계정별 합계
-import { api } from "../api.js?v=4609e37";
-import { branchFlag } from "../branchicons.js?v=4609e37";
-import { getPeriod, periodCaption, periodControls, savedDateRange } from "../period.js?v=4609e37";
-import { BRANCH, NON_REVIEW_ACCOUNT_LABEL, OTHER_ACCOUNTS, clear, confirmDialog, errorText, field, h, icon,
-  money, newYorkOtherAccounts, spinner, toast } from "../ui.js?v=4609e37";
-import { pageHeader } from "./shell.js?v=4609e37";
+import { api } from "../api.js?v=f130322";
+import { branchFlag } from "../branchicons.js?v=f130322";
+import { getPeriod, periodCaption, periodControls, savedDateRange } from "../period.js?v=f130322";
+import { BRANCH, NON_REVIEW_ACCOUNT_LABEL, OTHER_ACCOUNTS, clear, errorText, field, h, icon,
+  money, newYorkOtherAccounts, select, spinner, toast } from "../ui.js?v=f130322";
+import { pageHeader } from "./shell.js?v=f130322";
 
 const ACCOUNT_ORDER = ["취재비", "경상비", "차량유지비"];
 const SHEET = { 취재비: "취재비", 경상비: "지국경상비", 차량유지비: "차량유지비" };
@@ -93,28 +93,22 @@ export function renderSettle(el, { me }) {
     }
   }
 
-  async function editRates(p) {
+  async function editRates(p, trigger) {
+    trigger.disabled = true;
+    const path = url("rates", p);
     try {
-      const data = await api.get(url("rates", p));
-      const input = h("textarea", { class: "input", rows: "4", spellcheck: "false", placeholder: "KRW 0.00075\nEUR 1.08" },
-        Object.entries(data.rates).map(([code, rate]) => `${code} ${rate}`).join("\n"));
-      if (!(await confirmDialog({
-        title: "재무팀 송금 환율",
-        message: field(`외화 1단위당 ${data.currency} 환율 · 줄마다 통화 코드와 수치`, input),
-        confirm: "저장",
-      }))) return;
-      const rates = {};
-      for (const line of input.value.split("\n").map((row) => row.trim()).filter(Boolean)) {
-        const [code, rate, extra] = line.toUpperCase().split(/\s+/);
-        if (extra || !/^[A-Z]{3}$/.test(code) || code in rates || !Number.isFinite(Number(rate)) || Number(rate) <= 0) {
-          throw new Error("통화 코드와 양수 환율을 줄마다 한 쌍씩 입력해 주세요.");
-        }
-        rates[code] = Number(rate);
+      const data = await api.get(path);
+      if (!trigger.isConnected) return;
+      const saved = await remittanceDialog(p, data, (rates) => api.put(path, { rates }));
+      if (saved) {
+        toast("송금 환율을 저장했습니다", "ok");
+        if (body.isConnected) load();
       }
-      await api.put(url("rates", p), { rates });
-      toast("송금 환율을 저장했습니다", "ok");
-      load();
-    } catch (ex) { toast(errorText(ex), "bad"); }
+    } catch (ex) {
+      toast(errorText(ex), "bad");
+    } finally {
+      trigger.disabled = false;
+    }
   }
 
   function draw(p) {
@@ -186,7 +180,8 @@ export function renderSettle(el, { me }) {
         accounts,
         h("div", { class: "settle-foot" }, notes.length ? h("div", { class: "notes notes-inline" }, notes) : h("span"),
           h("div", { class: "bulk-actions" },
-            canSetRates ? h("button", { class: "btn btn-ghost", type: "button", onclick: () => editRates(p) }, "송금 환율 설정") : null,
+            canSetRates ? h("button", { class: "btn btn-ghost", type: "button", onclick: (event) => editRates(p, event.currentTarget) },
+              icon("sliders"), h("span", {}, "송금 환율 설정")) : null,
             pendingBtn,
             xlsBtn)),
       ),
@@ -194,6 +189,129 @@ export function renderSettle(el, { me }) {
   }
 
   load();
+}
+
+const COMMON_CURRENCIES = ["KRW", "USD", "EUR", "JPY", "CAD", "GBP", "AUD", "CNY", "HKD", "SGD", "CHF"];
+const rateAmount = new Intl.NumberFormat("ko-KR", { maximumSignificantDigits: 12 });
+
+function decimalAmount(text) {
+  const value = text.trim();
+  if (!/^(?:(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?|\.\d+)$/.test(value)) return NaN;
+  return Number(value.replaceAll(",", ""));
+}
+
+function remittanceDialog(preview, { currency, rates }, saveRates) {
+  const names = new Intl.DisplayNames("ko", { type: "currency" });
+  const codes = new Set([...COMMON_CURRENCIES, ...Object.keys(rates), ...(Intl.supportedValuesOf?.("currency") || [])]);
+  codes.delete(currency);
+  const options = Array.from(codes, (code) => [code, `${names.of(code)} (${code})`]);
+  const rows = new Set();
+  const list = h("div", { class: "remittance-rows" });
+  const status = h("p", { class: "form-error", role: "alert" });
+  const add = h("button", { type: "button", class: "btn btn-ghost btn-sm", onclick: () => {
+    const used = new Set(Array.from(rows, (row) => row.code.value));
+    const available = options.find(([code]) => !used.has(code));
+    if (available) addRate(available[0]).code.focus();
+  } }, icon("plus"), "통화 추가");
+  const noRates = h("p", { class: "muted small", hidden: true }, "등록한 송금 환율이 없습니다.");
+  const editor = h("fieldset", { class: "remittance-editor" }, list, noRates, add);
+  const cancel = h("button", { type: "button", class: "btn btn-ghost", autofocus: true, onclick: () => dialog.close() }, "취소");
+  const save = h("button", { type: "submit", class: "btn btn-primary" }, "저장");
+  const form = h("form", { onsubmit: submit },
+    h("h2", { id: "remittance-title", class: "modal-title" }, "송금 환율 설정"),
+    h("div", { class: "modal-body remittance-body" },
+      h("p", { class: "branch-name strong" }, branchFlag(preview.branchId), `${preview.branchName}지국 · ${periodCaption(preview.period)}`),
+      h("p", {}, "송금 내역에 적힌 두 통화의 금액을 입력하세요."),
+      currency === "USD" ? h("p", { class: "muted small" }, "예시  1 USD = 1,350 KRW") : null,
+      editor, status),
+    h("div", { class: "modal-actions" }, cancel, save));
+  const dialog = h("dialog", { class: "modal modal-wide remittance-dialog", "aria-labelledby": "remittance-title" }, form);
+  dialog.addEventListener("cancel", (event) => { if (save.disabled) event.preventDefault(); });
+
+  function syncRows() {
+    add.disabled = rows.size >= 30;
+    noRates.hidden = rows.size > 0;
+    status.textContent = "";
+  }
+
+  function addRate(initialCode, originalRate) {
+    const code = select(options, initialCode);
+    const initialQuote = originalRate ? rateAmount.format(1 / originalRate) : "";
+    const amountInput = (value) => h("input", { class: "input num", type: "text", inputmode: "decimal", autocomplete: "off", value, placeholder: "금액" });
+    const base = amountInput("1");
+    const quote = amountInput(initialQuote);
+    const unit = h("span", { class: "remittance-unit" }, initialCode);
+    const row = { code, base, quote, initialCode, initialQuote, originalRate };
+    const remove = h("button", { type: "button", class: "icon-btn icon-btn-danger", onclick: () => {
+      rows.delete(row);
+      card.remove();
+      syncRows();
+      (add.disabled ? list.querySelector("select") : add)?.focus();
+    } }, icon("trash"));
+    const syncCurrency = () => {
+      unit.textContent = code.value;
+      remove.setAttribute("aria-label", `${code.value} 환율 삭제`);
+    };
+    code.addEventListener("change", syncCurrency);
+    syncCurrency();
+    const card = h("div", { class: "remittance-row" },
+      h("div", { class: "remittance-row-head" }, field("상대 통화", code), remove),
+      h("div", { class: "remittance-equation" },
+        field("정산 통화 금액", h("span", { class: "remittance-amount" }, base, h("span", { class: "remittance-unit" }, currency))),
+        h("span", { class: "remittance-equals", "aria-hidden": "true" }, "="),
+        field("상대 통화 금액", h("span", { class: "remittance-amount" }, quote, unit))));
+    card.addEventListener("input", (event) => { event.target.removeAttribute("aria-invalid"); status.textContent = ""; });
+    rows.add(row);
+    list.append(card);
+    syncRows();
+    return row;
+  }
+
+  function invalid(input, message) {
+    input.setAttribute("aria-invalid", "true");
+    status.textContent = message;
+    input.focus();
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    if (save.disabled) return;
+    const next = new Map();
+    for (const { code, base, quote, initialCode, initialQuote, originalRate } of rows) {
+      if (next.has(code.value)) return invalid(code, `${code.value} 환율은 한 번만 입력해 주세요.`);
+      const a = decimalAmount(base.value);
+      const b = decimalAmount(quote.value);
+      if (!Number.isFinite(a) || a <= 0) return invalid(base, `${currency} 금액에 0보다 큰 숫자를 입력해 주세요.`);
+      if (!Number.isFinite(b) || b <= 0) return invalid(quote, `${code.value} 금액에 0보다 큰 숫자를 입력해 주세요.`);
+      const rate = originalRate && code.value === initialCode && a === 1 && quote.value === initialQuote ? originalRate : a / b;
+      if (!(rate > 0 && rate <= 10_000_000)) return invalid(quote, "입력한 두 금액의 비율을 확인해 주세요.");
+      next.set(code.value, rate);
+    }
+    save.disabled = cancel.disabled = editor.disabled = true;
+    save.textContent = "저장 중…";
+    status.textContent = "";
+    try {
+      await saveRates(Object.fromEntries(next));
+      dialog.close("saved");
+    } catch (error) {
+      status.textContent = errorText(error);
+    } finally {
+      save.disabled = cancel.disabled = editor.disabled = false;
+      save.textContent = "저장";
+    }
+  }
+
+  for (const [code, rate] of Object.entries(rates)) addRate(code, rate);
+  if (!rows.size) addRate(options[0][0]);
+  return new Promise((resolve) => {
+    dialog.addEventListener("close", () => {
+      const saved = dialog.returnValue === "saved";
+      dialog.remove();
+      resolve(saved);
+    }, { once: true });
+    document.body.append(dialog);
+    dialog.showModal();
+  });
 }
 
 function note(tone, label, text) {

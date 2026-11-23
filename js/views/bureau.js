@@ -1,7 +1,7 @@
-import { api } from "../api.js?v=4609e37";
-import { branchFlag } from "../branchicons.js?v=4609e37";
-import { BRANCH, chip, clear, confirmDialog, empty, errorText, field, h, icon, select, spinner, toast, updateCatalog } from "../ui.js?v=4609e37";
-import { pageHeader } from "./shell.js?v=4609e37";
+import { api } from "../api.js?v=f130322";
+import { branchFlag } from "../branchicons.js?v=f130322";
+import { BRANCH, chip, clear, confirmDialog, empty, errorText, field, h, icon, select, spinner, toast, updateCatalog } from "../ui.js?v=f130322";
+import { pageHeader } from "./shell.js?v=f130322";
 
 const control = (attrs) => h("input", { class: "input", ...attrs });
 const button = (label, action, primary = false) => h("button", {

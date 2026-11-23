@@ -1,8 +1,8 @@
-import { api, passwordSetupUrl } from "../api.js?v=4609e37";
-import { branchFlag } from "../branchicons.js?v=4609e37";
-import { estimateTokenCost, GEMINI_PRICING_URL } from "../usage-cost.js?v=4609e37";
-import { BRANCH, ROLE, chip, clear, confirmDialog, dateTime, empty, errorText, field, h, icon, select, spinner, toast } from "../ui.js?v=4609e37";
-import { pageHeader } from "./shell.js?v=4609e37";
+import { api, passwordSetupUrl } from "../api.js?v=f130322";
+import { branchFlag } from "../branchicons.js?v=f130322";
+import { estimateTokenCost, GEMINI_PRICING_URL } from "../usage-cost.js?v=f130322";
+import { BRANCH, ROLE, chip, clear, confirmDialog, dateTime, empty, errorText, field, h, icon, select, spinner, toast } from "../ui.js?v=f130322";
+import { pageHeader } from "./shell.js?v=f130322";
 
 const kindLabel = { recognition: "증빙 판독", policy: "적격 판정", policy_test: "정책 테스트" };
 const kindIcon = { recognition: "receipt", policy: "shield", policy_test: "search" };

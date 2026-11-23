@@ -1391,6 +1391,22 @@ select.input { padding-right: 28px; }
 }
 .card-head-pad { padding: 12px 16px; }
 .settle-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 16px; border-top: 1px solid var(--line); background: var(--surface-2); }
+.remittance-dialog { width: min(520px, calc(100% - 24px)); max-height: calc(100dvh - 24px); margin: auto; border: 1px solid var(--line); border-top: 2px solid var(--sbs-blue); }
+.remittance-dialog::backdrop { background: rgba(6, 27, 50, .45); }
+.remittance-body { display: grid; gap: 7px; }
+.remittance-body > p { margin: 0; }
+.remittance-body > p + p { margin-top: 0; }
+.remittance-editor { display: grid; gap: 8px; min-width: 0; margin: 2px 0 0; padding: 0; border: 0; justify-items: start; }
+.remittance-rows { display: grid; gap: 7px; width: 100%; }
+.remittance-rows:empty { display: none; }
+.remittance-row { display: grid; gap: 7px; padding: 9px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); }
+.remittance-row-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.remittance-equation { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; align-items: end; }
+.remittance-amount { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.remittance-amount .input { min-width: 0; padding-inline: 6px; font-variant-numeric: tabular-nums; }
+.remittance-unit { flex: none; color: var(--text-3); font-size: 11px; font-weight: 700; }
+.remittance-equals { align-self: end; padding-bottom: 9px; font-weight: 700; }
+.remittance-dialog [aria-invalid="true"] { border-color: var(--bad); }
 
 /* 통합관리 */
 .master-branch-field[hidden] { display: none; }

@@ -1,21 +1,21 @@
 // 관리웹 진입점 — 세션 확인 → 로그인 화면 또는 앱 셸 + 해시 라우터.
-import { api, hasSession, logout, onSignedOut } from "./api.js?v=4609e37";
-import { clear, h, spinner, toast, errorText, updateCatalog, workSummaryDialog } from "./ui.js?v=4609e37";
-import { renderLogin } from "./views/login.js?v=4609e37";
-import { renderShell, setActiveNav } from "./views/shell.js?v=4609e37";
-import { renderHome } from "./views/home.js?v=4609e37";
-import { renderUpload } from "./views/upload.js?v=4609e37";
-import { renderEntries } from "./views/entries.js?v=4609e37";
-import { renderAccount } from "./views/account.js?v=4609e37";
-import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=4609e37";
-import { renderHelp } from "./views/help.js?v=4609e37";
-import { renderLimitSettings } from "./views/limitcfg.js?v=4609e37";
-import { renderPolicy } from "./views/policy.js?v=4609e37";
-import { renderSettle } from "./views/settle.js?v=4609e37";
-import { renderBureau } from "./views/bureau.js?v=4609e37";
-import { renderMaster } from "./views/master.js?v=4609e37";
-import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=4609e37";
-import { loadMode } from "./period.js?v=4609e37";
+import { api, hasSession, logout, onSignedOut } from "./api.js?v=f130322";
+import { clear, h, spinner, toast, errorText, updateCatalog, workSummaryDialog } from "./ui.js?v=f130322";
+import { renderLogin } from "./views/login.js?v=f130322";
+import { renderShell, setActiveNav } from "./views/shell.js?v=f130322";
+import { renderHome } from "./views/home.js?v=f130322";
+import { renderUpload } from "./views/upload.js?v=f130322";
+import { renderEntries } from "./views/entries.js?v=f130322";
+import { renderAccount } from "./views/account.js?v=f130322";
+import { renderInbox, refreshInboxBadge } from "./views/inbox.js?v=f130322";
+import { renderHelp } from "./views/help.js?v=f130322";
+import { renderLimitSettings } from "./views/limitcfg.js?v=f130322";
+import { renderPolicy } from "./views/policy.js?v=f130322";
+import { renderSettle } from "./views/settle.js?v=f130322";
+import { renderBureau } from "./views/bureau.js?v=f130322";
+import { renderMaster } from "./views/master.js?v=f130322";
+import { initUploadQueue, resetUploadQueue } from "./uploadjob.js?v=f130322";
+import { loadMode } from "./period.js?v=f130322";
 
 const app = document.getElementById("app");
 let me = null;
@@ -47,7 +47,7 @@ export const NAV = {
   imc: [...REVIEWER_NAV, SETTLE_NAV, LIMIT_NAV, POLICY_NAV, BUREAU_NAV],
   bureau_chief: REVIEWER_NAV,
   division_head: REVIEWER_NAV,
-  finance: [...REVIEWER_NAV, SETTLE_NAV, LIMIT_NAV, POLICY_NAV, BUREAU_NAV],
+  finance: [...REVIEWER_NAV, SETTLE_NAV, LIMIT_NAV, POLICY_NAV],
   admin: [...REVIEWER_NAV, SETTLE_NAV, LIMIT_NAV, POLICY_NAV, BUREAU_NAV],
 };
 

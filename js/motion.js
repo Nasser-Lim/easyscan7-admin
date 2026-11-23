@@ -1,4 +1,4 @@
-import { h, select } from "./ui.js?v=4609e37";
+import { h, select } from "./ui.js?v=f130322";
 
 const KEY = "es7.motion";
 const MODES = [["auto", "자동"], ["full", "전체 효과"], ["off", "끄기"]];
