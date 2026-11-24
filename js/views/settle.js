@@ -2,12 +2,12 @@
 // 지국 담당자용 정산 요청서와 본사 정산내역서를 내려받는다.
 //   · 결재 대상(취재비·경상비·차량유지비): 최종 결재 완료분 → 세부내역 시트
 //   · 기타 계정: 보관(제출 완료)분 → 정산서 시트에 계정별 합계
-import { api } from "../api.js?v=f130322";
-import { branchFlag } from "../branchicons.js?v=f130322";
-import { getPeriod, periodCaption, periodControls, savedDateRange } from "../period.js?v=f130322";
+import { api } from "../api.js?v=b8fd816";
+import { branchFlag } from "../branchicons.js?v=b8fd816";
+import { getPeriod, periodCaption, periodControls, savedDateRange } from "../period.js?v=b8fd816";
 import { BRANCH, NON_REVIEW_ACCOUNT_LABEL, OTHER_ACCOUNTS, clear, errorText, field, h, icon,
-  money, newYorkOtherAccounts, select, spinner, toast } from "../ui.js?v=f130322";
-import { pageHeader } from "./shell.js?v=f130322";
+  money, newYorkOtherAccounts, select, spinner, toast } from "../ui.js?v=b8fd816";
+import { pageHeader } from "./shell.js?v=b8fd816";
 
 const ACCOUNT_ORDER = ["취재비", "경상비", "차량유지비"];
 const SHEET = { 취재비: "취재비", 경상비: "지국경상비", 차량유지비: "차량유지비" };

@@ -1,7 +1,7 @@
 // 앱 셸 — 상단 헤더(SBS EASY SCAN 로고), 왼쪽 메뉴, 본문.
-import { logout } from "../api.js?v=f130322";
-import { ACCT, BRANCH, ROLE, h, icon, tip } from "../ui.js?v=f130322";
-import { BUILD, VERSION } from "../version.js?v=f130322";
+import { logout } from "../api.js?v=b8fd816";
+import { ACCT, BRANCH, ROLE, h, icon, tip } from "../ui.js?v=b8fd816";
+import { BUILD, VERSION } from "../version.js?v=b8fd816";
 
 let navLinks = [];
 let activeIcon = "home";

@@ -1,12 +1,12 @@
 // 홈 — 고른 정산 분기(현분기·전분기)의 요약 지표, 한도 현황, 최근 증빙, 바로가기.
-import { api } from "../api.js?v=f130322";
-import { IN_REVIEW, WRITING_STATUSES, clear, dateText, empty, errorText, h, icon, metricTile, money, spinner, statusChip } from "../ui.js?v=f130322";
-import { compactFlow } from "../flow.js?v=f130322";
-import { loadFx, sumIn } from "../fx.js?v=f130322";
-import { getPeriod, periodCaption, periodControls, savedDateRange } from "../period.js?v=f130322";
-import { limitsCard } from "./limits.js?v=f130322";
-import { renderDashboard } from "./dashboard.js?v=f130322";
-import { pageHeader } from "./shell.js?v=f130322";
+import { api } from "../api.js?v=b8fd816";
+import { IN_REVIEW, WRITING_STATUSES, clear, dateText, empty, errorText, h, icon, metricTile, money, spinner, statusChip } from "../ui.js?v=b8fd816";
+import { compactFlow } from "../flow.js?v=b8fd816";
+import { loadFx, sumIn } from "../fx.js?v=b8fd816";
+import { getPeriod, periodCaption, periodControls, savedDateRange } from "../period.js?v=b8fd816";
+import { limitsCard } from "./limits.js?v=b8fd816";
+import { renderDashboard } from "./dashboard.js?v=b8fd816";
+import { pageHeader } from "./shell.js?v=b8fd816";
 
 export function renderHome(el, ctx) {
   if (ctx.me.role !== "staff") return renderDashboard(el); // 본사(보도BIZ팀·보도국장·재무팀): 전 지국 대시보드

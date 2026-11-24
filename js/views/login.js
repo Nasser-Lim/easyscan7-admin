@@ -1,6 +1,6 @@
-import { health, login, setEmulatorPassword } from "../api.js?v=f130322";
-import { field, h, icon, toast } from "../ui.js?v=f130322";
-import { BUILD, VERSION } from "../version.js?v=f130322";
+import { health, login, setEmulatorPassword } from "../api.js?v=b8fd816";
+import { field, h, icon, toast } from "../ui.js?v=b8fd816";
+import { BUILD, VERSION } from "../version.js?v=b8fd816";
 
 export function renderLogin(root, onSuccess) {
   const code = window.ES7_CONFIG.firebase.emulator && location.hash.startsWith("#/setup?")
